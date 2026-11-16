@@ -5,6 +5,9 @@ export function publicHTTPS(value) {
   try { const url = new URL(value); const host = url.hostname.toLowerCase(); return url.protocol === 'https:' && url.pathname==='/' && !url.search && !url.hash && !url.username && !url.password && !['localhost','127.0.0.1','[::1]','0.0.0.0'].includes(host) && !/^(10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) && !host.endsWith('.local'); } catch { return false; }
 }
 const fail = (message, code='META_ERROR') => Object.assign(new Error(message), { status: 422, code });
+// Meta's own short error text (e.g. "Invalid redirect_uri") is the only way to trace a rejected
+// connection. Keep it, but strip URLs and long token-like strings and cap the length.
+export const metaReason = value => typeof value === 'string' ? value.replace(/https?:\/\/\S+/g,'[url]').replace(/[A-Za-z0-9_|.\-]{32,}/g,'[…]').replace(/\s+/g,' ').trim().slice(0,160) : '';
 export function createInstagram(store, getConfig, options = {}) {
   const transport = options.fetch || fetch;
   const wait = options.wait || (ms => new Promise(resolve => setTimeout(resolve,ms)));
@@ -18,10 +21,12 @@ export function createInstagram(store, getConfig, options = {}) {
     let response; try { response = await transport(url,{...init,signal:AbortSignal.timeout(25000)}); } catch { throw fail('Koneksi ke Meta tidak selesai. Status hasil perlu diperiksa sebelum mencoba lagi.','META_NETWORK'); }
     let body; try { body = await response.json(); } catch { throw fail('Respons Meta tidak dapat dibaca.','META_RESPONSE'); }
     if (!response.ok || body.error) {
-      const raw = typeof body.error === 'object' ? body.error : { message: body.error_message || 'Permintaan Meta ditolak.' };
+      // Graph errors are {error:{message,code}}; the OAuth token endpoint uses {error_type,code,error_message}.
+      const raw = typeof body.error === 'object' ? body.error : { message: body.error_message || 'Permintaan Meta ditolak.', code: body.code };
       if (Number(raw.code) === 190) { const c = connection(); if(c) store.setSecret('instagram.connection',{...c,invalid:true}); }
-      // Never include request URLs, secrets, access tokens, or arbitrary response bodies in logs.
-      throw fail(Number(raw.code)===190?'Izin Instagram kedaluwarsa. Sambungkan kembali akun.':`Meta menolak permintaan${raw.code?' (kode '+raw.code+')':''}. Periksa izin dan spesifikasi media.`,Number(raw.code)===190?'META_AUTH':'META_REJECTED');
+      // Never include request URLs, secrets, access tokens, or raw response bodies; only Meta's sanitized error text.
+      const reason=metaReason(raw.error_user_msg||raw.message);
+      throw fail(Number(raw.code)===190?'Izin Instagram kedaluwarsa. Sambungkan kembali akun.':`Meta menolak permintaan${raw.code?' (kode '+raw.code+')':''}${reason?': '+reason:''}. Periksa izin dan spesifikasi media.`,Number(raw.code)===190?'META_AUTH':'META_REJECTED');
     }
     return body;
   }
@@ -47,11 +52,13 @@ export function createInstagram(store, getConfig, options = {}) {
     if(error)throw fail('Koneksi Instagram dibatalkan.','OAUTH_CANCELLED');if(!code||code.length>2048)throw fail('Kode koneksi Instagram tidak valid.','INVALID_CODE');
     const config=getConfig();const redirect=`${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback`;
     const short=await request('https://api.instagram.com/oauth/access_token',{method:'POST',body:new URLSearchParams({client_id:config.appId,client_secret:config.appSecret,grant_type:'authorization_code',redirect_uri:redirect,code:code.replace(/#_$/,'')})});
-    if(!short.access_token)throw fail('Meta tidak mengembalikan izin akses.','INVALID_TOKEN');
-    const exchange=new URL('https://graph.instagram.com/access_token');Object.entries({grant_type:'ig_exchange_token',client_secret:config.appSecret,access_token:short.access_token}).forEach(([k,v])=>exchange.searchParams.set(k,v));const long=await request(exchange);
+    // Meta documents this response as {data:[{access_token,user_id,permissions}]}; some apps still receive it flat.
+    const grant=Array.isArray(short.data)?short.data[0]||{}:short;
+    if(typeof grant.access_token!=='string'||!grant.access_token)throw fail('Meta tidak mengembalikan izin akses.','INVALID_TOKEN');
+    const exchange=new URL('https://graph.instagram.com/access_token');Object.entries({grant_type:'ig_exchange_token',client_secret:config.appSecret,access_token:grant.access_token}).forEach(([k,v])=>exchange.searchParams.set(k,v));const long=await request(exchange);
     if(typeof long.access_token!=='string'||!long.access_token||!Number.isFinite(Number(long.expires_in))||Number(long.expires_in)<=0)throw fail('Meta tidak memberikan token jangka panjang yang valid. Mulai koneksi kembali.','INVALID_TOKEN');
     const profile=await graph('me',{fields:'user_id,username,account_type'},'GET',long.access_token);
-    const id=String(profile.user_id||profile.id||short.user_id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan.','PROFILE_INVALID');
+    const id=String(profile.user_id||profile.id||grant.user_id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan.','PROFILE_INVALID');
     store.setSecret('instagram.connection',{token:long.access_token,accountId:id,username:profile.username,expiresAt:Date.now()+Number(long.expires_in||5184000)*1000,refreshedAt:Date.now(),invalid:false});
     store.event(null,'Instagram terhubung',`Akun @${profile.username} dihubungkan.`,'connection',userId);return status();
   }

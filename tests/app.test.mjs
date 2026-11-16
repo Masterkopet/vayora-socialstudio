@@ -76,6 +76,29 @@ function metaTransport({ambiguous=false}={}){const tracker={publishes:0,publishe
 test('publishing records result and cannot publish an already-published post twice',async()=>{const f=await publishingStore();try{const transport=metaTransport();const ig=createInstagram(f.store,()=>({publicBase:'https://example.test',version:'v27.0'}),{fetch:transport.fetch,wait:async()=>{}});const item=await ig.run('I01',()=> 'https://example.test/media.jpg');assert.equal(item.status,'published');assert.equal(item.mediaId,'published-1');await assert.rejects(()=>ig.run('I01',()=>''),/tidak memenuhi/);assert.equal(transport.tracker.publishes,1);assert.ok(!JSON.stringify(ig.status()).includes('private-token-fixture'));}finally{await f.cleanup();}});
 test('ambiguous publish response stays locked until Meta confirms the result',async()=>{const f=await publishingStore();try{const transport=metaTransport({ambiguous:true});const ig=createInstagram(f.store,()=>({publicBase:'https://example.test',version:'v27.0'}),{fetch:transport.fetch,wait:async()=>{}});let item=await ig.run('I01',()=> 'https://example.test/media.jpg');assert.equal(item.status,'uncertain');await assert.rejects(()=>ig.run('I01',()=>''));item=await ig.reconcile('I01');assert.equal(item.status,'uncertain');transport.tracker.published=true;item=await ig.reconcile('I01');assert.equal(item.status,'published');assert.equal(transport.tracker.publishes,1);}finally{await f.cleanup();}});
 test('OAuth state is session-bound, single use and access token remains encrypted',async()=>{const f=await publishingStore();try{const transport=async url=>{const u=new URL(url);if(u.hostname==='api.instagram.com')return Response.json({access_token:'short-fixture-token',user_id:'12345'});if(u.pathname==='/access_token')return Response.json({access_token:'long-fixture-token',expires_in:5184000});if(u.pathname.endsWith('/me'))return Response.json({user_id:'12345',username:'fixture'});throw new Error('Unexpected request');};const ig=createInstagram(f.store,()=>({appId:'123456',appSecret:'secret-fixture',publicBase:'https://example.test',version:'v27.0'}),{fetch:transport});const url=new URL(ig.start('owner','session-one'));const state=url.searchParams.get('state');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','wrong-session'),/sesi berbeda/);await ig.callback({state,code:'one'},'owner','session-one');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','session-one'),/kedaluwarsa/);assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('long-fixture-token'));assert.equal(ig.status().connected,true);}finally{await f.cleanup();}});
+test('OAuth accepts the documented data-wrapped token response and traces Meta rejections without secrets',async()=>{
+  const f=await publishingStore();
+  try{
+    const config=()=>({appId:'123456',appSecret:'secret-fixture',publicBase:'https://example.test',version:'v27.0'});
+    let tokenRequest;
+    const documented=async(url,init)=>{const u=new URL(url);
+      if(u.hostname==='api.instagram.com'){tokenRequest=Object.fromEntries(init.body);return Response.json({data:[{access_token:'short-fixture-token',user_id:'17841400000000001',permissions:'instagram_business_basic,instagram_business_content_publish'}]});}
+      if(u.pathname==='/access_token'){assert.equal(u.searchParams.get('access_token'),'short-fixture-token');return Response.json({access_token:'long-fixture-token',token_type:'bearer',expires_in:5183944});}
+      if(u.pathname.endsWith('/me'))return Response.json({user_id:'17841400000000001',username:'vayora'});
+      throw new Error('Unexpected request');};
+    const ig=createInstagram(f.store,config,{fetch:documented});
+    const state=new URL(ig.start('owner','session-one')).searchParams.get('state');
+    const result=await ig.callback({state,code:'code-fixture#_'},'owner','session-one');
+    assert.equal(result.connected,true);assert.equal(result.username,'vayora');assert.equal(result.accountId,'17841400000000001');
+    assert.equal(tokenRequest.code,'code-fixture');assert.equal(tokenRequest.redirect_uri,'https://example.test/auth/instagram/callback');
+    const rejecting=async url=>new URL(url).hostname==='api.instagram.com'?Response.json({error_type:'OAuthException',code:400,error_message:'Invalid redirect_uri https://evil.test/x token IGAAabcdefghijklmnopqrstuvwxyz0123456789'},{status:400}):Response.json({});
+    const failing=createInstagram(f.store,config,{fetch:rejecting});
+    const second=new URL(failing.start('owner','session-one')).searchParams.get('state');
+    await assert.rejects(()=>failing.callback({state:second,code:'one'},'owner','session-one'),error=>{
+      assert.equal(error.code,'META_REJECTED');assert.match(error.message,/kode 400/);assert.match(error.message,/Invalid redirect_uri/);
+      assert.ok(!error.message.includes('evil.test')&&!error.message.includes('IGAAabcdef')&&!error.message.includes('secret-fixture'));return true;});
+  }finally{await f.cleanup();}
+});
 
 async function safeRemove(directory){const target=path.resolve(directory),base=path.resolve(os.tmpdir());if(!target.startsWith(base+path.sep)||!/^vayora-(test|publisher)-/.test(path.basename(target)))throw Error('Unsafe test cleanup path');await rm(target,{recursive:true,force:true});}
 
