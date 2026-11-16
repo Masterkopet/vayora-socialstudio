@@ -1,0 +1,30 @@
+# Override for a server whose ports 80/443 already belong to Coolify's Traefik
+# (container "coolify-proxy", network "coolify"). Do not start the "edge" Caddy profile there.
+#
+#   docker compose --env-file deploy/production.env -f compose.production.yml -f deploy/compose.traefik.yml up -d --build app
+#
+# Router, middleware and service names are unique to Studio so they never depend on
+# labels of other Coolify apps. Next.js already compresses responses, so no gzip middleware.
+services:
+  app:
+    networks:
+      - default
+      - coolify
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.middlewares.vayora-studio-https.redirectscheme.scheme: https
+      traefik.http.routers.vayora-studio-http.entrypoints: http
+      traefik.http.routers.vayora-studio-http.rule: Host(`${APP_DOMAIN:?Set APP_DOMAIN in deploy/production.env}`)
+      traefik.http.routers.vayora-studio-http.middlewares: vayora-studio-https
+      traefik.http.routers.vayora-studio-http.service: vayora-studio
+      traefik.http.routers.vayora-studio.entrypoints: https
+      traefik.http.routers.vayora-studio.rule: Host(`${APP_DOMAIN:?Set APP_DOMAIN in deploy/production.env}`)
+      traefik.http.routers.vayora-studio.tls: "true"
+      traefik.http.routers.vayora-studio.tls.certresolver: letsencrypt
+      traefik.http.routers.vayora-studio.service: vayora-studio
+      traefik.http.services.vayora-studio.loadbalancer.server.port: "3210"
+
+networks:
+  coolify:
+    external: true
