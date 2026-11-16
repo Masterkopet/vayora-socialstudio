@@ -11,6 +11,21 @@ Paket ini disiapkan untuk satu server Docker Linux yang hidup terus. Target host
 - Login pemilik dan undangan editor tetap berlaku. Tidak ada pendaftaran client atau halaman jualan Social Studio.
 - Produksi menolak berjalan bila domain HTTPS atau akun pemilik belum tersedia. Data harus dimigrasikan sebelum port publik dilayani, agar halaman pembuatan pemilik tidak bisa diambil orang lain.
 
+## Produksi saat ini: Coolify (studio.vayora.id)
+
+`https://studio.vayora.id` dikelola Coolify di `https://coolify.vayora.id`, project **Vayora → production**, aplikasi **vayora-socialstudio**.
+
+- **Sumber:** `git@github.com:Masterkopet/vayora-socialstudio.git` branch `main` melalui deploy key read-only. Build pack Dockerfile (`/Dockerfile`), port 3210, satu instance.
+- **Auto-deploy:** webhook GitHub (event push) ke `https://coolify.vayora.id/webhooks/source/github/events/manual`. Setiap push ke `main` membangun image baru lalu melakukan rolling update; container baru menerima trafik setelah HEALTHCHECK Dockerfile lolos. Push tidak mengubah folder data.
+- **Data:** persistent storage bind mount `/opt/vayora-social-studio/data` → `/app/data` (database, media, `.encryption-key`). Jangan ganti ke volume baru tanpa memindahkan isi folder ini.
+- **Env runtime:** `APP_ORIGIN` dan `PUBLIC_BASE_URL` = `https://studio.vayora.id`, `INSTAGRAM_API_VERSION`, `HOSTNAME=0.0.0.0`. `NODE_ENV`, `PORT`, `DATA_DIR`, dan `REQUIRE_EXISTING_OWNER` berasal dari Dockerfile; jangan menambahkan `NODE_ENV` di Coolify karena env ikut tersedia saat build.
+- **Opsi Docker:** `--init --cap-drop=ALL`. Parser opsi Coolify memotong `--security-opt=no-new-privileges` menjadi `no` sehingga container gagal start, jadi opsi itu tidak dipakai.
+- **Healthcheck Coolify** dinonaktifkan karena image tidak memuat curl/wget; Coolify memakai HEALTHCHECK Dockerfile.
+
+**Rollback:** pilih image sebelumnya di tab Rollback aplikasi Coolify. Jalur darurat tanpa Coolify: hentikan aplikasi di Coolify, lalu jalankan `docker compose --env-file deploy/production.env -f compose.production.yml -f deploy/compose.traefik.yml up -d app` di `/opt/vayora-social-studio` (folder data yang sama). Jangan menjalankan keduanya bersamaan.
+
+Langkah 1–5 di bawah menjelaskan pemasangan manual dengan Docker Compose untuk server lain atau keadaan darurat.
+
 ## 1. Tentukan tempat dan domain
 
 Gunakan VPS/Docker dengan penyimpanan permanen atau hosting container yang menyediakan volume persisten. Contoh alamat subdomain adalah `studio.vayora.id`; pilihan akhirnya mengikuti pemilik domain. Hosting statis saja tidak menjalankan database, pemrosesan video, dan scheduler aplikasi ini.
@@ -95,6 +110,6 @@ Perpindahan online tidak otomatis mengaktifkan publikasi, memanggil layanan AI b
 
 Backup seluruh folder data beserta key melalui penyimpanan privat. Untuk backup file biasa, hentikan aplikasi sebentar supaya database/WAL konsisten, salin folder lengkap, lalu hidupkan kembali. Snapshot migrasi menonaktifkan publikasi/menghapus sesi pada salinan sehingga berbeda dari backup pemulihan mentah.
 
-Untuk update, backup dahulu, perbarui source, lalu build dan recreate layanan app dengan Compose yang sama. Pertahankan folder data dan nama proyek/volume. Jangan menjalankan `down -v` pada produksi. Uji login/media dan status koneksi sesudah update. Pastikan backup dapat dipulihkan sebelum mengandalkannya.
+Di produksi Coolify, update cukup dengan push ke `main`; backup folder data terlebih dahulu bila perubahan menyentuh skema database atau migrasi. Pada pemasangan Compose manual, backup dahulu, perbarui source, lalu build dan recreate layanan app dengan Compose yang sama. Pertahankan folder data dan nama proyek/volume. Jangan menjalankan `down -v` pada produksi. Uji login/media dan status koneksi sesudah update. Pastikan backup dapat dipulihkan sebelum mengandalkannya.
 
 Referensi resmi: [Hostinger Docker Manager](https://www.hostinger.com/support/12040789-hostinger-docker-manager-for-vps-simplify-your-container-deployments/), [Docker Compose variables](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/), [Caddy HTTPS](https://caddyserver.com/docs/automatic-https), [Railway volumes](https://docs.railway.com/volumes/reference).
