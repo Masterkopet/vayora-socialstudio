@@ -1,0 +1,37 @@
+[
+  {
+    "id": "web-home",
+    "url": "https://vayora.id/",
+    "checkedAt": "2026-11-16T05:31:40.127Z",
+    "sha256": "b3b4698db9b54087da33820c5256fb5a466daf096e4ab60bce3a8118425f2415",
+    "file": "knowledge/sources/website-home.txt"
+  },
+  {
+    "id": "web-tentang",
+    "url": "https://vayora.id/tentang",
+    "checkedAt": "2026-11-16T05:31:39.946Z",
+    "sha256": "341f6207c7462767c96fc095fb35ff1239b244c1ea05addb2c81b8abfe2d9498",
+    "file": "knowledge/sources/website-tentang.txt"
+  },
+  {
+    "id": "web-blog",
+    "url": "https://vayora.id/blog",
+    "checkedAt": "2026-11-16T05:31:40.006Z",
+    "sha256": "4dff796a20f614ef862a7fdf099521b3e6ceb199d47867a113b92694167fc200",
+    "file": "knowledge/sources/website-blog.txt"
+  },
+  {
+    "id": "web-blog-apa-itu-villa-pms",
+    "url": "https://vayora.id/blog/apa-itu-villa-pms",
+    "checkedAt": "2026-11-16T05:31:40.066Z",
+    "sha256": "5f8a76ccbede64aa5bf0504c5a8052e1a26de47c94b1b4e157f86092d92bb82e",
+    "file": "knowledge/sources/website-blog-apa-itu-villa-pms.txt"
+  },
+  {
+    "id": "web-blog-kamar-siap-tanpa-harus-datang",
+    "url": "https://vayora.id/blog/kamar-siap-tanpa-harus-datang",
+    "checkedAt": "2026-11-16T05:31:40.126Z",
+    "sha256": "ab08cf1dac3af9d6e8222a37348a3a42dcdffce5cc5ed16258e8eb36287f3e4c",
+    "file": "knowledge/sources/website-blog-kamar-siap-tanpa-harus-datang.txt"
+  }
+]

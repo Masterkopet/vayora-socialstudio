@@ -1,0 +1,33 @@
+{
+  "name": "vayora-social-studio",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vayora internal Instagram content planning and publishing workspace",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env scripts/start-next.mjs",
+    "dev": "next dev --hostname 127.0.0.1 --port 3210",
+    "seed": "node --env-file-if-exists=.env scripts/import-vayora.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "check": "node scripts/check-source.mjs",
+    "knowledge:build": "node scripts/build-brand-knowledge.mjs",
+    "predev": "node scripts/sync-vendor.mjs",
+    "prebuild": "node scripts/sync-vendor.mjs",
+    "build": "next build",
+    "postbuild": "node scripts/prepare-standalone.mjs",
+    "start:local": "node --env-file-if-exists=.env scripts/start-next.mjs --local",
+    "test:browser": "node tests/browser.e2e.mjs",
+    "test:menu": "node tests/menu.browser.mjs"
+  },
+  "dependencies": {
+    "busboy": "1.6.0",
+    "lucide": "^1.73.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sharp": "0.35.5"
+  }
+}

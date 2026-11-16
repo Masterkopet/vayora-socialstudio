@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const file=new URL('../tests/app.test.mjs',import.meta.url);let code=fs.readFileSync(file,'utf8');
+code=code.replace("import test from 'node:test';","import test from 'node:test';\nimport http from 'node:http';");
+code=code.replace("if(session){headers.Cookie=session.cookie;headers['x-csrf-token']=session.csrf;}","if(session?.cookie){headers.Cookie=session.cookie;headers['x-csrf-token']=session.csrf;}");
+const old="const response=await fetch(base+url,{method,headers,body:body?JSON.stringify(body):undefined});const data=await response.json();return{response,data};";
+if(!code.includes(old))throw Error('Missing test request helper');
+code=code.replace(old,()=>"return new Promise((resolve,reject)=>{const req=http.request(base+url,{method,headers},res=>{const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>{try{const data=JSON.parse(Buffer.concat(chunks));resolve({response:{status:res.statusCode,headers:new Headers(res.headers)},data});}catch(e){reject(e);}});});req.on('error',reject);req.end(body?JSON.stringify(body):undefined);});");
+code=code.replace("const base=`http://127.0.0.1:${server.address().port}`;",()=>"const base=`http://127.0.0.1:${server.address().port}`;");
+code=code.replaceAll("await rm(directory,{recursive:true,force:true});","await safeRemove(directory);");
+code += "\nasync function safeRemove(directory){const target=path.resolve(directory),base=path.resolve(os.tmpdir());if(!target.startsWith(base+path.sep)||!/^vayora-(test|publisher)-/.test(path.basename(target)))throw Error('Unsafe test cleanup path');await rm(target,{recursive:true,force:true});}\n";
+fs.writeFileSync(file,code);

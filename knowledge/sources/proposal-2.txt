@@ -1,0 +1,160 @@
+SMARTER MANAGEMENT. BETTER HOSPITALITY.
+PROPOSAL
+Vayora Property
+Management System
+Solusi pengelolaan Villa & Homestay dalam satu sistem
+Dipersiapkan untuk
+[Nama Pemilik / Perusahaan]
+Nama Properti
+[Nama Villa / Homestay]
+Lokasi
+[Kota / Kabupaten]
+Tanggal proposal
+[Tanggal, Bulan, Tahun]
+01  
+Tentang Vayora
+Vayora adalah sistem manajemen properti untuk membantu pemilik dan pengelola villa, guesthouse, serta kost eksklusif mengelola operasional harian secara lebih rapi, efisien, dan terukur.
+Melalui satu sistem, tim dapat memantau reservasi, kalender ketersediaan, kebersihan kamar, tagihan tamu, komunikasi, serta laporan operasional. Vayora dapat diakses melalui laptop maupun ponsel.
+Manfaat utama
+Reservasi lebih rapi: kalender terpusat membantu mengurangi risiko double booking.
+Operasional lebih efisien: status kamar dan pekerjaan housekeeping dapat dipantau oleh tim.
+Laporan lebih jelas: okupansi dan pendapatan dapat dipantau untuk mendukung keputusan.
+Layanan tamu lebih profesional: tagihan dan pesan operasional tersusun lebih konsisten.
+02  
+Kebutuhan properti Anda
+Bagian ini dapat disesuaikan setelah diskusi awal dengan calon pelanggan.
+Informasi
+Detail properti
+Nama properti
+[Isi nama properti]
+Jenis properti
+[Villa / Homestay]
+Kategori
+[Basic / Standard / Premium / Luxury / Exclusive]
+Jumlah unit
+[Isi jumlah unit]
+Jumlah kamar
+[Isi jumlah kamar]
+Kapasitas maksimum
+[Isi jumlah tamu]
+Sistem penyewaan
+[Per unit / Per kamar / Keduanya]
+PIC operasional
+[Nama dan jabatan]
+03  
+Rekomendasi paket berlangganan
+Skema di bawah merupakan usulan harga berlangganan PMS per bulan. Kategori final dapat ditentukan berdasarkan jumlah unit, jumlah kamar, kapasitas, fasilitas, dan kompleksitas operasional.
+Jenis
+Kategori
+Gambaran umum
+Biaya / bulan
+Homestay
+Basic
+1–3 kamar; fasilitas dasar
+Rp99.000
+Homestay
+Standard
+3–5 kamar; kamar mandi privat, AC/Wi-Fi
+Rp149.000
+Homestay
+Premium
+5–10 kamar; fasilitas dan layanan lebih lengkap
+Rp249.000
+Homestay
+Boutique
+10–20 kamar; pengelolaan profesional
+Rp399.000
+Villa
+Standard
+1–2 kamar tidur; kapasitas 2–4 tamu
+Rp149.000
+Villa
+Premium
+2–3 kamar tidur; kapasitas 4–6 tamu
+Rp249.000
+Villa
+Luxury
+3–4 kamar tidur; kapasitas 6–10 tamu
+Rp399.000
+Villa
+Exclusive
+5+ kamar tidur; kapasitas 10–20+ tamu
+Rp599.000
+Catatan: harga merupakan simulasi penawaran awal dan dapat diubah oleh Vayora sesuai kebijakan komersial, cakupan layanan, jumlah properti, serta kesepakatan dengan pelanggan.
+04  
+Fitur dan ruang lingkup layanan
+Fitur
+Deskripsi
+Kalender & reservasi
+Pencatatan booking dalam kalender terpusat, pencarian reservasi, dan pengelolaan ketersediaan.
+Sewa per unit / per kamar
+Pengaturan properti yang disewakan utuh atau per kamar dengan pencegahan bentrok ketersediaan.
+Harga & kode promo
+Pengaturan harga dasar, harga akhir pekan, harga khusus, deposit, pembatalan, dan promo.
+Housekeeping & bukti foto
+Pencatatan status kebersihan kamar melalui ponsel dan proses persetujuan kamar siap jual.
+Linen & laundry
+Pencatatan alur linen dan laundry beserta biaya terkait.
+Pesan WhatsApp siap pakai
+Template pesan konfirmasi, pengingat, dan check-out melalui nomor WhatsApp properti.
+Notifikasi & pemantauan
+Ringkasan operasional dan pemberitahuan aktivitas penting.
+Laporan & keuangan
+Pemantauan okupansi, pendapatan, target, prakiraan, dan unduhan laporan.
+Website booking mandiri tersedia sebagai layanan tambahan. Integrasi OTA dan sejumlah metode pembayaran ditandai sebagai fitur yang akan hadir pada informasi website saat proposal ini disusun; konfirmasi ketersediaan dan biaya dilakukan terpisah.
+05  
+Rincian penawaran
+Komponen
+Penawaran
+Paket / kategori dipilih
+[Contoh: Premium Villa]
+Jumlah properti / unit
+[Isi jumlah]
+Biaya berlangganan per bulan
+Rp[Nominal]
+Biaya setup / onboarding
+Rp[Nominal / Gratis]
+Periode penagihan
+[Bulanan / Tahunan]
+Masa berlangganan
+[Tanggal mulai – tanggal berakhir]
+Total tagihan awal
+Rp[Nominal]
+Pajak (jika berlaku)
+[Keterangan]
+06  
+Ketentuan berlangganan
+Biaya berlangganan mengikuti paket dan jumlah unit yang disepakati.
+Pembayaran dilakukan sesuai periode penagihan yang tercantum pada invoice.
+Perubahan jumlah unit atau kategori dapat memengaruhi biaya berlangganan.
+Fitur tambahan, integrasi, pelatihan khusus, atau permintaan pengembangan di luar ruang lingkup standar dapat dikenakan biaya terpisah setelah disetujui.
+Status layanan, masa aktif, perpanjangan, dan penghentian mengikuti ketentuan layanan Vayora yang berlaku.
+07  
+Tahapan implementasi
+Tahap
+Aktivitas
+Target
+1. Konsultasi
+Validasi kebutuhan, jumlah unit, dan kategori properti.
+[Tanggal]
+2. Setup akun
+Pembuatan akun dan konfigurasi data properti.
+[Tanggal]
+3. Pelatihan
+Pengenalan alur reservasi dan operasional kepada tim.
+[Tanggal]
+4. Go-live
+Mulai penggunaan dan evaluasi awal.
+[Tanggal]
+08  
+Persetujuan
+Apabila penawaran ini telah sesuai, kedua pihak dapat melanjutkan ke proses konfirmasi paket, pembayaran, dan penjadwalan implementasi.
+Pihak Vayora
+Pihak Pelanggan
+Nama: [Nama PIC]
+Nama: [Nama pelanggan / PIC]
+Tanggal: ________________
+Tanggal: ________________
+VAYORA
+Smarter management. Better hospitality.
+Website: www.vayora.id  |  Kontak: [Nomor WhatsApp / Email resmi]

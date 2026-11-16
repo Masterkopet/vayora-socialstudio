@@ -1,0 +1,17 @@
+node_modules
+data
+test-results
+deployment-private
+deployment-packages
+.git
+.env
+.env.*
+**/*.env
+*.zip
+*.tar
+*.tgz
+*.log
+tests
+docs
+
+.next

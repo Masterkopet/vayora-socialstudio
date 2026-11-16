@@ -1,0 +1,55 @@
+name: vayora-social-studio
+services:
+  app:
+    build: .
+    image: vayora-social-studio:local
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3210
+      DATA_DIR: /app/data
+      REQUIRE_EXISTING_OWNER: "true"
+      APP_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN in deploy/production.env}
+      PUBLIC_BASE_URL: https://${APP_DOMAIN:?Set APP_DOMAIN in deploy/production.env}
+      INSTAGRAM_API_VERSION: ${INSTAGRAM_API_VERSION:-v27.0}
+    ports:
+      - "127.0.0.1:${APP_PORT:-3210}:3210"
+    volumes:
+      - ${DATA_PATH:-./data}:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  https:
+    image: caddy:2
+    profiles: [edge]
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in deploy/production.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  caddy_data:
+  caddy_config:

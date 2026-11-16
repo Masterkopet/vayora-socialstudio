@@ -1,0 +1,9 @@
+/* Vayora first-party attribution. Load after the website's analytics consent. */
+(()=>{
+  const script=document.currentScript;if(!script)return;const endpoint=new URL('/tracking/collect',script.src).href,siteId=script.dataset.site,test=script.dataset.test==='true';
+  if(window.vayoraAnalyticsConsent!==true||navigator.doNotTrack==='1')return;
+  let session,campaignId;try{const query=new URL(location.href).searchParams.get('vsc'),previous=JSON.parse(sessionStorage.getItem('vayora.attribution')||'null'),fresh=/^[a-f0-9]{20}$/.test(query||'');campaignId=fresh?query:previous&&Date.now()-previous.at<86400000?previous.campaignId:null;if(!campaignId)return;session=previous?.session||crypto.randomUUID();sessionStorage.setItem('vayora.attribution',JSON.stringify({campaignId,session,at:fresh?Date.now():previous.at}));}catch{return;}
+  function track(type,label=''){if(!['visit','cta_click'].includes(type)||window.vayoraAnalyticsConsent!==true)return;const event={siteId,campaignId,session,eventId:crypto.randomUUID(),type,label:['whatsapp','demo_button','demo_form'].includes(label)?label:'cta',test,path:/^\/(?:tentang|blog(?:\/[a-z0-9-]+)?)?\/?$/.test(location.pathname)?location.pathname:'/'};fetch(endpoint,{method:'POST',mode:'cors',credentials:'omit',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(event)}).catch(()=>{});}
+  track('visit');document.addEventListener('click',e=>{const target=e.target.closest('[data-vayora-cta],a[href]');if(!target)return;let whatsapp=false;try{whatsapp=['wa.me','api.whatsapp.com'].includes(new URL(target.href,location.href).hostname);}catch{}if(whatsapp||target.hasAttribute('data-vayora-cta'))track('cta_click',whatsapp?'whatsapp':target.dataset.vayoraCta||'demo_button');},{capture:true});
+  window.VayoraAnalytics={track,campaignId};
+})();
