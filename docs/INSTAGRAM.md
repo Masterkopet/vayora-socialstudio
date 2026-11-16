@@ -8,13 +8,14 @@ Ubah akun Vayora menjadi akun profesional jenis Business atau Creator. Untuk ver
 
 ## Buat aplikasi Meta
 
-1. Masuk ke https://developers.facebook.com/apps/ dan buat aplikasi dengan produk Instagram yang mendukung Instagram Login.
-2. Gunakan Instagram App ID dan Instagram App Secret pada konfigurasi produk tersebut.
-3. Minta scope `instagram_business_basic` dan `instagram_business_content_publish`.
-4. Untuk uji akun sendiri dalam mode pengembangan, tambahkan akun sebagai tester sesuai dashboard Meta, lalu terima undangan di akun Instagram. Peran dan akses harus cocok dengan akun yang akan dipublikasikan.
-5. Siapkan HTTPS publik untuk server Social Studio. Daftarkan callback tepat sama dengan `https://domain-kamu/auth/instagram/callback` pada konfigurasi OAuth Meta.
+1. Login di https://developers.facebook.com/ (daftar sebagai developer bila diminta), lalu buka **My Apps → Create App**. Halaman `https://developers.facebook.com/apps/` menampilkan "Page Not Found" bila belum login.
+2. Pilih use case **Other**, tipe aplikasi **Business**, isi nama aplikasi dan email kontak. Pada produk **Instagram**, tekan **Set up**; bagian **API setup with Instagram login** ditambahkan otomatis. Jangan memakai *API setup with Facebook login*.
+3. Buka **Instagram → API setup with Instagram login → 3. Set up Instagram business login → Business login settings**. Salin **Instagram App ID** dan **Instagram app secret** (berbeda dari App ID Facebook di App settings).
+4. Di **Business login settings**, tambahkan `https://domain-kamu/auth/instagram/callback` pada **OAuth redirect URIs** persis sama, tanpa garis miring di akhir, lalu simpan. Bila **Deauthorize callback URL** dan **Data deletion request URL** wajib diisi, gunakan alamat HTTPS Studio; Studio belum memproses permintaan tersebut secara otomatis.
+5. Di bagian **1. Generate access tokens**, tekan **Add account** dan login dengan akun Instagram yang akan dipublikasikan (akun harus publik). Akun juga dapat dikelola lewat **App Roles → Roles**.
+6. Scope yang diminta Studio: `instagram_business_basic` dan `instagram_business_content_publish`. Standard Access cukup untuk akun milik/kelolaan sendiri yang sudah ditambahkan ke aplikasi; Advanced Access dan App Review diperlukan untuk melayani akun pihak lain.
 
-Nama menu dashboard Meta dapat berubah. Cocokkan dengan dokumentasi resmi dan versi API yang dipilih.
+Nama menu dashboard Meta dapat berubah dan dapat tampil dalam bahasa akun Facebook kamu. Cocokkan dengan dokumentasi resmi: https://developers.facebook.com/docs/instagram-platform/create-an-instagram-app dan https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login.
 
 ## Isi konfigurasi server
 
