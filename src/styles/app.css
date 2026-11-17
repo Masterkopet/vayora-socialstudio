@@ -61,6 +61,7 @@ html{background:#edf2f7}body{margin:0;padding:24px;font-family:'Segoe UI',Arial,
 #vayora-studio-complete .smart-ai-background{padding:14px;border:1px solid #dce5ee;border-radius:9px}
 #vayora-studio-complete details summary{cursor:pointer;color:#00285c;font-size:12px;font-weight:650;padding:6px 0}
 #vayora-studio-complete details[open] summary{margin-bottom:12px}
+#vayora-studio-complete .vs-advanced-connect{border-top:1px solid #dce5ee;padding-top:12px}
 #vayora-studio-complete .smart-topic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 #vayora-studio-complete .smart-topic-grid>div{padding:15px;border-radius:9px;background:#f4f7fa;display:grid;gap:8px;color:#61758b;font-size:12px}
 #vayora-studio-complete .smart-topic-grid strong{font-size:26px;color:#00285c}
@@ -278,6 +279,14 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
  #vayora-studio-complete .vs-sidebar{position:sticky;top:24px;height:calc(100dvh - 48px);max-height:calc(100dvh - 48px);align-self:start;gap:22px;overflow:hidden;border-radius:18px 0 0 18px}
  #vayora-studio-complete .vs-nav{flex:1;min-height:0;overflow-y:auto;padding-right:3px}
  #vayora-studio-complete .vs-side-bottom{flex-shrink:0;margin-top:0}
+ #vayora-studio-complete .vs-nav[data-more]{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent)}
+}
+/* Five work-order groups (14 items) must fit common laptop heights; touch screens keep the larger targets. */
+@media(min-width:801px) and (pointer:fine){
+ #vayora-studio-complete .vs-sidebar{gap:18px}
+ #vayora-studio-complete .vs-nav{gap:14px}
+ #vayora-studio-complete .vs-navigation-group{gap:5px}
+ #vayora-studio-complete .vs-nav button{min-height:34px;padding-top:7px;padding-bottom:7px}
 }
 @media(max-width:800px){
 }

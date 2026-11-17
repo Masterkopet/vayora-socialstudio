@@ -27,6 +27,10 @@ Jadwal tampil langsung pada card pustaka. Tombol Post sekarang membuka pemeriksa
 
 Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, serta caption Markdown/JSON/CSV berdasarkan ID. Gambar dikonversi menjadi JPEG sRGB. Video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah.
 
+## Susunan menu
+
+Sidebar mengikuti urutan kerja: **Konten** (Pustaka, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Instagram & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Instagram & publikasi.
+
 ## Mobile dan bahasa
 
 Pada ponsel, gunakan navigasi bawah satu baris: Pustaka, Kalender, Antrean, Asisten, dan Menu. Detail memakai popup ringkas mengambang dengan sudut membulat, latar blur, dan tombol Edit terpisah. Tombol simpan/jadwal tetap terlihat di footer saat editor digulir. Pemilih ID/EN tersedia pada login, header, popup, dan menu. Bahasa disimpan pada browser; caption serta materi sumber tetap dalam bahasa aslinya. [Panduan pustaka dan mobile](docs/PUSTAKA-DAN-MOBILE.md).
@@ -49,7 +53,7 @@ Pengukuran website produksi memerlukan HTTPS publik dan pemasangan tracker di va
 
 Publikasi nyata nonaktif secara bawaan dan antrean dijeda. Kamu tetap dapat memakai login, pustaka, pemeriksaan, dan kalender. Tidak ada akun Instagram demo yang ditampilkan sebagai akun tersambung.
 
-Baca [panduan Instagram](docs/INSTAGRAM.md). App ID, App Secret, akun profesional, dan HTTPS publik diperlukan sebelum login Instagram resmi dapat diuji. Jangan masukkan password Instagram pada form Social Studio.
+Cara tercepat: buka **Pengaturan → Instagram & publikasi**, lalu tempel access token dari tombol **Generate token** di dashboard Meta (Instagram → API setup with Instagram login). Cara ini tidak memerlukan App ID, App Secret, atau redirect URI; Studio menyimpan token terenkripsi dan memperpanjangnya otomatis. Login Meta dengan App ID dan App Secret tetap tersedia sebagai cara lanjutan. Langkah lengkap ada di [panduan Instagram](docs/INSTAGRAM.md). Jangan masukkan password Instagram pada form Social Studio.
 
 ## Akun tim
 
