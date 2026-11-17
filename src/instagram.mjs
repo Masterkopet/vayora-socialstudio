@@ -15,15 +15,17 @@ export function createInstagram(store, getConfig, options = {}) {
   const connection = () => store.secret('instagram.connection');
   function status() {
     const config = getConfig(), c = connection();
-    return { configured: !!(config.appId && config.appSecret), publicUrlReady: publicHTTPS(config.publicBase), callbackUrl: config.publicBase ? `${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback` : null, appId: config.appId || '', version: config.version, publicBase: config.publicBase || '', connected: !!c?.token && c.expiresAt > Date.now() && !c.invalid, username: c?.username || null, accountId: c?.accountId || null, expiresAt: c?.expiresAt || null, error: c?.invalid ? 'Izin Instagram perlu disambungkan kembali.' : null };
+    return { configured: !!(config.appId && config.appSecret), publicUrlReady: publicHTTPS(config.publicBase), callbackUrl: config.publicBase ? `${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback` : null, appId: config.appId || '', version: config.version, publicBase: config.publicBase || '', connected: !!c?.token && c.expiresAt > Date.now() && !c.invalid, method: c ? (c.method || 'oauth') : null, expiresKnown: c ? c.expiresKnown !== false : null, username: c?.username || null, accountId: c?.accountId || null, expiresAt: c?.expiresAt || null, error: c?.invalid ? 'Izin Instagram perlu disambungkan kembali.' : null };
   }
-  async function request(url, init = {}) {
+  // `token` names the token a request used: only a rejection of the stored token marks the saved connection invalid,
+  // so a wrong pasted token or a failed reconnect never breaks a working connection.
+  async function request(url, init = {}, { token } = {}) {
     let response; try { response = await transport(url,{...init,signal:AbortSignal.timeout(25000)}); } catch { throw fail('Koneksi ke Meta tidak selesai. Status hasil perlu diperiksa sebelum mencoba lagi.','META_NETWORK'); }
     let body; try { body = await response.json(); } catch { throw fail('Respons Meta tidak dapat dibaca.','META_RESPONSE'); }
     if (!response.ok || body.error) {
       // Graph errors are {error:{message,code}}; the OAuth token endpoint uses {error_type,code,error_message}.
       const raw = typeof body.error === 'object' ? body.error : { message: body.error_message || 'Permintaan Meta ditolak.', code: body.code };
-      if (Number(raw.code) === 190) { const c = connection(); if(c) store.setSecret('instagram.connection',{...c,invalid:true}); }
+      if (Number(raw.code) === 190) { const c = connection(); if(c && token && c.token === token) store.setSecret('instagram.connection',{...c,invalid:true}); }
       // Never include request URLs, secrets, access tokens, or raw response bodies; only Meta's sanitized error text.
       const reason=metaReason(raw.error_user_msg||raw.message);
       throw fail(Number(raw.code)===190?'Izin Instagram kedaluwarsa. Sambungkan kembali akun.':`Meta menolak permintaan${raw.code?' (kode '+raw.code+')':''}${reason?': '+reason:''}. Periksa izin dan spesifikasi media.`,Number(raw.code)===190?'META_AUTH':'META_REJECTED');
@@ -36,7 +38,23 @@ export function createInstagram(store, getConfig, options = {}) {
     const init = { method, headers: { Authorization:`Bearer ${token}` } };
     if(method==='GET') Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
     else {init.headers['Content-Type']='application/x-www-form-urlencoded';init.body=new URLSearchParams(Object.entries(params).map(([k,v])=>[k,String(v)]));}
-    return request(url,init);
+    return request(url,init,{token});
+  }
+  // Quick connection: the owner pastes the long-lived token from Meta's App Dashboard
+  // (Instagram > API setup with Instagram login > Generate token). No App ID, secret or redirect URI is needed.
+  async function connectToken(rawToken, userId) {
+    const token=typeof rawToken==='string'?rawToken.trim():'';
+    if(!token)throw fail('Tempel access token dari Meta terlebih dahulu.','TOKEN_REQUIRED');
+    if(token.length<20||token.length>2048||!/^[A-Za-z0-9_.|-]+$/.test(token))throw fail('Format token tidak dikenali. Salin ulang seluruh token dari tombol Generate token di Meta.','TOKEN_FORMAT');
+    let profile;
+    try{profile=await graph('me',{fields:'user_id,username,account_type'},'GET',token);}
+    catch(error){if(error.code==='META_AUTH')throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');throw error;}
+    const id=String(profile.user_id||profile.id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan untuk token ini.','PROFILE_INVALID');
+    const now=Date.now();
+    // Dashboard tokens last 60 days from generation; the exact expiry is learned on the first refresh (allowed after 24 hours).
+    store.setSecret('instagram.connection',{token,accountId:id,username:profile.username,method:'token',expiresKnown:false,expiresAt:now+60*86400000,refreshedAt:now,invalid:false});
+    store.event(null,'Instagram terhubung',`Akun @${profile.username} dihubungkan dengan token.`,'connection',userId);
+    return status();
   }
   function start(userId, sessionHash) {
     const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Isi App ID dan App Secret dari Meta Developer terlebih dahulu.','META_NOT_CONFIGURED');
@@ -59,11 +77,14 @@ export function createInstagram(store, getConfig, options = {}) {
     if(typeof long.access_token!=='string'||!long.access_token||!Number.isFinite(Number(long.expires_in))||Number(long.expires_in)<=0)throw fail('Meta tidak memberikan token jangka panjang yang valid. Mulai koneksi kembali.','INVALID_TOKEN');
     const profile=await graph('me',{fields:'user_id,username,account_type'},'GET',long.access_token);
     const id=String(profile.user_id||profile.id||grant.user_id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan.','PROFILE_INVALID');
-    store.setSecret('instagram.connection',{token:long.access_token,accountId:id,username:profile.username,expiresAt:Date.now()+Number(long.expires_in||5184000)*1000,refreshedAt:Date.now(),invalid:false});
+    store.setSecret('instagram.connection',{token:long.access_token,accountId:id,username:profile.username,method:'oauth',expiresKnown:true,expiresAt:Date.now()+Number(long.expires_in||5184000)*1000,refreshedAt:Date.now(),invalid:false});
     store.event(null,'Instagram terhubung',`Akun @${profile.username} dihubungkan.`,'connection',userId);return status();
   }
   async function check() {const c=connection();if(!c)throw fail('Instagram belum terhubung.','NOT_CONNECTED');const profile=await graph('me',{fields:'user_id,username'});if(profile.username!==c.username)store.setSecret('instagram.connection',{...c,username:profile.username});return status();}
-  async function refresh() {const c=connection();if(!c||c.invalid||c.expiresAt-Date.now()>7*86400000||Date.now()-c.refreshedAt<86400000)return;const url=new URL('https://graph.instagram.com/refresh_access_token');url.searchParams.set('grant_type','ig_refresh_token');url.searchParams.set('access_token',c.token);const result=await request(url);if(connection()?.token===c.token)store.setSecret('instagram.connection',{...c,token:result.access_token,expiresAt:Date.now()+result.expires_in*1000,refreshedAt:Date.now()});}
+  // Refresh needs no app secret. Pasted tokens have an unknown generation time, so they are refreshed once after
+  // 24 hours to learn the real expiry; afterwards every connection refreshes in its last 7 days.
+  let lastRefreshAttempt=0;
+  async function refresh() {const c=connection();if(!c||c.invalid||Date.now()-c.refreshedAt<86400000)return;const unknownExpiry=c.expiresKnown===false;if(!unknownExpiry&&c.expiresAt-Date.now()>7*86400000)return;if(Date.now()-lastRefreshAttempt<3600000)return;lastRefreshAttempt=Date.now();const url=new URL('https://graph.instagram.com/refresh_access_token');url.searchParams.set('grant_type','ig_refresh_token');url.searchParams.set('access_token',c.token);const result=await request(url,{},{token:c.token});if(typeof result.access_token!=='string'||!result.access_token||!(Number(result.expires_in)>0))throw fail('Meta tidak memperpanjang token. Sambungkan kembali bila masa berlaku hampir habis.','REFRESH_INVALID');if(connection()?.token===c.token)store.setSecret('instagram.connection',{...c,token:result.access_token,expiresAt:Date.now()+Number(result.expires_in)*1000,expiresKnown:true,refreshedAt:Date.now()});}
   async function ready(containerId) {
     for(let i=0;i<5;i++) {const result=await graph(containerId,{fields:'status_code'});if(result.status_code==='FINISHED')return;if(result.status_code==='PUBLISHED')throw fail('Container ini sudah terbit. Periksa hasil publikasi.','ALREADY_PUBLISHED');if(['ERROR','EXPIRED'].includes(result.status_code))throw fail('Media tidak dapat diproses Meta. Periksa media atau jadwalkan ulang.','CONTAINER_FAILED');await wait(options.pollMs??60000);}
     throw fail('Pemrosesan media melebihi waktu pemeriksaan. Belum ada permintaan publikasi dikirim.','PROCESSING_TIMEOUT');
@@ -95,5 +116,5 @@ export function createInstagram(store, getConfig, options = {}) {
     }
   }
   async function reconcile(id) {let item=store.post(id);if(!item)throw fail('Konten tidak ditemukan.');if(item.status==='published')return item;if(!item.job?.containerId)throw fail('Belum ada container publikasi yang perlu diperiksa.','NO_CONTAINER');const result=await graph(item.job.containerId,{fields:'status_code'});if(result.status_code==='PUBLISHED'){item.status='published';item.publishedAt=item.publishedAt||new Date().toISOString();item.error='';item=store.savePost(item);store.event(id,'Publikasi dikonfirmasi','Meta mengonfirmasi container telah terbit. Percobaan ulang diblokir.','published');}else if(item.job.publishRequested){item.status='uncertain';item.error=`Status Meta: ${result.status_code}. Permintaan publikasi pernah dikirim; jangan mencoba ulang sebelum hasil dipastikan.`;item=store.savePost(item);}else{item.status='failed';item.error='Media belum terbit. Periksa konten dan tentukan jadwal baru.';item=store.savePost(item);}return item;}
-  return {status,start,callback,check,refresh,run,reconcile,graph};
+  return {status,start,callback,connectToken,check,refresh,run,reconcile,graph};
 }

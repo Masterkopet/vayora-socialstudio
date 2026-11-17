@@ -99,6 +99,67 @@ test('OAuth accepts the documented data-wrapped token response and traces Meta r
       assert.ok(!error.message.includes('evil.test')&&!error.message.includes('IGAAabcdef')&&!error.message.includes('secret-fixture'));return true;});
   }finally{await f.cleanup();}
 });
+// Dashboard "Generate token" flow: Meta answers /me for the token in the Authorization header and refreshes without a secret.
+function tokenTransport(accounts,calls=[]){return async(url,init={})=>{const u=new URL(url);calls.push(u);
+  if(u.pathname==='/refresh_access_token'){assert.equal(u.searchParams.get('grant_type'),'ig_refresh_token');assert.equal(u.searchParams.has('client_secret'),false);return Response.json({access_token:'IGAArefreshedtoken0000000000',token_type:'bearer',expires_in:5183944});}
+  if(u.pathname.endsWith('/me')){const token=String(init.headers?.Authorization||'').replace(/^Bearer /,'');const account=accounts[token];return account?Response.json(account):Response.json({error:{message:'Invalid OAuth access token - Cannot parse access token',type:'OAuthException',code:190}},{status:400});}
+  throw new Error('Unexpected request '+u.pathname);};}
+test('pasted dashboard token connects without an app secret, refreshes without one, and a rejected paste keeps the saved connection',async()=>{
+  const f=await publishingStore();
+  try{
+    const calls=[];const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
+    const ig=createInstagram(f.store,config,{fetch:tokenTransport({IGAAgoodtoken1234567890abc:{user_id:'17841400000000002',username:'vayora'}},calls)});
+    await assert.rejects(()=>ig.connectToken('',  'owner'),error=>error.code==='TOKEN_REQUIRED');
+    await assert.rejects(()=>ig.connectToken('IGAA token with spaces 123456','owner'),error=>error.code==='TOKEN_FORMAT');
+    assert.equal(calls.length,0,'format errors never reach Meta');
+    await assert.rejects(()=>ig.connectToken('IGAArejectedtoken000000000','owner'),error=>error.code==='TOKEN_REJECTED'&&/Buat token baru/.test(error.message));
+    assert.equal(ig.status().connected,true,'a rejected paste must not invalidate the working connection');assert.equal(ig.status().username,'fixture');
+    const result=await ig.connectToken('  IGAAgoodtoken1234567890abc  ','owner');
+    assert.equal(result.connected,true);assert.equal(result.configured,false);assert.equal(result.method,'token');assert.equal(result.expiresKnown,false);
+    assert.equal(result.username,'vayora');assert.equal(result.accountId,'17841400000000002');
+    assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('IGAAgoodtoken'),'token is stored encrypted');
+    await ig.refresh();assert.ok(!calls.some(u=>u.pathname==='/refresh_access_token'),'no refresh within the first 24 hours');
+    f.store.setSecret('instagram.connection',{...f.store.secret('instagram.connection'),refreshedAt:Date.now()-25*3600000});
+    await ig.refresh();
+    const saved=f.store.secret('instagram.connection');
+    assert.equal(saved.token,'IGAArefreshedtoken0000000000');assert.equal(saved.expiresKnown,true);
+    assert.ok(Math.abs(saved.expiresAt-(Date.now()+5183944000))<60000,'real expiry learned from the refresh');
+  }finally{await f.cleanup();}
+});
+test('token endpoint is owner-only, needs no Meta app config, and switching accounts turns publishing off',async()=>{
+  const f=await fixture({instagram:{fetch:tokenTransport({IGAAfirstaccount0000000000:{user_id:'111',username:'first'},IGAAsecondaccount000000000:{user_id:'222',username:'second'}})}});
+  try{
+    const owner=await f.setup();
+    assert.equal((await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'})).response.status,401);
+    const first=await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'},owner);
+    assert.equal(first.response.status,200);assert.equal(first.data.connected,true);assert.equal(first.data.configured,false);assert.equal(first.data.username,'first');
+    const blocked=await f.request('/api/workspace/publishing','POST',{enabled:true,confirmation:'AKTIFKAN'},owner);
+    assert.equal(blocked.response.status,400);assert.match(blocked.data.error,/HTTPS publik/);
+    f.store.set('publishingEnabled',true);f.store.set('paused',false);
+    const same=await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'},owner);
+    assert.equal(same.response.status,200);assert.equal(f.store.setting('publishingEnabled',false),true,'renewing the same account keeps publishing on');
+    const second=await f.request('/api/instagram/token','POST',{token:'IGAAsecondaccount000000000'},owner);
+    assert.equal(second.data.username,'second');assert.equal(f.store.setting('publishingEnabled',true),false);assert.equal(f.store.setting('paused',false),true);
+    assert.ok(f.store.get("SELECT id FROM events WHERE title='Akun Instagram diganti'"));
+    const wrong=await f.request('/api/instagram/token','POST',{token:'IGAArejectedtoken000000000'},owner);
+    assert.equal(wrong.response.status,422);assert.match(wrong.data.error,/Token ditolak Meta/);
+    assert.equal((await f.request('/api/instagram/status','GET',null,owner)).data.username,'second');
+    const invite=await f.request('/api/team/invites','POST',{email:'editor@example.test'},owner);const inviteToken=new URL(invite.data.url).searchParams.get('invite');
+    const join=await f.request('/api/auth/accept-invite','POST',{token:inviteToken,name:'Editor Uji',password:'Editor-'+randomBytes(12).toString('hex')});
+    const editor={cookie:join.response.headers.get('set-cookie').split(';')[0],csrf:join.data.csrf};
+    assert.equal((await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'},editor)).response.status,403);
+  }finally{await f.cleanup();}
+});
+test('scheduler keeps a pasted token alive while the queue is paused',async()=>{
+  const calls=[];const f=await fixture({instagram:{fetch:tokenTransport({},calls)}});
+  try{
+    f.store.set('paused',true);f.store.set('publishingEnabled',false);
+    f.store.setSecret('instagram.connection',{token:'IGAApausedtoken0000000000',accountId:'333',username:'paused',method:'token',expiresKnown:false,expiresAt:Date.now()+30*86400000,refreshedAt:Date.now()-25*3600000,invalid:false});
+    await f.tick();
+    assert.ok(calls.some(u=>u.pathname==='/refresh_access_token'),'refresh runs although publishing is paused');
+    assert.equal(f.store.secret('instagram.connection').token,'IGAArefreshedtoken0000000000');assert.equal(f.store.setting('paused',false),true);
+  }finally{await f.cleanup();}
+});
 
 async function safeRemove(directory){const target=path.resolve(directory),base=path.resolve(os.tmpdir());if(!target.startsWith(base+path.sep)||!/^vayora-(test|publisher)-/.test(path.basename(target)))throw Error('Unsafe test cleanup path');await rm(target,{recursive:true,force:true});}
 

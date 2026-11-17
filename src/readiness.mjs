@@ -14,7 +14,7 @@ export function postReadiness(store,item,instagram) {
     {id:'caption',label:'Caption',ok:captionReady,required:true,action:'edit',detail:captionReady?'Caption terisi dan dalam batas karakter.':'Isi caption dengan maksimal 2.200 karakter.'},
     {id:'alt',label:'Deskripsi aksesibilitas',ok:item.format==='Reel'||!!String(item.alt||'').trim(),required:false,action:'edit',detail:item.format==='Reel'?'Tidak diterapkan untuk Reel.':String(item.alt||'').trim()?'Deskripsi sudah terisi.':'Tambahkan deskripsi gambar untuk pembaca layar.'},
     {id:'approval',label:'Persetujuan materi',ok:item.approved===true,required:true,action:'edit',detail:item.approved?'Media dan caption telah disetujui.':'Tinjau materi dan berikan persetujuan di editor.'},
-    {id:'instagram',label:'Koneksi Instagram',ok:live.configured&&live.connected,required:true,action:'settings',detail:live.connected?'Instagram terhubung.':'Hubungkan akun profesional melalui Pengaturan.'},
+    {id:'instagram',label:'Koneksi Instagram',ok:live.connected,required:true,action:'settings',detail:live.connected?'Instagram terhubung.':'Hubungkan akun profesional melalui Instagram & publikasi.'},
     {id:'https',label:'HTTPS publik',ok:live.publicUrlReady,required:true,action:'settings',detail:live.publicUrlReady?'Alamat media publik siap.':'Siapkan HTTPS publik agar Meta dapat mengambil media.'},
     {id:'live',label:'Publikasi aktif',ok:store.setting('publishingEnabled',false),required:true,action:'settings',detail:store.setting('publishingEnabled',false)?'Publikasi nyata diaktifkan.':'Pemilik perlu mengaktifkan publikasi nyata.'},
   ];

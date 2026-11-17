@@ -6,38 +6,43 @@ Login tim Social Studio dapat digunakan tanpa akun Meta Developer. Langkah berik
 
 Ubah akun Vayora menjadi akun profesional jenis Business atau Creator. Untuk versi ini, integrasi menggunakan Instagram API with Instagram Login. Business Portfolio tidak diwajibkan oleh alur login tersebut dan Facebook Page tidak harus ditautkan. Pengaturan serta kelayakan aplikasi Meta tetap perlu dipenuhi.
 
-## Buat aplikasi Meta
+## Cara cepat: tempel token (disarankan)
 
-1. Login di https://developers.facebook.com/ (daftar sebagai developer bila diminta), lalu buka **My Apps → Create App**. Halaman `https://developers.facebook.com/apps/` menampilkan "Page Not Found" bila belum login.
-2. Pilih use case **Other**, tipe aplikasi **Business**, isi nama aplikasi dan email kontak. Pada produk **Instagram**, tekan **Set up**; bagian **API setup with Instagram login** ditambahkan otomatis. Jangan memakai *API setup with Facebook login*.
-3. Buka **Instagram → API setup with Instagram login → 3. Set up Instagram business login → Business login settings**. Salin **Instagram App ID** dan **Instagram app secret** (berbeda dari App ID Facebook di App settings).
-4. Di **Business login settings**, tambahkan `https://domain-kamu/auth/instagram/callback` pada **OAuth redirect URIs** persis sama, tanpa garis miring di akhir, lalu simpan. Bila **Deauthorize callback URL** dan **Data deletion request URL** wajib diisi, gunakan alamat HTTPS Studio; Studio belum memproses permintaan tersebut secara otomatis.
-5. Di bagian **1. Generate access tokens**, tekan **Add account** dan login dengan akun Instagram yang akan dipublikasikan (akun harus publik). Akun juga dapat dikelola lewat **App Roles → Roles**.
-6. Scope yang diminta Studio: `instagram_business_basic` dan `instagram_business_content_publish`. Standard Access cukup untuk akun milik/kelolaan sendiri yang sudah ditambahkan ke aplikasi; Advanced Access dan App Review diperlukan untuk melayani akun pihak lain.
+Tidak perlu App ID, App Secret, maupun redirect URI. Studio cukup menerima access token dari dashboard Meta.
 
-Nama menu dashboard Meta dapat berubah dan dapat tampil dalam bahasa akun Facebook kamu. Cocokkan dengan dokumentasi resmi: https://developers.facebook.com/docs/instagram-platform/create-an-instagram-app dan https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login.
+1. Login di https://developers.facebook.com/ (daftar sebagai developer bila diminta), lalu buka **My Apps → Create App**. Pilih use case **Other**, tipe aplikasi **Business**, isi nama aplikasi dan email, lalu pada produk **Instagram** tekan **Set up**. Halaman `https://developers.facebook.com/apps/` menampilkan "Page Not Found" bila belum login.
+2. Buka **Instagram → API setup with Instagram login → 1. Generate access tokens**. Tekan **Add account**, login dengan akun Instagram Vayora (harus Business/Creator dan publik), lalu tekan **Generate token** dan salin token yang muncul.
+3. Di Social Studio buka **Pengaturan → Instagram & publikasi**, tempel token pada **Hubungkan dengan token**, lalu tekan tombolnya. Studio memeriksa token ke Meta dan menampilkan username yang terhubung.
 
-## Isi konfigurasi server
+Catatan:
 
-Pemilik dapat mengisi App ID, App Secret, URL HTTPS publik, dan versi API di Pengaturan. Secret disimpan terenkripsi di server dan tidak ditampilkan kembali. Alternatifnya isi variabel `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `PUBLIC_BASE_URL`, dan `INSTAGRAM_API_VERSION` di `.env`; environment mengambil prioritas atas konfigurasi UI. Isi juga `APP_ORIGIN` dengan origin HTTPS saat menjalankan melalui domain publik, kemudian restart server.
+- Token dari dashboard berlaku 60 hari. Studio menyimpannya terenkripsi dan memperpanjangnya otomatis tanpa App Secret: pertama kali setelah 24 jam (untuk mengetahui masa berlaku pastinya), lalu dalam 7 hari terakhir sebelum habis. Perpanjangan tetap berjalan walau antrean dijeda.
+- Token yang salah atau kedaluwarsa ditolak dengan pesan dari Meta dan tidak memutus koneksi yang sudah berjalan.
+- Mengganti token dengan akun Instagram lain menonaktifkan publikasi nyata dan menjeda antrean sampai pemilik memeriksa ulang. Memperbarui token akun yang sama tidak mengubah status publikasi.
+- Scope yang dipakai: `instagram_business_basic` dan `instagram_business_content_publish`. Standard Access cukup untuk akun milik/kelolaan sendiri yang sudah ditambahkan ke aplikasi; Advanced Access dan App Review diperlukan untuk melayani akun pihak lain.
+- API (khusus pemilik, memakai session dan header `x-csrf-token`): `POST /api/instagram/token` dengan body `{"token":"IGAA..."}` → status koneksi (`connected`, `username`, `method: "token"`, `expiresAt`, `expiresKnown`).
 
-Untuk tahap lokal sekarang, App ID dan App Secret belum tersedia. Tombol Hubungkan Instagram akan menjelaskan konfigurasi yang kurang; aplikasi tidak menyimulasikan login berhasil.
+## Cara lanjutan: login Meta dengan App ID dan App Secret
 
-## Hubungkan akun
+Pakai cara ini bila ingin menghubungkan lewat halaman login Instagram (OAuth). Di Studio, buka bagian **Cara lanjutan** pada halaman Instagram & publikasi.
 
-1. Login ke Social Studio melalui domain HTTPS yang sudah dikonfigurasi.
-2. Buka Pengaturan → Hubungkan Instagram.
-3. Login dan setujui izin pada halaman resmi Instagram/Meta.
-4. Meta mengembalikan browser ke callback. Server menukar kode menjadi access token dan menyimpannya terenkripsi.
-5. Periksa username, masa berlaku izin, dan tombol Periksa koneksi.
+1. Buat aplikasi seperti langkah 1 di atas.
+2. Buka **Instagram → API setup with Instagram login → 3. Set up Instagram business login → Business login settings**. Salin **Instagram App ID** dan **Instagram app secret** (berbeda dari App ID Facebook di App settings).
+3. Di **Business login settings**, tambahkan `https://domain-kamu/auth/instagram/callback` pada **OAuth redirect URIs** persis sama, tanpa garis miring di akhir, lalu simpan. Bila **Deauthorize callback URL** dan **Data deletion request URL** wajib diisi, gunakan alamat HTTPS Studio; Studio belum memproses permintaan tersebut secara otomatis.
+4. Di bagian **1. Generate access tokens**, tekan **Add account** untuk akun yang akan dipublikasikan.
+5. Isi App ID dan App Secret di formulir Cara lanjutan, simpan, lalu tekan **Hubungkan lewat login Meta** dan setujui izin pada halaman resmi Instagram/Meta. Meta mengembalikan browser ke callback; server menukar kode menjadi access token dan menyimpannya terenkripsi.
+
+Alternatif konfigurasi server: isi `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `PUBLIC_BASE_URL`, dan `INSTAGRAM_API_VERSION` di environment; nilai environment mengambil prioritas atas konfigurasi UI. Isi juga `APP_ORIGIN` dengan origin HTTPS saat menjalankan melalui domain publik.
 
 Token tidak disimpan dalam browser. Password Instagram tidak masuk ke server Social Studio. Permintaan OAuth terikat ke session pemilik, kedaluwarsa setelah 10 menit, dan hanya dapat digunakan sekali.
+
+Nama menu dashboard Meta dapat berubah dan dapat tampil dalam bahasa akun Facebook kamu. Cocokkan dengan dokumentasi resmi: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/get-started dan https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login.
 
 ## Sebelum publikasi nyata
 
 Media harus dapat diambil Meta melalui HTTPS publik. Aplikasi menghasilkan URL media bertanda tangan dengan masa berlaku tiga jam. Coba satu gambar, satu Reel, dan satu carousel untuk memverifikasi izin, format, dan tampilan hasil. Periksa khusus rasio/cropping carousel karena hasil Instagram dapat mengikuti aturan pemotongan platform.
 
-Pemilik mengaktifkan Publikasi nyata di Pengaturan setelah koneksi siap. Antrean tetap dapat dijeda sebelum konten uji dijadwalkan. Melanjutkan antrean dan memasang jadwal merupakan tindakan publikasi nyata; jangan memakai materi uji yang belum disetujui.
+Pemilik mengaktifkan Publikasi nyata di **Instagram & publikasi** setelah koneksi siap. Antrean tetap dapat dijeda sebelum konten uji dijadwalkan. Melanjutkan antrean dan memasang jadwal merupakan tindakan publikasi nyata; jangan memakai materi uji yang belum disetujui.
 
 ## Ketika terjadi kendala
 
