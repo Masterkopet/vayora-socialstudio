@@ -15,7 +15,7 @@ export function createInstagram(store, getConfig, options = {}) {
   const connection = () => store.secret('instagram.connection');
   function status() {
     const config = getConfig(), c = connection();
-    return { configured: !!(config.appId && config.appSecret), publicUrlReady: publicHTTPS(config.publicBase), callbackUrl: config.publicBase ? `${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback` : null, appId: config.appId || '', version: config.version, publicBase: config.publicBase || '', connected: !!c?.token && c.expiresAt > Date.now() && !c.invalid, method: c ? (c.method || 'oauth') : null, expiresKnown: c ? c.expiresKnown !== false : null, username: c?.username || null, accountId: c?.accountId || null, expiresAt: c?.expiresAt || null, error: c?.invalid ? 'Izin Instagram perlu disambungkan kembali.' : null };
+    return { configured: !!(config.appId && config.appSecret), publicUrlReady: publicHTTPS(config.publicBase), callbackUrl: config.publicBase ? `${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback` : null, appId: config.appId || '', version: config.version, publicBase: config.publicBase || '', connected: !!c?.token && (c.noExpiry || c.expiresAt > Date.now()) && !c.invalid, method: c ? (c.method || 'oauth') : null, api: c ? (c.api || 'instagram') : null, noExpiry: !!c?.noExpiry, expiresKnown: c ? c.expiresKnown !== false : null, username: c?.username || null, accountId: c?.accountId || null, expiresAt: c?.expiresAt || null, error: c?.invalid ? 'Izin Instagram perlu disambungkan kembali.' : null };
   }
   // `token` names the token a request used: only a rejection of the stored token marks the saved connection invalid,
   // so a wrong pasted token or a failed reconnect never breaks a working connection.
@@ -32,9 +32,12 @@ export function createInstagram(store, getConfig, options = {}) {
     }
     return body;
   }
-  async function graph(path, params = {}, method = 'GET', token = connection()?.token) {
+  // Tokens from "API setup with Unified login" (EAA…) belong to graph.facebook.com; Instagram-login tokens (IGAA…) to graph.instagram.com.
+  // Both hosts expose the same publishing endpoints, so only the host differs.
+  const graphHost = api => api === 'facebook' ? 'graph.facebook.com' : 'graph.instagram.com';
+  async function graph(path, params = {}, method = 'GET', token = connection()?.token, api = connection()?.api) {
     if(!token) throw fail('Instagram belum terhubung.','NOT_CONNECTED');
-    const url = new URL(`https://graph.instagram.com/${version()}/${path}`);
+    const url = new URL(`https://${graphHost(api)}/${version()}/${path}`);
     const init = { method, headers: { Authorization:`Bearer ${token}` } };
     if(method==='GET') Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
     else {init.headers['Content-Type']='application/x-www-form-urlencoded';init.body=new URLSearchParams(Object.entries(params).map(([k,v])=>[k,String(v)]));}
@@ -46,15 +49,35 @@ export function createInstagram(store, getConfig, options = {}) {
     const token=typeof rawToken==='string'?rawToken.trim():'';
     if(!token)throw fail('Tempel access token dari Meta terlebih dahulu.','TOKEN_REQUIRED');
     if(token.length<20||token.length>2048||!/^[A-Za-z0-9_.|-]+$/.test(token))throw fail('Format token tidak dikenali. Salin ulang seluruh token dari tombol Generate token di Meta.','TOKEN_FORMAT');
+    const now=Date.now();
+    if(/^EAA/.test(token)){
+      // Unified login (Facebook) token: find the Instagram professional account it can publish to. Meta gives no expiry date
+      // without the app secret, so the token is trusted until Meta rejects it (then the owner is asked to reconnect).
+      const account=await findFacebookAccount(token);
+      store.setSecret('instagram.connection',{token,accountId:account.id,username:account.username,method:'token',api:'facebook',noExpiry:true,expiresKnown:false,expiresAt:null,refreshedAt:now,invalid:false});
+    } else {
     let profile;
-    try{profile=await graph('me',{fields:'user_id,username,account_type'},'GET',token);}
+    try{profile=await graph('me',{fields:'user_id,username,account_type'},'GET',token,'instagram');}
     catch(error){if(error.code==='META_AUTH')throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');throw error;}
     const id=String(profile.user_id||profile.id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan untuk token ini.','PROFILE_INVALID');
-    const now=Date.now();
     // Dashboard tokens last 60 days from generation; the exact expiry is learned on the first refresh (allowed after 24 hours).
-    store.setSecret('instagram.connection',{token,accountId:id,username:profile.username,method:'token',expiresKnown:false,expiresAt:now+60*86400000,refreshedAt:now,invalid:false});
-    store.event(null,'Instagram terhubung',`Akun @${profile.username} dihubungkan dengan token.`,'connection',userId);
+    store.setSecret('instagram.connection',{token,accountId:id,username:profile.username,method:'token',api:'instagram',expiresKnown:false,expiresAt:now+60*86400000,refreshedAt:now,invalid:false});
+    }
+    store.event(null,'Instagram terhubung',`Akun @${connection().username} dihubungkan dengan token.`,'connection',userId);
     return status();
+  }
+  // Facebook-graph discovery. Meta's Unified login does not document which node a generated token answers on, so each probe
+  // is tried in turn and Meta's sanitized reason is reported when none works: (a) the token is bound to the Instagram account
+  // itself, (b) the account is reached through a Facebook Page the token can see.
+  async function findFacebookAccount(token) {
+    const reasons=[],found=[];let rejected=false;
+    const attempt=async(label,run)=>{try{await run();}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/\. Periksa izin dan spesifikasi media\.$/,'')}`);}};
+    await attempt('me',async()=>{const me=await graph('me',{fields:'id,username'},'GET',token,'facebook');if(/^\d+$/.test(String(me.id||''))&&me.username)found.push({id:String(me.id),username:me.username});});
+    if(!found.length)await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');for(const page of pages.data||[]){const ig=page.instagram_business_account;if(ig&&/^\d+$/.test(String(ig.id||''))&&ig.username&&!found.some(x=>x.id===String(ig.id)))found.push({id:String(ig.id),username:ig.username});}});
+    if(found.length===1)return found[0];
+    if(found.length>1)throw fail(`Token ini dapat mengakses ${found.length} akun Instagram (${found.map(x=>'@'+x.username).join(', ')}). Buat token yang hanya untuk akun Vayora.`,'ACCOUNT_AMBIGUOUS');
+    if(rejected&&reasons.every(r=>/kedaluwarsa/i.test(r)))throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
+    throw fail(`Akun Instagram tidak ditemukan untuk token ini. ${reasons.join(' · ').slice(0,420)}`,'PROFILE_INVALID');
   }
   function start(userId, sessionHash) {
     const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Isi App ID dan App Secret dari Meta Developer terlebih dahulu.','META_NOT_CONFIGURED');
@@ -80,11 +103,11 @@ export function createInstagram(store, getConfig, options = {}) {
     store.setSecret('instagram.connection',{token:long.access_token,accountId:id,username:profile.username,method:'oauth',expiresKnown:true,expiresAt:Date.now()+Number(long.expires_in||5184000)*1000,refreshedAt:Date.now(),invalid:false});
     store.event(null,'Instagram terhubung',`Akun @${profile.username} dihubungkan.`,'connection',userId);return status();
   }
-  async function check() {const c=connection();if(!c)throw fail('Instagram belum terhubung.','NOT_CONNECTED');const profile=await graph('me',{fields:'user_id,username'});if(profile.username!==c.username)store.setSecret('instagram.connection',{...c,username:profile.username});return status();}
+  async function check() {const c=connection();if(!c)throw fail('Instagram belum terhubung.','NOT_CONNECTED');const profile=c.api==='facebook'?await graph(c.accountId,{fields:'id,username'}):await graph('me',{fields:'user_id,username'});if(profile.username&&profile.username!==c.username)store.setSecret('instagram.connection',{...c,username:profile.username});return status();}
   // Refresh needs no app secret. Pasted tokens have an unknown generation time, so they are refreshed once after
   // 24 hours to learn the real expiry; afterwards every connection refreshes in its last 7 days.
   let lastRefreshAttempt=0;
-  async function refresh() {const c=connection();if(!c||c.invalid||Date.now()-c.refreshedAt<86400000)return;const unknownExpiry=c.expiresKnown===false;if(!unknownExpiry&&c.expiresAt-Date.now()>7*86400000)return;if(Date.now()-lastRefreshAttempt<3600000)return;lastRefreshAttempt=Date.now();const url=new URL('https://graph.instagram.com/refresh_access_token');url.searchParams.set('grant_type','ig_refresh_token');url.searchParams.set('access_token',c.token);const result=await request(url,{},{token:c.token});if(typeof result.access_token!=='string'||!result.access_token||!(Number(result.expires_in)>0))throw fail('Meta tidak memperpanjang token. Sambungkan kembali bila masa berlaku hampir habis.','REFRESH_INVALID');if(connection()?.token===c.token)store.setSecret('instagram.connection',{...c,token:result.access_token,expiresAt:Date.now()+Number(result.expires_in)*1000,expiresKnown:true,refreshedAt:Date.now()});}
+  async function refresh() {const c=connection();if(!c||c.invalid||c.noExpiry||c.api==='facebook'||Date.now()-c.refreshedAt<86400000)return;const unknownExpiry=c.expiresKnown===false;if(!unknownExpiry&&c.expiresAt-Date.now()>7*86400000)return;if(Date.now()-lastRefreshAttempt<3600000)return;lastRefreshAttempt=Date.now();const url=new URL('https://graph.instagram.com/refresh_access_token');url.searchParams.set('grant_type','ig_refresh_token');url.searchParams.set('access_token',c.token);const result=await request(url,{},{token:c.token});if(typeof result.access_token!=='string'||!result.access_token||!(Number(result.expires_in)>0))throw fail('Meta tidak memperpanjang token. Sambungkan kembali bila masa berlaku hampir habis.','REFRESH_INVALID');if(connection()?.token===c.token)store.setSecret('instagram.connection',{...c,token:result.access_token,expiresAt:Date.now()+Number(result.expires_in)*1000,expiresKnown:true,refreshedAt:Date.now()});}
   async function ready(containerId) {
     for(let i=0;i<5;i++) {const result=await graph(containerId,{fields:'status_code'});if(result.status_code==='FINISHED')return;if(result.status_code==='PUBLISHED')throw fail('Container ini sudah terbit. Periksa hasil publikasi.','ALREADY_PUBLISHED');if(['ERROR','EXPIRED'].includes(result.status_code))throw fail('Media tidak dapat diproses Meta. Periksa media atau jadwalkan ulang.','CONTAINER_FAILED');await wait(options.pollMs??60000);}
     throw fail('Pemrosesan media melebihi waktu pemeriksaan. Belum ada permintaan publikasi dikirim.','PROCESSING_TIMEOUT');

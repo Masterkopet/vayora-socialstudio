@@ -182,3 +182,49 @@ test('Post now requires explicit approval and live setup, replaces only its own 
   assert.equal((await f.request('/api/posts/I01/publish-now','POST',{...payload,revision:f.store.post('I01').revision},owner)).response.status,409);
  }finally{release();await f.cleanup();}
 });
+// Unified login (Facebook) tokens start with EAA and live on graph.facebook.com.
+function facebookTransport(mode,calls=[]){return async(url,init={})=>{const u=new URL(url);calls.push(u);
+  const error=(code,message)=>Response.json({error:{message,type:'OAuthException',code}},{status:400});
+  if(u.hostname!=='graph.facebook.com')throw new Error('Facebook token must not call '+u.hostname);
+  if(u.pathname.endsWith('/me/accounts')){if(mode==='me')throw new Error('me/accounts not expected');if(mode==='expired')return error(190,'Error validating access token: Session has expired');if(mode==='denied')return error(10,'(#10) Application does not have permission for this action');
+    const pages=mode==='many'?[{id:'p1',instagram_business_account:{id:'111',username:'one'}},{id:'p2',instagram_business_account:{id:'222',username:'two'}}]:[{id:'p0'},{id:'p1',instagram_business_account:{id:'17841400000000009',username:'vayora'}}];return Response.json({data:pages});}
+  if(u.pathname.endsWith('/me')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');if(mode==='me')return Response.json({id:'17841400000000009',username:'vayora'});return error(100,'(#100) Tried accessing nonexisting field (username) on node type (User)');}
+  if(u.pathname.endsWith('/17841400000000009')&&u.searchParams.get('fields')==='id,username')return Response.json({id:'17841400000000009',username:'vayora'});
+  if(u.pathname.endsWith('/content_publishing_limit'))return Response.json({data:[{quota_usage:0,config:{quota_total:100}}]});
+  if(u.pathname.endsWith('/media_publish'))return Response.json({id:'published-fb'});
+  if(u.pathname.endsWith('/media'))return Response.json({id:'container-fb'});
+  if(u.pathname.endsWith('/container-fb'))return Response.json({status_code:'FINISHED'});
+  if(u.pathname.endsWith('/published-fb'))return Response.json({permalink:'https://www.instagram.com/p/fb/'});
+  throw new Error('Unexpected request '+u.pathname);};}
+test('Unified login token finds the Instagram account, never expires locally, and publishes on graph.facebook.com',async()=>{
+  const f=await publishingStore();
+  try{
+    const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
+    for(const mode of ['me','page']){
+      const calls=[];const ig=createInstagram(f.store,config,{fetch:facebookTransport(mode,calls),wait:async()=>{}});
+      const result=await ig.connectToken('EAAfunifiedtoken0000000000','owner');
+      assert.equal(result.connected,true);assert.equal(result.api,'facebook');assert.equal(result.noExpiry,true);assert.equal(result.username,'vayora');assert.equal(result.accountId,'17841400000000009');assert.equal(result.configured,false);
+      assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('EAAfunified'),'token is stored encrypted');
+      await ig.refresh();assert.ok(!calls.some(u=>u.pathname.includes('refresh_access_token')),'Facebook tokens are never refreshed');
+      assert.equal((await ig.check()).username,'vayora');
+    }
+    const calls=[];const ig=createInstagram(f.store,config,{fetch:facebookTransport('page',calls),wait:async()=>{}});
+    await ig.connectToken('EAAfunifiedtoken0000000000','owner');
+    f.store.insertPost({id:'F01',title:'Facebook path',format:'Gambar',caption:'F',mediaIds:['fixture-media'],approved:true,status:'scheduled',scheduleAt:new Date().toISOString()});
+    const item=await ig.run('F01',()=>'https://example.test/public/media/fixture');
+    assert.equal(item.status,'published');assert.equal(item.mediaId,'published-fb');
+    assert.ok(calls.every(u=>u.hostname==='graph.facebook.com'),'every publishing call uses the Facebook host');
+    assert.ok(calls.some(u=>u.pathname.endsWith('/17841400000000009/media_publish')));
+  }finally{await f.cleanup();}
+});
+test('Unified login token errors are specific: expired, no account, several accounts',async()=>{
+  const f=await publishingStore();
+  try{
+    const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
+    const connect=mode=>createInstagram(f.store,config,{fetch:facebookTransport(mode)}).connectToken('EAAfunifiedtoken0000000000','owner');
+    await assert.rejects(()=>connect('expired'),error=>error.code==='TOKEN_REJECTED');
+    await assert.rejects(()=>connect('denied'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/\(#10\)/.test(error.message)&&/\(#100\)/.test(error.message));
+    await assert.rejects(()=>connect('many'),error=>error.code==='ACCOUNT_AMBIGUOUS'&&/@one, @two/.test(error.message));
+    assert.equal(createInstagram(f.store,config,{fetch:facebookTransport('me')}).status().username,'fixture','failed pastes keep the saved connection');
+  }finally{await f.cleanup();}
+});

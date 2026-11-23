@@ -10,13 +10,16 @@ Ubah akun Vayora menjadi akun profesional jenis Business atau Creator. Untuk ver
 
 Tidak perlu App ID, App Secret, maupun redirect URI. Studio cukup menerima access token dari dashboard Meta.
 
-1. Login di https://developers.facebook.com/ (daftar sebagai developer bila diminta), lalu buka **My Apps → Create App**. Pilih use case **Other**, tipe aplikasi **Business**, isi nama aplikasi dan email, lalu pada produk **Instagram** tekan **Set up**. Halaman `https://developers.facebook.com/apps/` menampilkan "Page Not Found" bila belum login.
-2. Buka **Instagram → API setup with Instagram login → 1. Generate access tokens**. Tekan **Add account**, login dengan akun Instagram Vayora (harus Business/Creator dan publik), lalu tekan **Generate token** dan salin token yang muncul.
-3. Di Social Studio buka **Pengaturan → Instagram & publikasi**, tempel token pada **Hubungkan dengan token**, lalu tekan tombolnya. Studio memeriksa token ke Meta dan menampilkan username yang terhubung.
+1. Login di https://developers.facebook.com/ (daftar sebagai developer bila diminta; Meta meminta nomor HP yang ditambahkan lewat Accounts Center). Buka **My Apps → Create App**: use case **Other**, tipe **Business**, isi nama dan email, lalu **hubungkan Business portfolio** Vayora (wajib untuk API setup Instagram) dan tambahkan produk **Instagram**. Halaman `https://developers.facebook.com/apps/` hanya menampilkan "Page Not Found"/beranda bila akun belum terdaftar sebagai developer.
+2. Buka **Instagram → API setup**. Aplikasi baru memakai **API setup with Unified login** (jalur *Instagram login* tidak lagi tersedia untuk aplikasi baru); aplikasi lama masih memakai **API setup with Instagram login**. Keduanya didukung.
+3. Beri akun Vayora peran **Instagram Tester** di tab **Roles** (App roles → Roles → Add People), lalu terima undangannya di Instagram: Pengaturan → Aplikasi dan situs web → Undangan tester.
+4. Di bagian **Generate access tokens** tekan **Add account**, login dengan akun Instagram Vayora (Business/Creator dan publik), lalu tekan **Generate token** dan salin tokennya. Awalan `EAA…` berarti token Unified login (Facebook); `IGAA…` berarti token Instagram login.
+5. Di Social Studio buka **Pengaturan → Instagram & publikasi**, tempel token pada **Hubungkan dengan token**, lalu tekan tombolnya. Studio memeriksa token ke Meta dan menampilkan username yang terhubung.
 
 Catatan:
 
-- Token dari dashboard berlaku 60 hari. Studio menyimpannya terenkripsi dan memperpanjangnya otomatis tanpa App Secret: pertama kali setelah 24 jam (untuk mengetahui masa berlaku pastinya), lalu dalam 7 hari terakhir sebelum habis. Perpanjangan tetap berjalan walau antrean dijeda.
+- Token Unified login (`EAA…`) dipakai lewat `graph.facebook.com`. Studio mencari akun Instagram yang dapat diakses token itu (langsung, atau lewat Facebook Page yang tertaut). Meta tidak memberi tanggal kedaluwarsa tanpa App Secret, jadi token dipercaya sampai Meta menolaknya; saat itu Studio meminta sambung ulang. Bila token dapat mengakses lebih dari satu akun, Studio menolak dan menyebut akunnya: buat token khusus akun Vayora. Bila akun tidak ditemukan, pesan error memuat alasan dari Meta.
+- Token Instagram login (`IGAA…`) dari dashboard berlaku 60 hari. Studio menyimpannya terenkripsi dan memperpanjangnya otomatis tanpa App Secret: pertama kali setelah 24 jam (untuk mengetahui masa berlaku pastinya), lalu dalam 7 hari terakhir sebelum habis. Perpanjangan tetap berjalan walau antrean dijeda.
 - Token yang salah atau kedaluwarsa ditolak dengan pesan dari Meta dan tidak memutus koneksi yang sudah berjalan.
 - Mengganti token dengan akun Instagram lain menonaktifkan publikasi nyata dan menjeda antrean sampai pemilik memeriksa ulang. Memperbarui token akun yang sama tidak mengubah status publikasi.
 - Scope yang dipakai: `instagram_business_basic` dan `instagram_business_content_publish`. Standard Access cukup untuk akun milik/kelolaan sendiri yang sudah ditambahkan ke aplikasi; Advanced Access dan App Review diperlukan untuk melayani akun pihak lain.

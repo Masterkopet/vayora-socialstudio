@@ -53,7 +53,7 @@ Pengukuran website produksi memerlukan HTTPS publik dan pemasangan tracker di va
 
 Publikasi nyata nonaktif secara bawaan dan antrean dijeda. Kamu tetap dapat memakai login, pustaka, pemeriksaan, dan kalender. Tidak ada akun Instagram demo yang ditampilkan sebagai akun tersambung.
 
-Cara tercepat: buka **Pengaturan → Instagram & publikasi**, lalu tempel access token dari tombol **Generate token** di dashboard Meta (Instagram → API setup with Instagram login). Cara ini tidak memerlukan App ID, App Secret, atau redirect URI; Studio menyimpan token terenkripsi dan memperpanjangnya otomatis. Login Meta dengan App ID dan App Secret tetap tersedia sebagai cara lanjutan. Langkah lengkap ada di [panduan Instagram](docs/INSTAGRAM.md). Jangan masukkan password Instagram pada form Social Studio.
+Cara tercepat: buka **Pengaturan → Instagram & publikasi**, lalu tempel access token dari tombol **Generate token** di dashboard Meta (Instagram → API setup; token Unified login `EAA…` maupun Instagram login `IGAA…` didukung). Cara ini tidak memerlukan App ID, App Secret, atau redirect URI; Studio menyimpan token terenkripsi dan memperpanjangnya otomatis. Login Meta dengan App ID dan App Secret tetap tersedia sebagai cara lanjutan. Langkah lengkap ada di [panduan Instagram](docs/INSTAGRAM.md). Jangan masukkan password Instagram pada form Social Studio.
 
 ## Akun tim
 
