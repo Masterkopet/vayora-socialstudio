@@ -29,6 +29,17 @@ Jadwal tampil langsung pada card pustaka. Tombol Post sekarang membuka pemeriksa
 
 **Hapus konten** ada di dialog Detail. Konten terjadwal ikut dibatalkan jadwalnya; konten yang sedang diproses atau hasilnya belum pasti tidak dapat dihapus; konten terbit hanya dapat dihapus pemilik dan postingan di Instagram tetap ada. Konten terhapus hilang dari pustaka, kalender, dan antrean, tetapi riwayatnya tetap tersimpan dan ID-nya tidak dipakai ulang. API: `DELETE /api/posts/:id?revision=N` (session + header `x-csrf-token`).
 
+## Impor paket (unggah banyak sekaligus)
+
+Menu **Impor paket** (khusus pemilik) mengunggah puluhan video atau foto sekaligus dari satu file paket JSON/CSV, misalnya `Metadata YouTube - 12 Episode.json`.
+
+1. Pilih file paket. Kolom yang dikenali: `episode`/`id`, `judul`/`title`, `deskripsi_lengkap`/`deskripsi`/`caption`, `tags_opsional`/`tags`, `file_video`/`file` (beberapa file dipisah `;` untuk carousel), `platform` (youtube/instagram), `tanggal` dan `jam` (opsional).
+2. Pilih semua video/foto atau foldernya. File dicocokkan dengan nama file di paket, lalu dengan nomor episode di nama file (`Vayora-Shorts-03.mp4` → episode 03, `C01-slide-2.jpg` → 01). Bila ada dua versi untuk satu episode, pilih versinya di tabel.
+3. Atur jadwal: tanggal mulai, hari terbit, dan jam (WIB). Satu konten per slot; slot yang sudah dipakai konten lain dilewati. Tanggal dan judul masih bisa diubah per baris.
+4. Centang persetujuan lalu **Jadwalkan**. Setiap baris diunggah lalu dijadwalkan satu per satu; baris yang gagal ditampilkan alasannya dan tidak menghentikan baris lain.
+
+Tags dikirim ke kolom Tags YouTube. Bila deskripsi menyebut visual buatan AI, pilihan "konten sintetis" tercentang otomatis dan YouTube menerima pengungkapan `containsSyntheticMedia`. Komentar sematan tidak dapat disematkan lewat API dan tetap dilakukan di YouTube Studio. Selama proyek Google belum lolos audit, video tetap privat.
+
 Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, serta caption Markdown/JSON/CSV berdasarkan ID. Gambar dikonversi menjadi JPEG sRGB. Video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah.
 
 ## Susunan menu

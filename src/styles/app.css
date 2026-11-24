@@ -345,3 +345,17 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 #vayora-studio-complete .vs-create-thumbs{display:flex;gap:10px;flex-wrap:wrap}
 #vayora-studio-complete .vs-create-thumb{margin:0;width:120px;display:grid;gap:4px;font-size:11px;color:#52677e;overflow-wrap:anywhere}
 #vayora-studio-complete .vs-create-thumb img,#vayora-studio-complete .vs-create-thumb video{width:120px;height:120px;object-fit:cover;border-radius:8px;background:#eaf0f6}
+
+#vayora-studio-complete .vs-day-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#vayora-studio-complete .vs-day{padding:6px 10px;border:1px solid #d6dde8;border-radius:999px}
+#vayora-studio-complete .vs-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#vayora-studio-complete .vs-pkg-table{width:100%;border-collapse:collapse;font-size:13px}
+#vayora-studio-complete .vs-pkg-table th{text-align:left;font-weight:600;color:#4a5a70;padding:8px;border-bottom:1px solid #d6dde8;white-space:nowrap}
+#vayora-studio-complete .vs-pkg-table td{padding:8px;border-bottom:1px solid #edf0f5;vertical-align:top}
+#vayora-studio-complete .vs-pkg-table td:nth-child(3){min-width:240px}
+#vayora-studio-complete .vs-pkg-table tr.vs-muted td{opacity:.5}
+#vayora-studio-complete .vs-pkg-media{max-width:200px;word-break:break-all}
+#vayora-studio-complete .vs-pkg-when{display:grid;gap:4px;min-width:140px}
+#vayora-studio-complete .vs-pkg-when .vs-input{padding:6px 8px}
+#vayora-studio-complete .vs-pkg-caption{white-space:pre-wrap;font-size:12px;color:#4a5a70;max-height:180px;overflow:auto}
+#vayora-studio-complete .vs-pkg-table .vs-inline-error,#vayora-studio-complete .vs-pkg-table small{display:block;margin-top:4px}
