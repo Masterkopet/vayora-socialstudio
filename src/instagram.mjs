@@ -78,7 +78,10 @@ export function createInstagram(store, getConfig, options = {}) {
     const reasons=[],notes=[],found=[],candidates=new Set();let rejected=false,answered=0;
     const add=(id,username)=>{id=String(id||'');if(/^\d+$/.test(id)&&username&&!found.some(x=>x.id===id))found.push({id,username});};
     const attempt=async(label,run)=>{try{await run();answered++;}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/^Meta menolak permintaan/,'ditolak').replace(/\. Periksa izin dan spesifikasi media\.$/,'')}`);}};
-    const scan=info=>{for(const grant of info.data?.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));};
+    // debug_token fields are ids, types and scope names only (no secrets), so they are safe to show for diagnosis.
+    const scan=info=>{const data=info.data||{};notes.push(`token=${String(data.type||'?')}`);for(const key of ['user_id','profile_id'])if(data[key]){notes.push(`${key}=${String(data[key])}`);candidates.add(String(data[key]));}
+      const grants=(data.granular_scopes||[]).map(grant=>`${grant.scope}:${(grant.target_ids||[]).length}`);notes.push(`aset=${grants.join(',')||'-'}`);
+      for(const grant of data.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));};
     await attempt(appToken?'debug_token (app token)':'debug_token',async()=>scan(await graph('debug_token',{input_token:token},'GET',appToken||token,'facebook')));
     await attempt('me',async()=>{const me=await graph('me',{fields:'id,name'},'GET',token,'facebook');if(/^\d+$/.test(String(me.id||'')))candidates.add(String(me.id));notes.push(`me=${String(me.id||'?')}`);});
     await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');notes.push(`Page=${(pages.data||[]).length}`);for(const page of pages.data||[])add(page.instagram_business_account?.id,page.instagram_business_account?.username);});

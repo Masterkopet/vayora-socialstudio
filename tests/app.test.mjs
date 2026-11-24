@@ -232,7 +232,7 @@ test('Unified login token errors are specific: expired, no account, several acco
     const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
     const connect=mode=>createInstagram(f.store,config,{fetch:facebookTransport(mode)}).connectToken('EAAfunifiedtoken0000000000','owner');
     await assert.rejects(()=>connect('expired'),error=>error.code==='TOKEN_REJECTED');
-    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/me\/accounts: ditolak \(kode 10\)/.test(error.message)&&/me\/businesses: ditolak \(kode 200\)/.test(error.message)&&/me=999/.test(error.message)&&/izin=instagram_basic,instagram_content_publish/.test(error.message)&&!/ads_read/.test(error.message)&&/Isi App ID dan App Secret/.test(error.message));
+    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/me\/accounts: ditolak \(kode 10\)/.test(error.message)&&/me\/businesses: ditolak \(kode 200\)/.test(error.message)&&/me=999/.test(error.message)&&/izin=instagram_basic,instagram_content_publish/.test(error.message)&&/izin=instagram_basic,instagram_content_publish( ·|$)/.test(error.message)&&/aset=instagram_basic:0/.test(error.message)&&/Isi App ID dan App Secret/.test(error.message));
     await assert.rejects(()=>connect('many'),error=>error.code==='ACCOUNT_AMBIGUOUS'&&/@one, @two/.test(error.message));
     assert.equal(createInstagram(f.store,config,{fetch:facebookTransport('debug')}).status().username,'fixture','failed pastes keep the saved connection');
   }finally{await f.cleanup();}
