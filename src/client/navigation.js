@@ -5,11 +5,11 @@ export const navigationGroups=[
  {label:'Buat',items:[['assistant','sparkles','Asisten caption'],['designer','palette','Desain konten']]},
  {label:'Terbitkan',items:[['review','clipboard-check','Pemeriksaan'],['queue','list-ordered','Antrean']]},
  {label:'Strategi',items:[['strategy','compass','Strategi konten'],['marketing','chart-no-axes-combined','Marketing'],['knowledge','book-open','Pengetahuan brand']]},
- {label:'Pengaturan',items:[['settings','camera','Instagram & publikasi'],['ai-settings','sliders-horizontal','Pengaturan AI'],['profile','user-round','Akun tim'],['history','history','Riwayat']]},
+ {label:'Pengaturan',items:[['settings','camera','Koneksi & publikasi'],['ai-settings','sliders-horizontal','Pengaturan AI'],['profile','user-round','Akun tim'],['history','history','Riwayat']]},
 ];
 export const pageIds=[...new Set([...navigationGroups.flatMap(group=>group.items.map(([id])=>id)),'import'])];
 export function menuGridHTML({view,reviewCount=0,icon}){
- const shortLabels={library:'Pustaka',import:'Impor',calendar:'Kalender',review:'Periksa',queue:'Antrean',assistant:'Caption',designer:'Desain',knowledge:'Brand',marketing:'Campaign',strategy:'Strategi',settings:'Instagram','ai-settings':'Atur AI',history:'Riwayat',profile:'Akun'};
+ const shortLabels={library:'Pustaka',import:'Impor',calendar:'Kalender',review:'Periksa',queue:'Antrean',assistant:'Caption',designer:'Desain',knowledge:'Brand',marketing:'Campaign',strategy:'Strategi',settings:'Koneksi','ai-settings':'Atur AI',history:'Riwayat',profile:'Akun'};
  const items=navigationGroups.flatMap(group=>group.items.map(([id,name,title])=>({action:'nav:'+id,id,name,title,label:shortLabels[id]})));
  items.push({action:'logout',id:'logout',name:'log-out',title:'Keluar',label:'Keluar'});
  return`<nav class="vs-menu-grid" aria-label="Menu fitur">${items.map(item=>`<button type="button" class="vs-menu-tile ${item.id==='logout'?'vs-menu-logout':''}" data-action="${item.action}" aria-label="${item.title}" title="${item.title}" ${view===item.id||view==='editor'&&item.id==='library'?'aria-current="page"':''}><span class="vs-menu-icon">${icon(item.name)}${item.id==='review'&&reviewCount?`<b class="vs-menu-count">${reviewCount}</b>`:''}</span><span class="vs-menu-label">${item.label}</span></button>`).join('')}</nav>`;

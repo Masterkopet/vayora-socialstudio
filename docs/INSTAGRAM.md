@@ -14,7 +14,7 @@ Tidak perlu App ID, App Secret, maupun redirect URI. Studio cukup menerima acces
 2. Buka **Instagram → API setup**. Aplikasi baru memakai **API setup with Unified login** (jalur *Instagram login* tidak lagi tersedia untuk aplikasi baru); aplikasi lama masih memakai **API setup with Instagram login**. Keduanya didukung.
 3. Beri akun Vayora peran **Instagram Tester** di tab **Roles** (App roles → Roles → Add People), lalu terima undangannya di Instagram: Pengaturan → Aplikasi dan situs web → Undangan tester.
 4. Di bagian **Generate access tokens** tekan **Add account**, login dengan akun Instagram Vayora (Business/Creator dan publik), lalu tekan **Generate token** dan salin tokennya. Awalan `EAA…` berarti token Unified login (Facebook); `IGAA…` berarti token Instagram login.
-5. Di Social Studio buka **Pengaturan → Instagram & publikasi**, tempel token pada **Hubungkan dengan token**, lalu tekan tombolnya. Studio memeriksa token ke Meta dan menampilkan username yang terhubung.
+5. Di Social Studio buka **Pengaturan → Koneksi & publikasi**, tempel token pada **Hubungkan dengan token**, lalu tekan tombolnya. Studio memeriksa token ke Meta dan menampilkan username yang terhubung.
 
 Catatan:
 
@@ -27,7 +27,7 @@ Catatan:
 
 ## Cara lanjutan: login Meta dengan App ID dan App Secret
 
-Pakai cara ini bila ingin menghubungkan lewat halaman login Instagram (OAuth). Di Studio, buka bagian **Cara lanjutan** pada halaman Instagram & publikasi.
+Pakai cara ini bila ingin menghubungkan lewat halaman login Instagram (OAuth). Di Studio, buka bagian **Cara lanjutan** pada halaman Koneksi & publikasi.
 
 1. Buat aplikasi seperti langkah 1 di atas.
 2. Buka **Instagram → API setup with Instagram login → 3. Set up Instagram business login → Business login settings**. Salin **Instagram App ID** dan **Instagram app secret** (berbeda dari App ID Facebook di App settings).
@@ -45,7 +45,7 @@ Nama menu dashboard Meta dapat berubah dan dapat tampil dalam bahasa akun Facebo
 
 Media harus dapat diambil Meta melalui HTTPS publik. Aplikasi menghasilkan URL media bertanda tangan dengan masa berlaku tiga jam. Coba satu gambar, satu Reel, dan satu carousel untuk memverifikasi izin, format, dan tampilan hasil. Periksa khusus rasio/cropping carousel karena hasil Instagram dapat mengikuti aturan pemotongan platform.
 
-Pemilik mengaktifkan Publikasi nyata di **Instagram & publikasi** setelah koneksi siap. Antrean tetap dapat dijeda sebelum konten uji dijadwalkan. Melanjutkan antrean dan memasang jadwal merupakan tindakan publikasi nyata; jangan memakai materi uji yang belum disetujui.
+Pemilik mengaktifkan Publikasi nyata di **Koneksi & publikasi** setelah koneksi siap. Antrean tetap dapat dijeda sebelum konten uji dijadwalkan. Melanjutkan antrean dan memasang jadwal merupakan tindakan publikasi nyata; jangan memakai materi uji yang belum disetujui.
 
 ## Ketika terjadi kendala
 

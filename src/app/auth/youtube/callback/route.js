@@ -1,0 +1,10 @@
+import { handleStudioRequest } from '../../../../runtime.mjs';
+export const runtime='nodejs';
+export const dynamic='force-dynamic';
+export const GET=handleStudioRequest;
+export const HEAD=handleStudioRequest;
+export const POST=handleStudioRequest;
+export const PUT=handleStudioRequest;
+export const PATCH=handleStudioRequest;
+export const DELETE=handleStudioRequest;
+export const OPTIONS=handleStudioRequest;
