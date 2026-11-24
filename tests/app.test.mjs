@@ -190,12 +190,15 @@ function facebookTransport(mode,calls=[]){return async(url,init={})=>{const u=ne
   if(u.hostname!=='graph.facebook.com')throw new Error('Facebook token must not call '+u.hostname);
   const p=u.pathname,account=id=>id===FB_IG?{id,username:'vayora'}:id==='111'?{id,username:'one'}:id==='222'?{id,username:'two'}:null;
   if(p.endsWith('/debug_token')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');
-    const ids=mode==='debug'?[FB_IG]:mode==='many'?['111','222']:[];return Response.json({data:{is_valid:true,granular_scopes:[{scope:'instagram_basic',target_ids:ids},{scope:'ads_read'}]}});}
+    const appToken=String(init.headers?.Authorization||'')==='Bearer 123456|app-secret-fixture';if(mode==='appdebug'&&!appToken)return error(100,'(#100) You must provide an app access token, or a user access token that is an owner or developer of the app');
+    const ids=mode==='debug'||(mode==='appdebug'&&appToken)?[FB_IG]:mode==='many'?['111','222']:[];return Response.json({data:{is_valid:true,granular_scopes:[{scope:'instagram_basic',target_ids:ids},{scope:'ads_read'}]}});}
   if(p.endsWith('/me/accounts')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');if(mode==='page')return Response.json({data:[{id:'p0'},{id:'p1',instagram_business_account:{id:FB_IG,username:'vayora'}}]});return error(10,'(#10) Application does not have permission for this action');}
   if(p.endsWith('/me/businesses')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');return mode==='business'?Response.json({data:[{id:'b1'}]}):error(200,'(#200) Requires business_management permission');}
   if(p.endsWith('/b1/instagram_business_accounts'))return Response.json({data:[{id:FB_IG,username:'vayora'}]});
-  if(p.endsWith('/me'))throw new Error('me must not be probed for an Instagram username');
-  const match=p.match(/\/(\d+)$/);if(match&&account(match[1])&&u.searchParams.get('fields')==='id,username')return Response.json(account(match[1]));
+  if(p.endsWith('/me/permissions')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');}
+  if(p.endsWith('/me/permissions'))return Response.json({data:[{permission:'instagram_basic',status:'granted'},{permission:'instagram_content_publish',status:'granted'},{permission:'ads_read',status:'declined'}]});
+  if(p.endsWith('/me')){if(mode==='expired')return error(190,'Error validating access token: Session has expired');if(u.searchParams.get('fields')!=='id,name')throw new Error('me is a User node: only id,name are valid');return Response.json({id:'999',name:'Owner Vayora'});}
+  const match=p.match(/\/(\d+)$/);if(match&&u.searchParams.get('fields')==='id,username')return account(match[1])?Response.json(account(match[1])):error(100,'(#100) Tried accessing nonexisting field (username) on node type (User)');
   if(p.endsWith('/content_publishing_limit'))return Response.json({data:[{quota_usage:0,config:{quota_total:100}}]});
   if(p.endsWith('/media_publish'))return Response.json({id:'published-fb'});
   if(p.endsWith('/media'))return Response.json({id:'container-fb'});
@@ -229,7 +232,7 @@ test('Unified login token errors are specific: expired, no account, several acco
     const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
     const connect=mode=>createInstagram(f.store,config,{fetch:facebookTransport(mode)}).connectToken('EAAfunifiedtoken0000000000','owner');
     await assert.rejects(()=>connect('expired'),error=>error.code==='TOKEN_REJECTED');
-    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/me\/accounts: ditolak \(kode 10\)/.test(error.message)&&/me\/businesses: ditolak \(kode 200\)/.test(error.message));
+    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/me\/accounts: ditolak \(kode 10\)/.test(error.message)&&/me\/businesses: ditolak \(kode 200\)/.test(error.message)&&/me=999/.test(error.message)&&/izin=instagram_basic,instagram_content_publish/.test(error.message)&&!/ads_read/.test(error.message)&&/Isi App ID dan App Secret/.test(error.message));
     await assert.rejects(()=>connect('many'),error=>error.code==='ACCOUNT_AMBIGUOUS'&&/@one, @two/.test(error.message));
     assert.equal(createInstagram(f.store,config,{fetch:facebookTransport('debug')}).status().username,'fixture','failed pastes keep the saved connection');
   }finally{await f.cleanup();}
@@ -244,5 +247,18 @@ test('failed token connections are recorded in Riwayat without the token',async(
     assert.ok(event);assert.match(event.detail,/me\/accounts/);assert.ok(!event.detail.includes('EAAsecretfailedtoken'));
     const format=await f.request('/api/instagram/token','POST',{token:'salah format'},owner);assert.equal(format.response.status,422);
     assert.equal(f.store.all("SELECT id FROM events WHERE title='Koneksi dengan token belum berhasil'").length,1,'format typos are not logged');
+  }finally{await f.cleanup();}
+});
+test('an app token (App ID|Secret) lets debug_token reveal the granted Instagram account; without it the error says how',async()=>{
+  const f=await publishingStore();
+  try{
+    const withApp=()=>({appId:'123456',appSecret:'app-secret-fixture',publicBase:'https://example.test',version:'v27.0'});
+    const ig=createInstagram(f.store,withApp,{fetch:facebookTransport('appdebug')});
+    const result=await ig.connectToken('EAAfunifiedtoken0000000000','owner');
+    assert.equal(result.username,'vayora');assert.equal(result.accountId,FB_IG);
+    assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('app-secret-fixture'),'the app token is never stored with the connection');
+    const withoutApp=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
+    await assert.rejects(()=>createInstagram(f.store,withoutApp,{fetch:facebookTransport('appdebug')}).connectToken('EAAfunifiedtoken0000000000','owner'),
+      error=>error.code==='PROFILE_INVALID'&&/Isi App ID dan App Secret/.test(error.message)&&/debug_token: ditolak \(kode 100\)/.test(error.message));
   }finally{await f.cleanup();}
 });
