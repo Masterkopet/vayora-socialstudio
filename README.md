@@ -31,7 +31,7 @@ Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, s
 
 ## Susunan menu
 
-Sidebar mengikuti urutan kerja: **Konten** (Pustaka, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Instagram & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Instagram & publikasi.
+Sidebar mengikuti urutan kerja: **Konten** (Pustaka, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Koneksi & publikasi.
 
 ## Mobile dan bahasa
 
@@ -55,7 +55,11 @@ Pengukuran website produksi memerlukan HTTPS publik dan pemasangan tracker di va
 
 Publikasi nyata nonaktif secara bawaan dan antrean dijeda. Kamu tetap dapat memakai login, pustaka, pemeriksaan, dan kalender. Tidak ada akun Instagram demo yang ditampilkan sebagai akun tersambung.
 
-Cara tercepat: buka **Pengaturan → Instagram & publikasi**, lalu tempel access token dari tombol **Generate token** di dashboard Meta (Instagram → API setup; token Unified login `EAA…` maupun Instagram login `IGAA…` didukung). Cara ini tidak memerlukan App ID, App Secret, atau redirect URI; Studio menyimpan token terenkripsi dan memperpanjangnya otomatis. Login Meta dengan App ID dan App Secret tetap tersedia sebagai cara lanjutan. Langkah lengkap ada di [panduan Instagram](docs/INSTAGRAM.md). Jangan masukkan password Instagram pada form Social Studio.
+Cara tercepat: buka **Pengaturan → Koneksi & publikasi**, lalu tempel access token dari tombol **Generate token** di dashboard Meta (Instagram → API setup; token Unified login `EAA…` maupun Instagram login `IGAA…` didukung). Cara ini tidak memerlukan App ID, App Secret, atau redirect URI; Studio menyimpan token terenkripsi dan memperpanjangnya otomatis. Login Meta dengan App ID dan App Secret tetap tersedia sebagai cara lanjutan. Langkah lengkap ada di [panduan Instagram](docs/INSTAGRAM.md). Jangan masukkan password Instagram pada form Social Studio.
+
+## YouTube Shorts
+
+Short adalah format konten tersendiri: satu video MP4 vertikal maksimal 3 menit, dengan judul konten sebagai judul YouTube dan caption sebagai deskripsi. Pilih *YouTube Short* sebagai tujuan video saat impor (file `S01-…` otomatis), hubungkan channel di **Pengaturan → Koneksi & publikasi → YouTube Shorts** dengan Client ID/Secret dari Google Cloud, lalu jadwalkan seperti konten lain. Sebelum project Google lolos audit API YouTube, video yang diunggah tetap dikunci privat oleh YouTube. Langkah lengkap dan API: [panduan YouTube](docs/YOUTUBE.md).
 
 ## Akun tim
 
