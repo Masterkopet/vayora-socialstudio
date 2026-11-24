@@ -77,3 +77,11 @@ log "backup ok: $TARGET ($(tr '\n' ' ' < "$TARGET/manifest.txt"))"
 find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '20*' | sort | head -n "-$KEEP_DAYS" | while read -r old; do
   rm -rf "$old" && log "removed old backup $old"
 done
+
+# 5. Off-server copy (encrypted) when it is set up; a failed upload fails the run so systemd reports it.
+OFFSITE=$(dirname "$0")/backup-offsite.sh
+if [ -x "$OFFSITE" ] && [ -s "${AGE_RECIPIENT_FILE:-/root/.config/vayora-backup/age.pub}" ] && rclone listremotes 2>/dev/null | grep -q "^${OFFSITE_REMOTE_NAME:-gdrive}:$"; then
+  "$OFFSITE" "$TARGET"
+else
+  log "offsite copy skipped (not configured)"
+fi
