@@ -1,7 +1,7 @@
 // English for the home page, the "Buat posting" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
   // Menu
-  'Mulai':'Start','Beranda':'Home','Buat posting':'Create post','Buat':'Create','Konten':'Content','Bantuan AI':'AI help','Impor massal':'Bulk import','Impor':'Import',
+  'Mulai':'Start','Beranda':'Home','Buat posting':'Create post','Buat':'Create','Konten':'Content','Bantuan AI':'AI help','Impor':'Import',
   'Pustaka Instagram':'Instagram library','Pustaka YouTube':'YouTube library','Asisten caption':'Caption assistant','Desain konten':'Content design','Caption':'Caption','Desain':'Design',
   'Koneksi & publikasi':'Connections & publishing','Koneksi':'Connections','Pengaturan AI':'AI settings','Atur AI':'AI setup','Akun tim':'Team account','Akun':'Account','Riwayat':'History',
   'Perlu ditinjau':'Needs review','Perlu perhatian':'Needs attention',
@@ -45,9 +45,14 @@ export const simpleStrings={
   'Posting dijadwalkan.':'Post scheduled.','Draft tersimpan.':'Draft saved.','Posting diajukan untuk ditinjau.':'Post submitted for review.',
   'Klik Buat posting, pilih YouTube Shorts, lalu unggah video vertikal maksimal 3 menit.':'Click Create post, choose YouTube Shorts, then upload a vertical video up to 3 minutes.',
   // Package import
-  'Impor paket':'Package import','Paket':'Package','Unggah banyak video atau foto sekaligus dari file paket judul dan deskripsi, lalu jadwalkan otomatis.':'Upload many videos or photos at once from a package file of titles and descriptions, then schedule them automatically.',
-  'Pilih file paket':'Choose the package file','File paket':'Package file','Platform bawaan':'Default platform','Dipakai bila file tidak punya kolom platform.':'Used when the file has no platform column.',
-  'Pilih video dan foto':'Choose videos and photos','Atau folder':'Or a folder','Belum ada':'None yet','Pilih versi…':'Choose a version…',
+  'Pilih folder atau file: video, foto, dan teks judul/deskripsi dibaca sekaligus, lalu dijadwalkan otomatis.':'Choose a folder or files: videos, photos, and title/description text are read together, then scheduled automatically.',
+  'Pilih folder atau file':'Choose a folder or files','Pilih satu folder (subfolder ikut dibaca) atau beberapa file sekaligus. Yang dikenali:':'Choose one folder (subfolders included) or several files at once. Recognized:',
+  'Video & foto':'Videos & photos','Teks':'Text','Folder':'Folder','Atau file':'Or files','Folder proyek seperti node_modules diabaikan.':'Project folders such as node_modules are ignored.',
+  ': MP4, JPG, PNG, WebP. Dicocokkan lewat nama file di paket, kode konten (V01-…, C01-slide-1…), nomor di nama file, atau folder episode (01 - Judul/Video/…).':': MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).',
+  ': paket JSON/CSV (judul, deskripsi, tags, file, tanggal, jam), file .txt per episode (JUDUL, DESKRIPSI LENGKAP, TAGS), atau daftar caption Markdown (## V01 … Caption:).':': JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (JUDUL, DESKRIPSI LENGKAP, TAGS), or a Markdown caption list (## V01 … Caption:).',
+  'Platform bawaan':'Default platform','Dipakai bila teks tidak menyebut platform. Kode S01 selalu YouTube; V01, I01, C01 selalu Instagram.':'Used when the text names no platform. Code S01 is always YouTube; V01, I01, C01 are always Instagram.',
+  'Membaca file…':'Reading files…','Belum ada konten yang bisa dibuat dari file ini. Tambahkan video/foto dan teks judul-deskripsinya.':'No content can be made from these files yet. Add videos/photos and their title/description text.',
+  '· caption boleh kosong, dilengkapi nanti':'· caption may be empty, fill it in later','Tanpa caption':'No caption','Belum ada':'None yet','Pilih versi…':'Choose a version…',
   'Atur jadwal':'Set the schedule','Jadwalkan otomatis':'Schedule automatically','· terbit sesuai tanggal di tabel':'· goes live on the dates in the table',
   '· tanggal disimpan, dijadwalkan setelah diperiksa':'· dates are saved, scheduled after review','Mulai tanggal':'Start date','Jam terbit (WIB)':'Publish time (WIB)',
   'Pisahkan dengan koma untuk lebih dari satu jam per hari.':'Separate with commas for more than one time per day.','Hari terbit':'Publish days',
@@ -84,6 +89,7 @@ export const simplePatterns=[
   [/^(\d+) konten terjadwal menunggu karena antrean sedang dijeda\.$/,(_,n)=>`${n} scheduled item(s) are waiting because the queue is paused.`],
   [/^Jadwalkan (\d+) konten$/,(_,n)=>`Schedule ${n} item(s)`],[/^Ajukan (\d+) konten$/,(_,n)=>`Submit ${n} item(s)`],[/^Simpan (\d+) draft$/,(_,n)=>`Save ${n} draft(s)`],
   [/^Siap · (.+)$/,(_,f)=>`Ready · ${f}`],[/^(\d+) dari (\d+) konten diproses\.$/,(_,a,b)=>`${a} of ${b} items processed.`],
-  [/^(\d+) file dipilih · (\d+) dari (\d+) baris sudah punya media\.$/,(_,a,b,c)=>`${a} files chosen · ${b} of ${c} rows have media.`],
+  [/^Cover: (.+)$/,(_,a)=>`Cover: ${a}`],[/^(\S+) sudah ada di pustaka, tidak diimpor ulang\.$/,(_,a)=>`${a} is already in the library and is not imported again.`],
+  [/^Kode (\S+) tidak cocok dengan jenis (\S+); kode baru dibuat otomatis\.$/,(_,a,b)=>`Code ${a} does not match type ${b}; a new code is created automatically.`],
   [/^(\d+) perlu perhatian$/,(_,n)=>`${n} need attention`],
 ];

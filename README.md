@@ -29,22 +29,22 @@ Jadwal tampil langsung pada card pustaka. Tombol Post sekarang membuka pemeriksa
 
 **Hapus konten** ada di dialog Detail. Konten terjadwal ikut dibatalkan jadwalnya; konten yang sedang diproses atau hasilnya belum pasti tidak dapat dihapus; konten terbit hanya dapat dihapus pemilik dan postingan di Instagram tetap ada. Konten terhapus hilang dari pustaka, kalender, dan antrean, tetapi riwayatnya tetap tersimpan dan ID-nya tidak dipakai ulang. API: `DELETE /api/posts/:id?revision=N` (session + header `x-csrf-token`).
 
-## Impor paket (unggah banyak sekaligus)
+## Impor konten (satu pintu untuk unggah banyak)
 
-Menu **Impor paket** (khusus pemilik) mengunggah puluhan video atau foto sekaligus dari satu file paket JSON/CSV, misalnya `Metadata YouTube - 12 Episode.json`.
+Menu **Impor konten** (khusus pemilik) membaca satu folder atau beberapa file sekaligus, termasuk subfolder, misalnya seluruh folder `Short YT`.
 
-1. Pilih file paket. Kolom yang dikenali: `episode`/`id`, `judul`/`title`, `deskripsi_lengkap`/`deskripsi`/`caption`, `tags_opsional`/`tags`, `file_video`/`file` (beberapa file dipisah `;` untuk carousel), `platform` (youtube/instagram), `tanggal` dan `jam` (opsional).
-2. Pilih semua video/foto atau foldernya. File dicocokkan dengan nama file di paket, lalu dengan nomor episode di nama file (`Vayora-Shorts-03.mp4` → episode 03, `C01-slide-2.jpg` → 01). Bila ada dua versi untuk satu episode, pilih versinya di tabel.
-3. Atur jadwal: tanggal mulai, hari terbit, dan jam (WIB). Satu konten per slot; slot yang sudah dipakai konten lain dilewati. Tanggal dan judul masih bisa diubah per baris.
-4. Centang persetujuan lalu **Jadwalkan**. Setiap baris diunggah lalu dijadwalkan satu per satu; baris yang gagal ditampilkan alasannya dan tidak menghentikan baris lain.
+- **Video & foto** (MP4, JPG, PNG, WebP) dicocokkan berurutan lewat: nama file yang disebut di teks → kode konten di nama file (`V01-…`, `I01-…`, `C01-slide-1…`, `S01-…`) → nomor di nama file (`Vayora-Shorts-03.mp4` → episode 03) → folder episode (`03 - Judul/Video/…`). File yang lebih dalam dari dua folder di bawah folder episode (aset proyek, referensi) dan folder seperti `node_modules` diabaikan. Bila ada dua versi video untuk satu episode, pilih versinya di tabel. Gambar bernama `Cover…` dipakai sebagai cover Reel Instagram.
+- **Teks** yang dikenali: paket JSON/CSV (`episode`/`id`, `judul`, `deskripsi_lengkap`/`caption`, `tags_opsional`, `file_video`, `platform`, `tanggal`, `jam`), file .txt per episode atau gabungan (`EPISODE 01 — …`, bagian `JUDUL`, `DESKRIPSI LENGKAP`, `TAGS`), dan daftar caption Markdown (`## V01 … Caption:`). Bila beberapa file menjelaskan episode yang sama, JSON dipakai lebih dulu, lalu CSV, .txt, dan Markdown hanya mengisi bagian yang masih kosong.
+- **Media tanpa teks** yang bernama kode konten menjadi konten sendiri dengan judul dari nama file; simpan sebagai draft bila caption belum ada. Kode dari file dipertahankan bila belum dipakai; kode yang sudah ada di pustaka tidak diimpor ulang.
+- Kode S selalu YouTube Shorts; V, I, dan C selalu Instagram. Selain itu platform mengikuti kolom `platform` atau pilihan **Platform bawaan**.
 
-Tags dikirim ke kolom Tags YouTube. Bila deskripsi menyebut visual buatan AI, pilihan "konten sintetis" tercentang otomatis dan YouTube menerima pengungkapan `containsSyntheticMedia`. Komentar sematan tidak dapat disematkan lewat API dan tetap dilakukan di YouTube Studio. Selama proyek Google belum lolos audit, video tetap privat.
+Lalu atur jadwal (tanggal mulai, hari, dan jam WIB; slot yang sudah dipakai dilewati, tanggal dan judul bisa diubah per baris), centang persetujuan, dan jalankan. Setiap baris diunggah lalu dijadwalkan, diajukan, atau disimpan sebagai draft satu per satu; baris yang gagal ditampilkan alasannya tanpa menghentikan yang lain.
 
-Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, serta caption Markdown/JSON/CSV berdasarkan ID. Gambar dikonversi menjadi JPEG sRGB. Video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah.
+Tags dikirim ke kolom Tags YouTube. Bila deskripsi menyebut visual buatan AI, pilihan "konten sintetis" tercentang otomatis dan YouTube menerima `containsSyntheticMedia`. Komentar sematan tetap disematkan di YouTube Studio. Selama proyek Google belum lolos audit, video tetap privat. Gambar dikonversi menjadi JPEG sRGB; video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah. Alamat lama `/import` dan `/package` membuka halaman yang sama.
 
 ## Susunan menu
 
-Sidebar dibuat ringkas: **Mulai** (Beranda, Buat posting) → **Konten** (Pustaka Instagram, Pustaka YouTube, Kalender, Antrean, Impor massal) → **Bantuan AI** (Asisten caption, Desain konten) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Editor tidak melihat Impor massal, Koneksi & publikasi, dan Pengaturan AI. Pemeriksaan kini menjadi filter **Perlu ditinjau** di pustaka; Pengetahuan brand dibuka dari Pengaturan AI; Marketing dan Strategi konten disembunyikan dari menu. Data dan alamat lama (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) tetap berfungsi.
+Sidebar dibuat ringkas: **Mulai** (Beranda, Buat posting) → **Konten** (Pustaka Instagram, Pustaka YouTube, Kalender, Antrean, Impor konten) → **Bantuan AI** (Asisten caption, Desain konten) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Editor tidak melihat Impor konten, Koneksi & publikasi, dan Pengaturan AI. Pemeriksaan kini menjadi filter **Perlu ditinjau** di pustaka; Pengetahuan brand dibuka dari Pengaturan AI; Marketing dan Strategi konten disembunyikan dari menu. Data dan alamat lama (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) tetap berfungsi.
 
 ## Mobile dan bahasa
 
