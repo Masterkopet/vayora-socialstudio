@@ -11,8 +11,8 @@ const pathOf = f => f.webkitRelativePath || f.name;
 
 export function createPackageImport(ctx) {
   const { api, esc, button, toast } = ctx;
-  let st;
-  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, platform: 'youtube', mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false }; };
+  let st, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
+  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, platform: 'youtube', mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true }; };
   reset();
 
   // ---------- derived state ----------
@@ -27,13 +27,15 @@ export function createPackageImport(ctx) {
     const all = [...matched, ...matchFiles(extra, st.media.filter(f => !used.has(f)), pf)];
     st.rows = all.map(m => {
       const key = m.row.id || (m.row.number != null ? 'n' + m.row.number : m.row.key), e = st.edits[key] || {};
-      const row = { ...m.row, title: e.title ?? (m.row.title || titleFromFile(m.files[0]?.name || '')) };
+      const row = { ...m.row, title: e.title ?? (m.row.title || titleFromFile(m.files[0]?.name || '')), fromFile: !m.row.title && e.title == null };
       return { key, row, files: e.picked ? [e.picked] : m.files, cover: m.cover, choices: m.choices, result: st.rows.find(r => r.key === key)?.result || null };
     });
     st.synthetic = st.synthetic || st.rows.some(r => AI_NOTE.test(r.row.caption));
   }
   const existingIds = () => (ctx.getWorkspace().posts || []).map(p => p.id);
-  const checked = r => checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: st.mode, existingIds: existingIds() });
+  const aiFill = () => st.aiFill && !!ai?.textConfigured && st.mode !== 'draft';
+  const needsAI = r => !r.row.caption && aiFill();
+  const checked = r => { const c = checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: needsAI(r) ? 'draft' : st.mode, existingIds: existingIds() }); if (needsAI(r)) c.warnings.unshift('Judul & caption ditulis AI, lalu diajukan untuk ditinjau.'); return c; };
   const active = r => edit(r).include && !r.result?.ok && !checked(r).errors.length;
   const ready = () => st.rows.filter(active);
   function plan() {
@@ -62,6 +64,7 @@ ${st.reading ? '<p class="vs-mini" role="status">Membaca file…</p>' : summary}
 ${st.mode === 'draft' ? '' : `<div class="vs-two"><label class="vs-label">Mulai tanggal<input class="vs-input" type="date" id="pkg-start" value="${esc(st.start)}"></label><label class="vs-label">Jam terbit (WIB)<input class="vs-input" id="pkg-times" value="${esc(st.times)}" placeholder="19:00, 09:00"><small>Pisahkan dengan koma untuk lebih dari satu jam per hari.</small></label></div>
 <div><span class="vs-label">Hari terbit</span><div class="vs-day-row">${dayBoxes}</div></div>
 ${rows.some(r => r.row.date) ? `<label class="vs-check"><input type="checkbox" id="pkg-file-dates" ${st.useFileDates ? 'checked' : ''}><span>Pakai tanggal dan jam dari file bila ada</span></label>` : ''}`}
+${rows.some(r => !r.row.caption) && st.mode !== 'draft' ? (ai?.textConfigured ? `<label class="vs-check"><input type="checkbox" id="pkg-ai-fill" ${st.aiFill ? 'checked' : ''}><span><b>Tulis caption yang kosong dengan AI</b> · Gemini menonton video atau melihat foto. Konten ini diajukan untuk ditinjau (tidak langsung terjadwal) agar dibaca dulu.</span></label>` : `<p class="vs-mini">${rows.filter(r => !r.row.caption).length} konten belum punya caption. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis.</p>`) : ''}
 ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input type="checkbox" id="pkg-synthetic" ${st.synthetic ? 'checked' : ''}><span>Video berisi visual realistis buatan AI. Ungkapkan ke YouTube (setelan "konten sintetis").</span></label>` : ''}`);
     const table = rows.map((r, i) => {
       const c = checked(r), slot = slotOf(r), p = platformOf(r), res = r.result, e = edit(r), locked = res?.ok || st.running;
@@ -95,13 +98,20 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
         const media = (await api('/api/media', 'POST', form)).media || [];
         let coverId = null;
         if (r.cover && format === 'Reel') { const cf = new FormData(); cf.append('files', r.cover); coverId = (await api('/api/media?role=cover', 'POST', cf)).media?.[0]?.id || null; }
+        let intent = st.mode;
+        if (needsAI(r)) {
+          set('AI menulis caption…', { busy: true });
+          const d = await withRetry(() => api('/api/assistant/draft', 'POST', { platform: p, mediaIds: media.map(m => m.id), hint: r.row.fromFile ? '' : r.row.title }));
+          r.row.caption = d.caption; if (r.row.fromFile || !r.row.title) r.row.title = d.title; if (p === 'youtube' && !r.row.tags.length) r.row.tags = d.tags || [];
+          intent = 'review';
+        }
         set('Menyimpan…', { busy: true });
         const id = r.row.id && r.row.id[0] === PREFIX[format] && !taken.includes(r.row.id) ? r.row.id : undefined;
         const body = { format, title: r.row.title, caption: r.row.caption, mediaIds: media.map(m => m.id), ...(p === 'youtube' ? { tags: r.row.tags, syntheticMedia: st.synthetic } : {}) };
         // Keep the code from the file (V01, C02…) when it is free; otherwise the server picks the next one.
         let item = id ? await api('/api/posts', 'POST', { ...body, id }).catch(e => { if (/ID konten/.test(e.message)) return api('/api/posts', 'POST', body); throw e; }) : await api('/api/posts', 'POST', body);
-        if (st.mode !== 'draft' || coverId) item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent: st.mode, approved: st.mode === 'scheduled', title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId, coverTime: null, date: slot?.date || item.date, time: slot?.time || item.time });
-        ok++; set(st.mode === 'scheduled' ? `${item.id} · terjadwal` : st.mode === 'review' ? `${item.id} · ditinjau` : `${item.id} · draft`, { ok: true });
+        if (intent !== 'draft' || coverId) item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent, approved: intent === 'scheduled', title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId, coverTime: null, date: slot?.date || item.date, time: slot?.time || item.time });
+        ok++; set(intent === 'scheduled' ? `${item.id} · terjadwal` : intent === 'review' ? `${item.id} · ditinjau` : `${item.id} · draft`, { ok: true });
       } catch (error) { set(error.message || 'Gagal diproses.'); }
     }
     st.running = false; st.approved = false; st.done = st.rows.every(r => !edit(r).include || r.result?.ok);
@@ -131,12 +141,21 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
     on('[data-pkg-day]', 'change', el => { const d = Number(el.dataset.pkgDay); st.days = el.checked ? [...st.days, d] : st.days.filter(x => x !== d); clearOverrides(); ctx.render(); });
     on('#pkg-file-dates', 'change', el => { st.useFileDates = el.checked; ctx.render(); });
     on('#pkg-synthetic', 'change', el => { st.synthetic = el.checked; });
+    on('#pkg-ai-fill', 'change', el => { st.aiFill = el.checked; ctx.render(); });
+    if (ai === null) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }
     on('#pkg-approved', 'change', el => { st.approved = el.checked; const b = root.querySelector('[data-action="pkg-run"]'); if (b) b.disabled = !el.checked || !ready().length; });
     on('[data-pkg-include]', 'change', el => { edit(st.rows[el.dataset.pkgInclude]).include = el.checked; ctx.render(); });
     on('[data-pkg-title]', 'input', el => { const r = st.rows[el.dataset.pkgTitle]; r.row.title = el.value; edit(r).title = el.value; });
     on('[data-pkg-title]', 'change', () => ctx.render());
     on('[data-pkg-choice]', 'change', el => { const r = st.rows[el.dataset.pkgChoice]; if (el.value !== '') { edit(r).picked = r.choices[Number(el.value)]; rebuild(); ctx.render(); } });
     on('[data-pkg-date],[data-pkg-time]', 'change', el => { const i = el.dataset.pkgDate ?? el.dataset.pkgTime, date = root.querySelector(`[data-pkg-date="${i}"]`).value, time = root.querySelector(`[data-pkg-time="${i}"]`).value; if (date && time) edit(st.rows[i]).override = { date, time }; ctx.render(); });
+  }
+  // The AI endpoint allows one request every few seconds; wait and retry instead of failing the row.
+  async function withRetry(call) {
+    for (let attempt = 0; ; attempt++) {
+      try { return await call(); }
+      catch (e) { if (attempt < 4 && /Tunggu beberapa detik|sedang berjalan/.test(e.message || '')) { await new Promise(r => setTimeout(r, 6000)); continue; } throw e; }
+    }
   }
   const clearOverrides = () => Object.values(st.edits).forEach(e => { e.override = null; });
   async function action(name) {

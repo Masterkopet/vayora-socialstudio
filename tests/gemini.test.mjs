@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -86,5 +86,59 @@ test('"Buat posting" draft returns an editable title and caption, and errors sta
     ready(f.store);
     reply = () => Response.json({ error: {} }, { status: 429 });
     await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /Kuota atau batas API Gemini/);
+  } finally { await f.cleanup(); }
+});
+
+// A Short with a real poster frame and an mp4 file of the given size (content does not matter to the mocks).
+async function addShort(f, { id = 'v'.repeat(64), size = 1024, status = 'draft', post = 'S01', caption = 'Caption Short', tags } = {}) {
+  const dir = path.join(f.store.directory, 'media'); await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, id + '.mp4'), Buffer.alloc(size, 1));
+  await sharp({ create: { width: 360, height: 640, channels: 3, background: '#FFB600' } }).jpeg().toFile(path.join(dir, id + '-poster.jpg'));
+  f.store.run('INSERT INTO media(id,path,mime,name,size,width,height,duration,poster,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)', id, id + '.mp4', 'video/mp4', 'short.mp4', size, 1080, 1920, 30, id + '-poster.jpg', new Date().toISOString());
+  f.store.insertPost({ id: post, title: 'Cek kamar kosong', category: 'Reservasi', goal: 'Permintaan demo', format: 'Short', mediaIds: [id], caption, alt: '', approved: false, status, ...(tags ? { tags } : {}) });
+  return id;
+}
+
+test('Gemini watches the whole Short and writes YouTube titles, description and tags in the team style', async () => {
+  const f = await fixture();
+  try {
+    const example = 'Housekeeping villa belum selesai hanya karena kamar terlihat rapi.\n\nKenali Vayora: vayora.id\n\nVisual properti merupakan ilustrasi AI.\n\n#Vayora #Shorts';
+    await addShort(f, { id: 'e'.repeat(64), post: 'S09', status: 'scheduled', caption: example, tags: ['housekeeping villa'] });
+    await addShort(f);
+    let captured;
+    const ai = createAssistant(f.store, { fetch: async (url, init) => { captured = JSON.parse(init.body); return gemini({ summary: 'Video', keywords: ['cek kamar'], variants: [1, 2, 3].map(i => ({ label: 'V' + i, title: 'Cara Cek Kamar Kosong <' + i + '>', caption: 'Deskripsi ' + i, hashtags: ['#Vayora', '#Shorts'] })), tags: ['cek kamar kosong', 'kalender, villa', '#booking'], altText: '', warnings: [] }); } });
+    ai.configure({ geminiKey: KEY });
+    const r = await ai.caption({ postId: 'S01', mode: 'vision' });
+    const video = captured.contents[0].parts[1];
+    assert.equal(video.inline_data.mime_type, 'video/mp4', 'the whole video, not a poster');
+    assert.equal(r.platform, 'YouTube'); assert.match(r.source, /menonton video utuh/);
+    assert.equal(r.variants[0].title, 'Cara Cek Kamar Kosong 1', 'title is YouTube-safe');
+    assert.deepEqual(r.tags, ['cek kamar kosong', 'kalender villa', 'booking']);
+    const sys = captured.systemInstruction.parts[0].text;
+    assert.match(sys, /dengarkan narasinya/); assert.match(sys, /Tags YouTube/);
+    assert.match(sys, /Contoh gaya tim/); assert.ok(sys.includes('ilustrasi AI'), 'house style comes from the scheduled Short');
+    assert.ok(captured.generationConfig.responseSchema.properties.tags, 'YouTube schema asks for tags');
+  } finally { await f.cleanup(); }
+});
+
+test('large videos go through the Gemini Files API and wait until processed', async () => {
+  const f = await fixture();
+  try {
+    await addShort(f, { size: 15 * 1024 * 1024 });
+    const calls = [];
+    const ai = createAssistant(f.store, { pollMs: 1, fetch: async (url, init = {}) => {
+      calls.push(String(url));
+      if (String(url).includes('/upload/v1beta/files')) return new Response(null, { status: 200, headers: { 'x-goog-upload-url': 'https://upload.example.test/session1' } });
+      if (String(url) === 'https://upload.example.test/session1') { assert.equal(init.headers['X-Goog-Upload-Command'], 'upload, finalize'); return Response.json({ file: { name: 'files/abc', uri: 'https://gen.example.test/files/abc', state: 'PROCESSING' } }); }
+      if (String(url).endsWith('/v1beta/files/abc')) return Response.json({ name: 'files/abc', uri: 'https://gen.example.test/files/abc', state: 'ACTIVE' });
+      const body = JSON.parse(init.body);
+      assert.deepEqual(body.contents[0].parts[1], { file_data: { mime_type: 'video/mp4', file_uri: 'https://gen.example.test/files/abc' } });
+      return gemini({ title: 'Judul Short', caption: 'Deskripsi', hashtags: ['#Vayora'], tags: ['villa'], warnings: [] });
+    } });
+    ai.configure({ geminiKey: KEY });
+    const d = await ai.draft({ platform: 'youtube', mediaIds: ['v'.repeat(64)] });
+    assert.equal(d.watched, true); assert.deepEqual(d.tags, ['villa']);
+    assert.ok(calls.some(u => u.endsWith('/v1beta/files/abc')), 'polled until ACTIVE');
+    assert.ok(!calls.some(u => u.includes('AIza')), 'the key never appears in a URL');
   } finally { await f.cleanup(); }
 });
