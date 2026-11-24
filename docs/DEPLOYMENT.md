@@ -126,7 +126,11 @@ journalctl -u vayora-studio-backup.service -n 20       # hasil terakhir
 cat /opt/vayora-social-studio/backups/daily/*/manifest.txt
 ```
 
-Backup ini masih berada di disk server yang sama: melindungi dari kesalahan data/aplikasi, tetapi tidak dari kerusakan server. Simpan juga salinan di luar server (terenkripsi, karena berisi kunci).
+**Salinan di luar server (Google Drive).** Setelah backup lokal lolos verifikasi, `deploy/backup-offsite.sh` mengemas folder backup, mengenkripsinya dengan [age](https://age-encryption.org/) untuk kunci publik di `/root/.config/vayora-backup/age.pub`, mengunggahnya dengan rclone ke `gdrive:Vayora Social Studio Backups/vayora-studio-<waktu>.tar.gz.age` (akun Google Owner Vayora, izin `drive.file`: rclone hanya melihat file yang dibuatnya), memastikan ukuran file di Drive sama, lalu menyimpan 14 arsip terbaru. Unggah yang gagal membuat service gagal sehingga terlihat di `journalctl`.
+
+- **Kunci privat** pembuka arsip **tidak ada di server**. Kunci disimpan pemilik di luar server (password manager); tanpa kunci itu arsip di Drive tidak dapat dibuka.
+- **Memulihkan dari Drive:** `rclone copy "gdrive:Vayora Social Studio Backups/<file>.tar.gz.age" .` lalu `age -d -i <kunci-privat> <file>.tar.gz.age | tar -xzf - -C pulih/`, kemudian ikuti langkah pemulihan di bawah.
+- **Menyiapkan ulang di server baru:** `apt-get install rclone age`, `rclone config create gdrive drive scope=drive.file` (otorisasi lewat tunnel SSH `-L 53682:127.0.0.1:53682` dan browser di PC), simpan kunci publik ke `/root/.config/vayora-backup/age.pub`.
 
 **Memulihkan:** hentikan aplikasi di Coolify; salin `studio.sqlite`, `.encryption-key`, dan isi `media/` dari folder backup ke `/opt/vayora-social-studio/data/`; hapus `studio.sqlite-wal` dan `studio.sqlite-shm`; jalankan `chown -R 1000:1000 /opt/vayora-social-studio/data`; lalu jalankan aplikasi lagi dan periksa login, pustaka, dan status koneksi. Pengguna perlu login ulang bila sesi di backup sudah kedaluwarsa.
 
