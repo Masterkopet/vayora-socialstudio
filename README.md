@@ -25,6 +25,8 @@ Pustaka → buka ringkasan detail → pilih Edit konten → periksa media dan ca
 
 Jadwal tampil langsung pada card pustaka. Tombol Post sekarang membuka pemeriksaan sebelum publikasi manual; akun Instagram dan publikasi nyata harus siap. Jadwal lama konten itu digantikan, sementara antrean lain tidak dilanjutkan. Antrean dapat dijeda dan jadwal dapat dibatalkan. Konten terbit hanya dapat disalin. Hasil yang belum pasti dikunci sampai status dari Meta diperiksa, untuk mencegah unggahan ganda.
 
+**Hapus konten** ada di dialog Detail. Konten terjadwal ikut dibatalkan jadwalnya; konten yang sedang diproses atau hasilnya belum pasti tidak dapat dihapus; konten terbit hanya dapat dihapus pemilik dan postingan di Instagram tetap ada. Konten terhapus hilang dari pustaka, kalender, dan antrean, tetapi riwayatnya tetap tersimpan dan ID-nya tidak dipakai ulang. API: `DELETE /api/posts/:id?revision=N` (session + header `x-csrf-token`).
+
 Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, serta caption Markdown/JSON/CSV berdasarkan ID. Gambar dikonversi menjadi JPEG sRGB. Video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah.
 
 ## Susunan menu
