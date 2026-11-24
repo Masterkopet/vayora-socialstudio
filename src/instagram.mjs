@@ -71,19 +71,25 @@ export function createInstagram(store, getConfig, options = {}) {
   // itself, (b) the account is reached through a Facebook Page the token can see.
   async function findFacebookAccount(token) {
     // A Facebook user/system-user token is not an Instagram node, so `me` cannot answer. Meta lists the assets a Unified login
-    // token was granted in debug_token's granular_scopes (target_ids); Pages and Business assets are tried as fallbacks.
-    // Each probe's sanitized Meta reason is kept so a failure explains itself.
-    const reasons=[],found=[],candidates=new Set();let rejected=false,answered=0;
+    // token was granted in debug_token's granular_scopes (target_ids), but only for an app access token (App ID|App Secret) or
+    // a token owned by an app developer; Pages and Business assets are tried as fallbacks. Each probe's sanitized Meta reason
+    // is kept so a failure explains itself.
+    const config=getConfig(),appToken=config.appId&&config.appSecret?`${config.appId}|${config.appSecret}`:null;
+    const reasons=[],notes=[],found=[],candidates=new Set();let rejected=false,answered=0;
     const add=(id,username)=>{id=String(id||'');if(/^\d+$/.test(id)&&username&&!found.some(x=>x.id===id))found.push({id,username});};
     const attempt=async(label,run)=>{try{await run();answered++;}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/^Meta menolak permintaan/,'ditolak').replace(/\. Periksa izin dan spesifikasi media\.$/,'')}`);}};
-    await attempt('debug_token',async()=>{const info=await graph('debug_token',{input_token:token},'GET',token,'facebook');for(const grant of info.data?.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));});
-    await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');for(const page of pages.data||[])add(page.instagram_business_account?.id,page.instagram_business_account?.username);});
+    const scan=info=>{for(const grant of info.data?.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));};
+    await attempt(appToken?'debug_token (app token)':'debug_token',async()=>scan(await graph('debug_token',{input_token:token},'GET',appToken||token,'facebook')));
+    await attempt('me',async()=>{const me=await graph('me',{fields:'id,name'},'GET',token,'facebook');if(/^\d+$/.test(String(me.id||'')))candidates.add(String(me.id));notes.push(`me=${String(me.id||'?')}`);});
+    await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');notes.push(`Page=${(pages.data||[]).length}`);for(const page of pages.data||[])add(page.instagram_business_account?.id,page.instagram_business_account?.username);});
     await attempt('me/businesses',async()=>{const businesses=await graph('me/businesses',{fields:'id',limit:'10'},'GET',token,'facebook');for(const business of businesses.data||[]){const owned=await graph(`${business.id}/instagram_business_accounts`,{fields:'id,username',limit:'25'},'GET',token,'facebook');for(const ig of owned.data||[])add(ig.id,ig.username);}});
-    for(const id of candidates){if(found.some(x=>x.id===id))continue;await attempt(`akun ${id}`,async()=>{const ig=await graph(id,{fields:'id,username'},'GET',token,'facebook');add(ig.id,ig.username);});}
+    await attempt('me/permissions',async()=>{const list=await graph('me/permissions',{},'GET',token,'facebook');notes.push('izin='+(list.data||[]).filter(x=>x.status==='granted').map(x=>x.permission).join(','));});
+    for(const id of candidates){if(found.some(x=>x.id===id))continue;try{const ig=await graph(id,{fields:'id,username'},'GET',token,'facebook');add(ig.id,ig.username);}catch{}}
     if(found.length===1)return found[0];
     if(found.length>1)throw fail(`Token ini dapat mengakses ${found.length} akun Instagram (${found.map(x=>'@'+x.username).join(', ')}). Buat token yang hanya untuk akun Vayora.`,'ACCOUNT_AMBIGUOUS');
     if(rejected&&!answered)throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
-    throw fail(`Akun Instagram tidak ditemukan untuk token ini. ${reasons.join(' · ').slice(0,700)}`,'PROFILE_INVALID');
+    const hint=appToken?'':' Isi App ID dan App Secret di "Cara lanjutan" (App settings → Basic di dashboard Meta) agar Studio dapat membaca aset yang diizinkan token.';
+    throw fail(`Akun Instagram tidak ditemukan untuk token ini.${hint} Rincian: ${[...notes,...reasons].join(' · ').slice(0,800)}`,'PROFILE_INVALID');
   }
   function start(userId, sessionHash) {
     const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Isi App ID dan App Secret dari Meta Developer terlebih dahulu.','META_NOT_CONFIGURED');
