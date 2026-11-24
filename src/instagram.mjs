@@ -70,14 +70,20 @@ export function createInstagram(store, getConfig, options = {}) {
   // is tried in turn and Meta's sanitized reason is reported when none works: (a) the token is bound to the Instagram account
   // itself, (b) the account is reached through a Facebook Page the token can see.
   async function findFacebookAccount(token) {
-    const reasons=[],found=[];let rejected=false;
-    const attempt=async(label,run)=>{try{await run();}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/\. Periksa izin dan spesifikasi media\.$/,'')}`);}};
-    await attempt('me',async()=>{const me=await graph('me',{fields:'id,username'},'GET',token,'facebook');if(/^\d+$/.test(String(me.id||''))&&me.username)found.push({id:String(me.id),username:me.username});});
-    if(!found.length)await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');for(const page of pages.data||[]){const ig=page.instagram_business_account;if(ig&&/^\d+$/.test(String(ig.id||''))&&ig.username&&!found.some(x=>x.id===String(ig.id)))found.push({id:String(ig.id),username:ig.username});}});
+    // A Facebook user/system-user token is not an Instagram node, so `me` cannot answer. Meta lists the assets a Unified login
+    // token was granted in debug_token's granular_scopes (target_ids); Pages and Business assets are tried as fallbacks.
+    // Each probe's sanitized Meta reason is kept so a failure explains itself.
+    const reasons=[],found=[],candidates=new Set();let rejected=false,answered=0;
+    const add=(id,username)=>{id=String(id||'');if(/^\d+$/.test(id)&&username&&!found.some(x=>x.id===id))found.push({id,username});};
+    const attempt=async(label,run)=>{try{await run();answered++;}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/^Meta menolak permintaan/,'ditolak').replace(/\. Periksa izin dan spesifikasi media\.$/,'')}`);}};
+    await attempt('debug_token',async()=>{const info=await graph('debug_token',{input_token:token},'GET',token,'facebook');for(const grant of info.data?.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));});
+    await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');for(const page of pages.data||[])add(page.instagram_business_account?.id,page.instagram_business_account?.username);});
+    await attempt('me/businesses',async()=>{const businesses=await graph('me/businesses',{fields:'id',limit:'10'},'GET',token,'facebook');for(const business of businesses.data||[]){const owned=await graph(`${business.id}/instagram_business_accounts`,{fields:'id,username',limit:'25'},'GET',token,'facebook');for(const ig of owned.data||[])add(ig.id,ig.username);}});
+    for(const id of candidates){if(found.some(x=>x.id===id))continue;await attempt(`akun ${id}`,async()=>{const ig=await graph(id,{fields:'id,username'},'GET',token,'facebook');add(ig.id,ig.username);});}
     if(found.length===1)return found[0];
     if(found.length>1)throw fail(`Token ini dapat mengakses ${found.length} akun Instagram (${found.map(x=>'@'+x.username).join(', ')}). Buat token yang hanya untuk akun Vayora.`,'ACCOUNT_AMBIGUOUS');
-    if(rejected&&reasons.every(r=>/kedaluwarsa/i.test(r)))throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
-    throw fail(`Akun Instagram tidak ditemukan untuk token ini. ${reasons.join(' · ').slice(0,420)}`,'PROFILE_INVALID');
+    if(rejected&&!answered)throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
+    throw fail(`Akun Instagram tidak ditemukan untuk token ini. ${reasons.join(' · ').slice(0,700)}`,'PROFILE_INVALID');
   }
   function start(userId, sessionHash) {
     const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Isi App ID dan App Secret dari Meta Developer terlebih dahulu.','META_NOT_CONFIGURED');
