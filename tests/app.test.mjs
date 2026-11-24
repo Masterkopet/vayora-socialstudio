@@ -276,3 +276,42 @@ test('a system-user token with no listed assets connects with the owner-given ac
     assert.ok(!calls.some(u=>/debug_token|me\/accounts|me\/businesses/.test(u.pathname)),'a given id skips discovery');
   }finally{await f.cleanup();}
 });
+test('delete hides content everywhere, keeps its id reserved and history, and refuses unsafe deletes',async()=>{
+  const f=await fixture();
+  try{
+    const owner=await f.setup(),mediaId='d'.repeat(64);
+    f.store.run('INSERT INTO media(id,path,mime,name,size,width,height,created_at) VALUES(?,?,?,?,?,?,?,?)',mediaId,'fixture.jpg','image/jpeg','fixture.jpg',10,1080,1350,new Date().toISOString());
+    const created=await f.request('/api/posts','POST',{id:'I01',format:'Gambar',title:'Akan dihapus',caption:'C',mediaIds:[mediaId]},owner);assert.equal(created.response.status,201);
+    const item=created.data;
+    assert.equal((await f.request('/api/posts/I01?revision='+(item.revision+5),'DELETE',null,owner)).response.status,409,'stale revision is refused');
+    const done=await f.request('/api/posts/I01?revision='+(item.revision),'DELETE',null,owner);
+    assert.equal(done.response.status,200);assert.equal(done.data.id,'I01');
+    const workspace=await f.request('/api/workspace','GET',null,owner);
+    assert.ok(!workspace.data.posts.some(p=>p.id==='I01'),'deleted content leaves the library');
+    assert.equal((await f.request('/api/posts/I01?revision='+(item.revision+1),'DELETE',null,owner)).response.status,404,'deleted content is not found again');
+    assert.equal(f.store.post('I01').status,'deleted','row is kept so the id stays reserved');
+    assert.ok(f.store.get("SELECT id FROM events WHERE post_id='I01' AND title='Konten dihapus'"),'deletion is recorded in history');
+    const copy=await f.request('/api/posts','POST',{id:'I02',format:'Gambar',title:'Sumber',caption:'C',mediaIds:[mediaId]},owner);
+    const dup=await f.request('/api/posts/I02/duplicate','POST',{},owner);assert.notEqual(dup.data.id,'I01','a new copy never reuses a deleted id');
+    for(const status of ['processing','uncertain']){
+      f.store.savePost({...f.store.post('I02'),status});
+      const blocked=await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,owner);
+      assert.equal(blocked.response.status,409,status+' cannot be deleted');
+    }
+    f.store.savePost({...f.store.post('I02'),status:'published',mediaId:'ig-1'});
+    const invite=await f.request('/api/team/invites','POST',{email:'editor-del@example.test'},owner);const inviteToken=new URL(invite.data.url).searchParams.get('invite');
+    const join=await f.request('/api/auth/accept-invite','POST',{token:inviteToken,name:'Editor Hapus',password:'Editor-'+randomBytes(12).toString('hex')});
+    const editor={cookie:join.response.headers.get('set-cookie').split(';')[0],csrf:join.data.csrf};
+    assert.equal((await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,editor)).response.status,403,'only the owner removes published content');
+    const removed=await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,owner);assert.equal(removed.response.status,200);
+    assert.match(f.store.get("SELECT detail FROM events WHERE post_id='I02' AND title='Konten dihapus'").detail,/Instagram tetap ada/);
+    assert.ok(copy.data);
+  }finally{await f.cleanup();}
+});
+test('a scheduled item that is deleted is never published by the scheduler',async()=>{
+  const f=await publishingStore();
+  try{
+    const item=f.store.post('I01');f.store.savePost({...item,status:'deleted',scheduleAt:null});
+    assert.ok(!f.store.posts().some(p=>p.id==='I01'),'scheduler reads posts() which excludes deleted content');
+  }finally{await f.cleanup();}
+});

@@ -34,7 +34,9 @@ export function openStore(directory) {
   function setSecret(key, value) { set(key, encrypt(value)); }
   function event(postId, title, detail = '', type = 'change', actor = null) { run('INSERT INTO events(post_id,title,detail,type,actor,created_at) VALUES(?,?,?,?,?,?)', postId, title, detail, type, actor, new Date().toISOString()); }
   function post(id) { const row = get('SELECT * FROM posts WHERE id=?', id); return row ? { ...JSON.parse(row.data), id: row.id, status: row.status, revision: row.revision, scheduleAt: row.schedule_at, updatedAt: row.updated_at } : null; }
-  function posts() { return all('SELECT id FROM posts ORDER BY id').map(x => post(x.id)); }
+  // Deleted content keeps its row (status 'deleted') so its id is never reused by a new copy and its history stays intact,
+  // but it leaves every list, the queue and the scheduler.
+  function posts() { return all("SELECT id FROM posts WHERE status<>'deleted' ORDER BY id").map(x => post(x.id)); }
   function content(item){return Object.fromEntries(['title','caption','alt','category','goal','mediaIds','coverId','coverTime'].map(k=>[k,item[k]??null]));}
   function snapshot(item,{reason='edit',actor=null}={}){run('INSERT OR IGNORE INTO post_versions(id,post_id,revision,body,reason,actor,created_at) VALUES(?,?,?,?,?,?,?)',randomBytes(12).toString('hex'),item.id,item.revision,JSON.stringify(content(item)),reason,actor,new Date().toISOString());}
   function insertPost(item) { const now = new Date().toISOString();db.exec('BEGIN IMMEDIATE');try{run('INSERT INTO posts(id,data,status,schedule_at,updated_at) VALUES(?,?,?,?,?)', item.id, JSON.stringify(item), item.status || 'draft', item.scheduleAt || null, now);const saved=post(item.id);snapshot(saved,{reason:'initial'});db.exec('COMMIT');return saved;}catch(e){db.exec('ROLLBACK');throw e;} }

@@ -62,6 +62,7 @@ html{background:#edf2f7}body{margin:0;padding:24px;font-family:'Segoe UI',Arial,
 #vayora-studio-complete details summary{cursor:pointer;color:#00285c;font-size:12px;font-weight:650;padding:6px 0}
 #vayora-studio-complete details[open] summary{margin-bottom:12px}
 #vayora-studio-complete .vs-advanced-connect{border-top:1px solid #dce5ee;padding-top:12px}
+#vayora-studio-complete .vs-text-button.vs-danger{color:#a83636}
 #vayora-studio-complete .smart-topic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 #vayora-studio-complete .smart-topic-grid>div{padding:15px;border-radius:9px;background:#f4f7fa;display:grid;gap:8px;color:#61758b;font-size:12px}
 #vayora-studio-complete .smart-topic-grid strong{font-size:26px;color:#00285c}
