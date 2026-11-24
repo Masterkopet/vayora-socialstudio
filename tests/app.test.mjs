@@ -262,3 +262,17 @@ test('an app token (App ID|Secret) lets debug_token reveal the granted Instagram
       error=>error.code==='PROFILE_INVALID'&&/Isi App ID dan App Secret/.test(error.message)&&/debug_token: ditolak \(kode 100\)/.test(error.message));
   }finally{await f.cleanup();}
 });
+test('a system-user token with no listed assets connects with the owner-given account id, verified against Meta',async()=>{
+  const f=await publishingStore();
+  try{
+    const config=()=>({appId:'123456',appSecret:'app-secret-fixture',publicBase:'https://example.test',version:'v27.0'});
+    const calls=[];const ig=createInstagram(f.store,config,{fetch:facebookTransport('none',calls)});
+    await assert.rejects(()=>ig.connectToken('EAAfunifiedtoken0000000000','owner','12ab'),error=>error.code==='ACCOUNT_ID_FORMAT');
+    assert.equal(calls.length,0,'a malformed id never reaches Meta');
+    await assert.rejects(()=>ig.connectToken('EAAfunifiedtoken0000000000','owner','55555'),error=>error.code==='ACCOUNT_NOT_ACCESSIBLE'&&/kode 100/.test(error.message)&&/system user/.test(error.message));
+    assert.equal(ig.status().username,'fixture','a refused id keeps the saved connection');
+    const result=await ig.connectToken('EAAfunifiedtoken0000000000','owner',` ${FB_IG} `);
+    assert.equal(result.connected,true);assert.equal(result.username,'vayora');assert.equal(result.accountId,FB_IG);assert.equal(result.api,'facebook');
+    assert.ok(!calls.some(u=>/debug_token|me\/accounts|me\/businesses/.test(u.pathname)),'a given id skips discovery');
+  }finally{await f.cleanup();}
+});

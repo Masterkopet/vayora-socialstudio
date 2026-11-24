@@ -45,15 +45,18 @@ export function createInstagram(store, getConfig, options = {}) {
   }
   // Quick connection: the owner pastes the long-lived token from Meta's App Dashboard
   // (Instagram > API setup with Instagram login > Generate token). No App ID, secret or redirect URI is needed.
-  async function connectToken(rawToken, userId) {
+  async function connectToken(rawToken, userId, rawAccountId) {
     const token=typeof rawToken==='string'?rawToken.trim():'';
     if(!token)throw fail('Tempel access token dari Meta terlebih dahulu.','TOKEN_REQUIRED');
     if(token.length<20||token.length>2048||!/^[A-Za-z0-9_.|-]+$/.test(token))throw fail('Format token tidak dikenali. Salin ulang seluruh token dari tombol Generate token di Meta.','TOKEN_FORMAT');
+    // Optional: a system-user token with no assigned assets cannot reveal its Instagram account, so the owner may give its id.
+    const manualId=rawAccountId==null?'':String(rawAccountId).trim();
+    if(manualId&&!/^\d{5,25}$/.test(manualId))throw fail('ID akun Instagram harus berupa angka (5–25 digit).','ACCOUNT_ID_FORMAT');
     const now=Date.now();
     if(/^EAA/.test(token)){
       // Unified login (Facebook) token: find the Instagram professional account it can publish to. Meta gives no expiry date
       // without the app secret, so the token is trusted until Meta rejects it (then the owner is asked to reconnect).
-      const account=await findFacebookAccount(token);
+      const account=await findFacebookAccount(token,manualId);
       store.setSecret('instagram.connection',{token,accountId:account.id,username:account.username,method:'token',api:'facebook',noExpiry:true,expiresKnown:false,expiresAt:null,refreshedAt:now,invalid:false});
     } else {
     let profile;
@@ -69,7 +72,14 @@ export function createInstagram(store, getConfig, options = {}) {
   // Facebook-graph discovery. Meta's Unified login does not document which node a generated token answers on, so each probe
   // is tried in turn and Meta's sanitized reason is reported when none works: (a) the token is bound to the Instagram account
   // itself, (b) the account is reached through a Facebook Page the token can see.
-  async function findFacebookAccount(token) {
+  async function findFacebookAccount(token, manualId='') {
+    if(manualId){
+      // Use the owner's id only if this token can actually read that Instagram account on graph.facebook.com.
+      let ig;try{ig=await graph(manualId,{fields:'id,username'},'GET',token,'facebook');}
+      catch(error){if(error.code==='META_AUTH')throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');throw fail(`ID akun Instagram ${manualId} tidak dapat diakses dengan token ini. ${String(error.message).replace(/\. Periksa izin dan spesifikasi media\.$/,'.')} Pastikan akun itu ditetapkan ke system user aplikasi di Business settings.`,'ACCOUNT_NOT_ACCESSIBLE');}
+      if(String(ig.id||'')!==manualId||!ig.username)throw fail(`ID ${manualId} bukan akun profesional Instagram yang dapat diakses token ini.`,'ACCOUNT_NOT_ACCESSIBLE');
+      return {id:manualId,username:ig.username};
+    }
     // A Facebook user/system-user token is not an Instagram node, so `me` cannot answer. Meta lists the assets a Unified login
     // token was granted in debug_token's granular_scopes (target_ids), but only for an app access token (App ID|App Secret) or
     // a token owned by an app developer; Pages and Business assets are tried as fallbacks. Each probe's sanitized Meta reason
@@ -91,7 +101,7 @@ export function createInstagram(store, getConfig, options = {}) {
     if(found.length===1)return found[0];
     if(found.length>1)throw fail(`Token ini dapat mengakses ${found.length} akun Instagram (${found.map(x=>'@'+x.username).join(', ')}). Buat token yang hanya untuk akun Vayora.`,'ACCOUNT_AMBIGUOUS');
     if(rejected&&!answered)throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
-    const hint=appToken?'':' Isi App ID dan App Secret di "Cara lanjutan" (App settings → Basic di dashboard Meta) agar Studio dapat membaca aset yang diizinkan token.';
+    const hint=(appToken?'':' Isi App ID dan App Secret di "Cara lanjutan" (App settings → Basic di dashboard Meta) agar Studio dapat membaca aset yang diizinkan token.')+' Bila token tidak menyebut aset, isi juga kolom ID akun Instagram.';
     throw fail(`Akun Instagram tidak ditemukan untuk token ini.${hint} Rincian: ${[...notes,...reasons].join(' · ').slice(0,800)}`,'PROFILE_INVALID');
   }
   function start(userId, sessionHash) {
