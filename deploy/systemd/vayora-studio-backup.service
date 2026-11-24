@@ -1,0 +1,10 @@
+[Unit]
+Description=Vayora Social Studio daily backup (database, encryption key, media)
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/vayora-social-studio/deploy/backup.sh
+Nice=10
+IOSchedulingClass=idle

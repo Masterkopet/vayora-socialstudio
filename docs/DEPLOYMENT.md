@@ -106,6 +106,30 @@ Hubungkan subdomain HTTPS pada proxy yang sudah ada ke `http://127.0.0.1:<APP_PO
 
 Perpindahan online tidak otomatis mengaktifkan publikasi, memanggil layanan AI berbayar, atau mengirim pesan ke calon pelanggan. Pengujian lokal menggunakan data uji terpisah, bukan akun Instagram pengguna.
 
+## Backup otomatis harian (produksi)
+
+Server menjalankan `deploy/backup.sh` setiap hari pukul **02:30 WIB** lewat timer systemd `vayora-studio-backup.timer` (berkas unit ada di `deploy/systemd/`). Setiap backup tersimpan di `/opt/vayora-social-studio/backups/daily/<waktu UTC>/` berisi:
+
+- `studio.sqlite`: salinan database yang konsisten, diambil dengan SQLite backup API di dalam container (aplikasi tidak dimatikan).
+- `.encryption-key`: kunci pembuka token/secret di database. Backup tanpa kunci ini tidak dapat memulihkan koneksi Instagram/YouTube.
+- `media/`: file unggahan. File yang tidak berubah berupa hard link ke backup sebelumnya, sehingga backup harian hanya memakan ruang untuk file baru.
+- `manifest.txt`: hasil pemeriksaan (`integrity`, jumlah konten, baris media, file yang hilang, ukuran kunci).
+
+Backup hanya disimpan bila database lolos `PRAGMA integrity_check`, setiap baris media punya file, dan kunci berukuran 32 byte. Hanya 14 backup terbaru yang disimpan (`KEEP_DAYS`).
+
+Perintah di server:
+
+```sh
+systemctl list-timers vayora-studio-backup.timer      # jadwal berikutnya
+systemctl start vayora-studio-backup.service           # backup sekarang
+journalctl -u vayora-studio-backup.service -n 20       # hasil terakhir
+cat /opt/vayora-social-studio/backups/daily/*/manifest.txt
+```
+
+Backup ini masih berada di disk server yang sama: melindungi dari kesalahan data/aplikasi, tetapi tidak dari kerusakan server. Simpan juga salinan di luar server (terenkripsi, karena berisi kunci).
+
+**Memulihkan:** hentikan aplikasi di Coolify; salin `studio.sqlite`, `.encryption-key`, dan isi `media/` dari folder backup ke `/opt/vayora-social-studio/data/`; hapus `studio.sqlite-wal` dan `studio.sqlite-shm`; jalankan `chown -R 1000:1000 /opt/vayora-social-studio/data`; lalu jalankan aplikasi lagi dan periksa login, pustaka, dan status koneksi. Pengguna perlu login ulang bila sesi di backup sudah kedaluwarsa.
+
 ## Update dan backup
 
 Backup seluruh folder data beserta key melalui penyimpanan privat. Untuk backup file biasa, hentikan aplikasi sebentar supaya database/WAL konsisten, salin folder lengkap, lalu hidupkan kembali. Snapshot migrasi menonaktifkan publikasi/menghapus sesi pada salinan sehingga berbeda dari backup pemulihan mentah.
