@@ -33,7 +33,7 @@ try{
    await page.locator('[data-action="more-menu"]:visible').click();
    await page.waitForFunction(()=>document.querySelector('#vs-detail')?.dataset.phase==='open'&&Number(getComputedStyle(document.querySelector('#vs-detail')).opacity)>.999&&Math.abs(new DOMMatrixReadOnly(getComputedStyle(document.querySelector('#vs-detail')).transform).m42)<.5);
    await page.locator('#vs-detail [data-language]').selectOption(language);
-   assert.equal(await page.locator('.vs-menu-grid .vs-menu-tile').count(),15);
+   assert.equal(await page.locator('.vs-menu-grid .vs-menu-tile').count(),14);
    const report=await page.locator('#vs-detail').evaluate(dialog=>{
     const grid=dialog.querySelector('.vs-menu-grid'),body=dialog.querySelector('.vs-detail-body'),header=dialog.querySelector('.vs-detail-header'),r=dialog.getBoundingClientRect(),tiles=[...grid.children].map(el=>{const b=el.getBoundingClientRect(),label=el.querySelector('.vs-menu-label');return{x:b.x,y:b.y,width:b.width,height:b.height,overflow:label.scrollWidth>label.clientWidth+1};});
     const bar=document.querySelector('.vs-bottom-nav').getBoundingClientRect();return{bar:{top:bar.top,height:bar.height},bounds:{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom},columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,rows:new Set(tiles.map(t=>Math.round(t.y))).size,tiles,blankHeight:body.clientHeight-body.scrollHeight,contentHeight:header.getBoundingClientRect().height+body.getBoundingClientRect().height+2,bodyScroll:body.scrollHeight-body.clientHeight};
@@ -64,10 +64,10 @@ try{
  await page.locator('#vs-detail [data-language]').selectOption('id');
  assert.equal(await page.locator('.vs-menu-grid [data-action="nav:knowledge"]').count(),0,'brand knowledge lives behind Pengaturan AI');
  await page.locator('.vs-menu-grid [data-action="nav:import"]').click();
- await page.locator('#import-files').waitFor();
+ await page.locator('#pkg-folder').waitFor();
  assert.equal(new URL(page.url()).pathname,'/import');
  assert.deepEqual(errors,[]);
- console.log('PASS menu: fifteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via Pengaturan AI) and import navigation.');
+ console.log('PASS menu: fourteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via Pengaturan AI) and import navigation.');
  console.log(JSON.stringify(reports));
 }finally{
  await browser.close();
