@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Vayora Social Studio backup every day at 02:30 WIB
+
+[Timer]
+# Server clock is UTC; 19:30 UTC = 02:30 WIB (Asia/Jakarta).
+OnCalendar=*-*-* 19:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
