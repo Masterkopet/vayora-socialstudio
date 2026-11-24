@@ -1,0 +1,56 @@
+// English for the home page, the "Buat posting" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
+export const simpleStrings={
+  // Menu
+  'Mulai':'Start','Beranda':'Home','Buat posting':'Create post','Buat':'Create','Konten':'Content','Bantuan AI':'AI help','Impor massal':'Bulk import','Impor':'Import',
+  'Pustaka Instagram':'Instagram library','Pustaka YouTube':'YouTube library','Asisten caption':'Caption assistant','Desain konten':'Content design','Caption':'Caption','Desain':'Design',
+  'Koneksi & publikasi':'Connections & publishing','Koneksi':'Connections','Pengaturan AI':'AI settings','Atur AI':'AI setup','Akun tim':'Team account','Akun':'Account','Riwayat':'History',
+  'Perlu ditinjau':'Needs review','Perlu perhatian':'Needs attention',
+  // Page headings
+  'Ringkasan hari ini dan hal yang perlu ditangani.':"Today's summary and what needs handling.",
+  'Unggah foto atau video, tulis caption, lalu pilih kapan terbit.':'Upload a photo or video, write a caption, then choose when it goes live.',
+  // Home
+  'Ada yang perlu kamu perhatikan.':'Something needs your attention.',
+  'Semua berjalan baik. Tidak ada yang perlu ditangani.':'Everything is running fine. Nothing needs handling.',
+  'terbit hari ini':'going live today','terjadwal 7 hari':'scheduled in 7 days','perlu ditinjau':'need review','draft':'drafts','terbit 30 hari':'published in 30 days',
+  'Jadwal 7 hari ke depan':'Next 7 days','Belum ada jadwal minggu ini.':'Nothing scheduled this week.',
+  'Buat posting baru lalu pilih tanggal dan jam terbit.':'Create a new post, then pick a date and time.',
+  'Tidak ada yang menunggu tinjauan.':'Nothing is waiting for review.','Konten yang diajukan untuk ditinjau muncul di sini.':'Content submitted for review appears here.',
+  'Terhubung':'Connected','Belum terhubung':'Not connected','Belum ada akun yang terhubung.':'No account connected yet.','Belum ada channel yang terhubung.':'No channel connected yet.',
+  'Publikasi nyata':'Real publishing','Aktif, tetapi antrean sedang dijeda.':'On, but the queue is paused.','Aktif. Konten terjadwal terbit otomatis.':'On. Scheduled content goes live automatically.',
+  'Belum aktif. Konten hanya disimpan sebagai rencana.':'Off. Content is only saved as a plan.','Atur':'Set up','Buka':'Open',
+  // Problem alerts
+  'Buka Antrean':'Open queue','Buka Koneksi':'Open connections','Aktifkan publikasi':'Turn on publishing',
+  'Koneksi Instagram terputus. Sambungkan ulang agar posting tetap jalan.':'Instagram is disconnected. Reconnect it so posts keep going out.',
+  'Koneksi Instagram terputus. Minta pemilik workspace menyambungkan ulang.':'Instagram is disconnected. Ask the workspace owner to reconnect it.',
+  'Izin Instagram akan habis dalam 7 hari. Studio mencoba memperpanjang otomatis; bila gagal, sambungkan ulang.':'Instagram access expires within 7 days. The studio tries to renew it automatically; if that fails, reconnect.',
+  'Koneksi YouTube terputus. Sambungkan ulang channel agar Short tetap terunggah.':'YouTube is disconnected. Reconnect the channel so Shorts keep uploading.',
+  'Koneksi YouTube terputus. Minta pemilik workspace menyambungkan ulang.':'YouTube is disconnected. Ask the workspace owner to reconnect it.',
+  'Ada konten Instagram terjadwal, tetapi Instagram belum terhubung.':'Instagram content is scheduled, but Instagram is not connected.',
+  'Ada Short terjadwal, tetapi channel YouTube belum terhubung.':'A Short is scheduled, but the YouTube channel is not connected.',
+  // Create post
+  'Mau posting ke mana?':'Where do you want to post?','Foto, carousel, atau Reel':'Photo, carousel, or Reel','YouTube Shorts':'YouTube Shorts','Video vertikal maksimal 3 menit':'Vertical video up to 3 minutes',
+  'Pilih foto atau video':'Choose a photo or video','File':'File','Mengunggah…':'Uploading…',
+  'Pilih 1 video MP4 vertikal, maksimal 3 menit.':'Choose 1 vertical MP4 video, up to 3 minutes.',
+  'Pilih 1 foto, 2–20 foto untuk carousel, atau 1 video untuk Reel.':'Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.',
+  'Kombinasi file ini tidak didukung. Pilih 1 video MP4 vertikal, maksimal 3 menit.':'This combination of files is not supported. Choose 1 vertical MP4 video, up to 3 minutes.',
+  'Kombinasi file ini tidak didukung. Pilih 1 foto, 2–20 foto untuk carousel, atau 1 video untuk Reel.':'This combination of files is not supported. Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.',
+  'Jenis konten:':'Content type:','Foto (1 gambar)':'Photo (1 image)','Carousel (beberapa gambar)':'Carousel (several images)','Reel (video)':'Reel (video)','YouTube Short (video vertikal)':'YouTube Short (vertical video)',
+  'Tulis judul dan caption':'Write a title and caption','Judul':'Title','Deskripsi':'Description',
+  'tampil sebagai judul video YouTube, maksimal 100 karakter':'shown as the YouTube video title, up to 100 characters','hanya untuk tim, tidak tampil di Instagram':'for the team only, not shown on Instagram',
+  'Butuh ide? Setelah disimpan, buka konten lalu gunakan Asisten caption.':'Need ideas? After saving, open the content and use the Caption assistant.',
+  'Kapan diposting?':'When should it go live?','Ajukan untuk ditinjau':'Submit for review','· pemilik memeriksa dulu sebelum dijadwalkan':'· the owner checks it before it is scheduled',
+  'Jadwalkan sekarang':'Schedule now','· terbit otomatis pada waktu yang dipilih':'· goes live automatically at the chosen time','Simpan sebagai draft':'Save as draft','· lanjutkan nanti':'· continue later',
+  'Tanggal':'Date','Jam (WIB)':'Time (WIB)','Saya sudah memeriksa foto/video dan caption, dan konten ini boleh terbit.':'I have checked the photo/video and caption, and this content may go live.',
+  'Simpan & jadwalkan':'Save & schedule','Simpan draft':'Save draft','Simpan & ajukan':'Save & submit','Mulai ulang':'Start over',
+  'Posting dijadwalkan.':'Post scheduled.','Draft tersimpan.':'Draft saved.','Posting diajukan untuk ditinjau.':'Post submitted for review.',
+  'Klik Buat posting, pilih YouTube Shorts, lalu unggah video vertikal maksimal 3 menit.':'Click Create post, choose YouTube Shorts, then upload a vertical video up to 3 minutes.',
+  'Pengetahuan brand':'Brand knowledge','Fakta produk, harga, dan pedoman yang dipakai AI saat menulis caption.':'Product facts, prices, and guidelines the AI uses when writing captions.','Buka pengetahuan brand':'Open brand knowledge',
+};
+export const simplePatterns=[
+  [/^Halo, (.+)$/,(_,n)=>`Hello, ${n}`],
+  [/^(\d+) konten gagal terbit\. Buka Antrean untuk melihat alasannya dan menjadwalkan ulang\.$/,(_,n)=>`${n} item(s) failed to publish. Open the queue to see why and reschedule.`],
+  [/^(\d+) konten belum pasti terbit\. Periksa hasilnya sebelum mencoba lagi agar tidak terunggah dua kali\.$/,(_,n)=>`${n} item(s) may not have published. Check the result before retrying so nothing is posted twice.`],
+  [/^(\d+) konten terjadwal tidak akan terbit karena publikasi nyata belum diaktifkan\.$/,(_,n)=>`${n} scheduled item(s) will not go live because real publishing is off.`],
+  [/^(\d+) konten terjadwal menunggu karena antrean sedang dijeda\.$/,(_,n)=>`${n} scheduled item(s) are waiting because the queue is paused.`],
+  [/^(\d+) perlu perhatian$/,(_,n)=>`${n} need attention`],
+];

@@ -11,11 +11,11 @@ export default function StudioClient(){
  const root=useRef(null),controller=useRef(null),latestPath=useRef(''),router=useRouter(),pathname=usePathname();
  latestPath.current=pathname;
  useEffect(()=>{
-  const instance=mountStudio(root.current,{initialView:latestPath.current.slice(1)||'calendar',navigate:(view,{replace=false}={})=>router[replace?'replace':'push']('/'+view)});
+  const instance=mountStudio(root.current,{initialView:latestPath.current.slice(1)||'home',navigate:(view,{replace=false}={})=>router[replace?'replace':'push']('/'+view)});
   controller.current=instance;
   return()=>{instance.dispose();controller.current=null;};
  },[router]);
- useEffect(()=>{const view=pathname.slice(1)||'calendar';if(pageIds.includes(view))controller.current?.syncRoute(view);},[pathname]);
+ useEffect(()=>{const view=pathname.slice(1)||'home';if(pageIds.includes(view))controller.current?.syncRoute(view);},[pathname]);
  const view=pathname.slice(1);
  if(view&&!pageIds.includes(view))return null;
  return <div id="vayora-studio-complete" ref={root} suppressHydrationWarning/>;
