@@ -1,10 +1,12 @@
 import { workflowStrings, workflowPatterns } from './workflow-i18n.js';
 import { featureStrings, featurePatterns } from './features-i18n.js';
+import { simpleStrings, simplePatterns } from './simple-i18n.js';
 // UI-only translation. Draft copy, media text and source documents remain unchanged.
 let language='id';try{if(typeof window!=='undefined')language=localStorage.getItem('vayora.language')==='en'?'en':'id';}catch{}
 const strings={
   ...workflowStrings,
   ...featureStrings,
+  ...simpleStrings,
   'Identitas, audiens, fitur, status layanan, penawaran, gaya bahasa, visual, dan materi kampanye. Pengetahuan ini dipilih sesuai bahasan saat membuat caption atau latar AI.':'Identity, audience, features, service status, offers, tone, visuals, and campaigns. Relevant knowledge is prioritized when creating captions or AI backgrounds.',
   'Teks sumber dan konten yang sudah dibuat tetap menggunakan bahasa aslinya.':'Source documents and existing content retain their original language.',
   'Gambar dipotong untuk bidang ilustrasi; periksa agar teks pada sumber tidak terpotong.':'The image is cropped to fit the illustration area; check that source text is not cut off.',
@@ -58,6 +60,7 @@ const strings={
 const patterns=[
  ...workflowPatterns,
  ...featurePatterns,
+  ...simplePatterns,
  [/^Model caption: (.+) · latar: (.+)\. Permintaan AI memerlukan akses dan kredit API\. Batas di sini menghitung percobaan, termasuk yang gagal, bukan batas biaya uang\. Atur juga batas pengeluaran di dashboard penyedia\.$/,(_,a,b)=>`Caption model: ${a} · background: ${b}. AI requests require API access and credits. Limits count attempts, including failures; they are not monetary spending caps. Also set spending limits in the provider dashboard.`],
  [/^· ditinjau (.+)\. Fakta perlu diperbarui ketika produk berubah\.$/,(_,d)=>`· reviewed ${d}. Update the facts when the product changes.`],
  [/^Sumber:$/,()=> 'Source:'],

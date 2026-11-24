@@ -327,3 +327,20 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 @media(hover:hover){#vayora-studio-complete .vs-menu-tile:hover .vs-menu-icon{background:#eaf1f8;border-color:#b3c7dc;}#vayora-studio-complete .vs-menu-tile[aria-current="page"]:hover .vs-menu-icon{background:#ffe9a0;}}
 @media(max-width:360px){#vayora-studio-complete .vs-menu-dialog>.vs-detail-body{padding:14px 10px 12px;}#vayora-studio-complete .vs-menu-grid{gap:8px 3px;}#vayora-studio-complete .vs-menu-label{font-size:9.5px;}#vayora-studio-complete .vs-menu-icon{width:38px;height:38px;border-radius:12px;}#vayora-studio-complete .vs-menu-tile{min-height:72px;}}
 @media(prefers-reduced-motion:reduce){#vayora-studio-complete .vs-menu-icon,#vayora-studio-complete .vs-detail-dialog.vs-menu-dialog[open]{transition:none;}#vayora-studio-complete .vs-detail-dialog.vs-menu-dialog[data-phase]{transform:none;}}
+
+/* Everyday views: problem alerts, "Buat posting" steps and platform choice. */
+#vayora-studio-complete .vs-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid;border-radius:10px;font-size:13px;line-height:1.5}
+#vayora-studio-complete .vs-alert.danger{background:#fdf1ef;border-color:#efc6bf;color:#7a2a20}
+#vayora-studio-complete .vs-alert.warning{background:#fff8e5;border-color:#f1dca0;color:#5f4700}
+#vayora-studio-complete .vs-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+#vayora-studio-complete .vs-choice{display:grid;gap:4px;text-align:left;padding:16px 18px;border:1px solid #dce5ee;border-radius:12px;background:#fff;color:#00285c;font-size:13px;cursor:pointer}
+#vayora-studio-complete .vs-choice span{color:#52677e;font-size:12px}
+#vayora-studio-complete .vs-choice:hover{border-color:#9fb6cf}
+#vayora-studio-complete .vs-choice[aria-pressed="true"]{border-color:#00285c;box-shadow:inset 0 0 0 1px #00285c;background:#f4f7fb}
+#vayora-studio-complete .vs-step-head{display:flex;align-items:center;gap:10px}
+#vayora-studio-complete .vs-step-head h2{margin:0}
+#vayora-studio-complete .vs-step-number{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#e8eef5;color:#00285c;font-size:12px;font-weight:700;flex-shrink:0}
+#vayora-studio-complete .vs-step.done .vs-step-number{background:#00285c;color:#fff9e1}
+#vayora-studio-complete .vs-create-thumbs{display:flex;gap:10px;flex-wrap:wrap}
+#vayora-studio-complete .vs-create-thumb{margin:0;width:120px;display:grid;gap:4px;font-size:11px;color:#52677e;overflow-wrap:anywhere}
+#vayora-studio-complete .vs-create-thumb img,#vayora-studio-complete .vs-create-thumb video{width:120px;height:120px;object-fit:cover;border-radius:8px;background:#eaf0f6}

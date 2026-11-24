@@ -21,7 +21,9 @@ Perintah alternatif lokal: `npm run start:local` setelah `npm run build`. Untuk 
 
 ## Alur penggunaan
 
-Pustaka → buka ringkasan detail → pilih Edit konten → periksa media dan caption → berikan persetujuan → tandai siap tayang atau simpan jadwal. Perubahan materi perlu persetujuan baru. Semua tanggal publikasi menggunakan WIB.
+Untuk tim: buka **Beranda** untuk melihat jadwal 7 hari, konten yang perlu ditinjau, status koneksi, dan pemberitahuan masalah (konten gagal atau belum pasti terbit, koneksi Instagram/YouTube terputus atau segera habis, jadwal yang tidak akan terbit). Klik **Buat posting**, lalu ikuti empat langkah: pilih Instagram atau YouTube Shorts → unggah foto/video (jenis konten dipilih otomatis: Foto, Carousel, Reel, atau Short) → tulis judul dan caption → ajukan untuk ditinjau, jadwalkan (wajib mencentang persetujuan), atau simpan draft. Kode konten (I01, S01, …) dibuat otomatis.
+
+Alur lengkap: Pustaka → buka ringkasan detail → pilih Edit konten → periksa media dan caption → berikan persetujuan → tandai siap tayang atau simpan jadwal. Perubahan materi perlu persetujuan baru. Semua tanggal publikasi menggunakan WIB.
 
 Jadwal tampil langsung pada card pustaka. Tombol Post sekarang membuka pemeriksaan sebelum publikasi manual; akun Instagram dan publikasi nyata harus siap. Jadwal lama konten itu digantikan, sementara antrean lain tidak dilanjutkan. Antrean dapat dijeda dan jadwal dapat dibatalkan. Konten terbit hanya dapat disalin. Hasil yang belum pasti dikunci sampai status dari Meta diperiksa, untuk mencegah unggahan ganda.
 
@@ -31,11 +33,11 @@ Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, s
 
 ## Susunan menu
 
-Sidebar mengikuti urutan kerja: **Konten** (Pustaka Instagram, Pustaka YouTube, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Koneksi & publikasi.
+Sidebar dibuat ringkas: **Mulai** (Beranda, Buat posting) → **Konten** (Pustaka Instagram, Pustaka YouTube, Kalender, Antrean, Impor massal) → **Bantuan AI** (Asisten caption, Desain konten) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Editor tidak melihat Impor massal, Koneksi & publikasi, dan Pengaturan AI. Pemeriksaan kini menjadi filter **Perlu ditinjau** di pustaka; Pengetahuan brand dibuka dari Pengaturan AI; Marketing dan Strategi konten disembunyikan dari menu. Data dan alamat lama (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) tetap berfungsi.
 
 ## Mobile dan bahasa
 
-Pada ponsel, gunakan navigasi bawah satu baris: Pustaka, Kalender, Antrean, Asisten, dan Menu. Detail memakai popup ringkas mengambang dengan sudut membulat, latar blur, dan tombol Edit terpisah. Tombol simpan/jadwal tetap terlihat di footer saat editor digulir. Pemilih ID/EN tersedia pada login, header, popup, dan menu. Bahasa disimpan pada browser; caption serta materi sumber tetap dalam bahasa aslinya. [Panduan pustaka dan mobile](docs/PUSTAKA-DAN-MOBILE.md).
+Pada ponsel, gunakan navigasi bawah satu baris: Beranda, Pustaka, Buat, Kalender, dan Menu. Titik merah pada Beranda menandakan ada masalah. Detail memakai popup ringkas mengambang dengan sudut membulat, latar blur, dan tombol Edit terpisah. Tombol simpan/jadwal tetap terlihat di footer saat editor digulir. Pemilih ID/EN tersedia pada login, header, popup, dan menu. Bahasa disimpan pada browser; caption serta materi sumber tetap dalam bahasa aslinya. [Panduan pustaka dan mobile](docs/PUSTAKA-DAN-MOBILE.md).
 
 ## Asisten konten dan desain
 
@@ -47,7 +49,7 @@ Bank pengetahuan brand berisi 57 catatan, 14 sumber, dan 24 referensi kampanye. 
 
 ## Campaign dan marketing
 
-Buka **Marketing** dari sidebar atau Menu di ponsel. Buat campaign per konten/pembuka dengan UTM, uji tracking lokal, catat demo terkonfirmasi, unduh laporan, dan simpan pengamatan performa manual/CSV. Data uji dipisahkan dari produksi. Perbandingan hanya muncul ketika sampel sebanding mencukupi; tidak ada angka hasil atau jam terbaik contoh.
+Marketing tidak lagi tampil di menu; buka langsung di `/marketing`. Buat campaign per konten/pembuka dengan UTM, uji tracking lokal, catat demo terkonfirmasi, unduh laporan, dan simpan pengamatan performa manual/CSV. Data uji dipisahkan dari produksi. Perbandingan hanya muncul ketika sampel sebanding mencukupi; tidak ada angka hasil atau jam terbaik contoh.
 
 Pengukuran website produksi memerlukan HTTPS publik dan pemasangan tracker di vayora.id. Publikasi TikTok serta sinkronisasi Insights otomatis belum ditambahkan; performa TikTok dapat dicatat dari platform. [Panduan marketing dan pemasangan](docs/MARKETING.md).
 
