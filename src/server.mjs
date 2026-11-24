@@ -103,6 +103,7 @@ export function createApp(options={}) {
  app.post('/api/assistant/config',auth.owner,(req,res)=>{const result=assistant.configure(req.body||{});store.event(null,'Pengaturan AI diperbarui','API key tidak ditampilkan kembali.','change',req.user.id);res.json(result);});
  app.post('/api/assistant/brand',auth.owner,(req,res)=>res.json(saveBrand(store,req.body||{})));
  app.post('/api/assistant/caption',async(req,res)=>res.json(await assistant.caption(req.body||{})));
+  app.post('/api/assistant/draft',async(req,res)=>res.json(await assistant.draft(req.body||{})));
  app.post('/api/assistant/audit',(req,res)=>{const original=requirePost(req.body?.postId);res.json(inspectContent({...original,caption:String(req.body.caption||'').slice(0,2400),alt:String(req.body.alt||'').slice(0,1000),category:String(req.body.category||original.category)},store.posts()));});
  app.get('/api/assistant/times',(req,res)=>{const postId=String(req.query.postId||''),hints=marketing.timeHints(store.post(postId)),result=postingSuggestions(store.posts(),{postId,preferredDate:String(req.query.date||''),trialSlots:hints});res.json({...result,...(hints.length?{basis:'observed',confidence:'Observasi dari performa tercatat',note:'Saran berdasarkan input/CSV minimal tiga konten per kelompok waktu pada kanal, format, distribusi organik, dan jendela 48 jam yang sama. Topik dan audiens masih dapat berbeda; uji lagi, bukan jaminan jam terbaik.'}:{} )});});
  app.post('/api/assistant/design',async(req,res)=>res.status(201).json({media:await composeDesign(store,req.body||{})}));

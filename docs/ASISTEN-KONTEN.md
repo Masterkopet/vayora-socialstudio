@@ -27,15 +27,15 @@ Sumber mentah ada di `knowledge/sources`, terpisah dari konteks model. JSON terk
 ## Mengaktifkan pembacaan gambar dan latar AI
 
 1. Pemilik membuka **Pengaturan AI**.
-2. Buat API key pada [dashboard OpenAI](https://platform.openai.com/api-keys), pastikan project memiliki akses model dan kredit API.
+2. Buat API key Gemini di [Google AI Studio](https://aistudio.google.com/apikey) dan tempel di **Pengaturan AI → Gemini API key**. Gemini menulis semua teks: judul dan caption otomatis di **Buat posting**, serta pilihan caption di Asisten caption. Model bawaan `gemini-flash-latest` dapat diganti di formulir yang sama. Key OpenAI ([dashboard OpenAI](https://platform.openai.com/api-keys)) hanya diperlukan untuk membuat latar gambar AI; bila key Gemini tidak ada, teks memakai OpenAI sebagai cadangan.
 3. Masukkan key langsung di aplikasi. Jangan mengirim key atau password melalui chat.
 4. Tetapkan batas permintaan harian. Default: 20 caption dan 3 latar per hari, direset berdasarkan tanggal WIB. Batas menghitung percobaan, termasuk kegagalan; bukan batas biaya uang. Atur batas pengeluaran di dashboard penyedia juga.
 5. Di editor, pilih **AI · baca gambar / poster**, lengkapi konteks jika perlu, lalu **Buat pilihan caption**. Pilih hasil sebelum menerapkannya.
 6. Untuk gambar, buka **Pembuat image post → Buat latar dengan AI**, isi brief dan tekan **Generate satu latar AI**. Periksa latar, lalu **Buat desain brand** untuk menyusun logo dan teks asli di atasnya. Hasil belum menjadi post sampai **Masukkan sebagai draft** dipilih.
 
-API key tersimpan terenkripsi pada server memakai kunci lokal yang sama dengan koneksi Meta. Key tidak dikirim kembali ke browser. Pemilik dapat menghapus key melalui aplikasi; key yang ditetapkan lewat `OPENAI_API_KEY` harus dihapus dari konfigurasi server. Editor dapat meminta caption jika key telah tersedia; hanya pemilik dapat mengubah konfigurasi AI, arah brand, dan membuat latar AI berbayar. Pembuat desain lokal bisa dipakai editor.
+API key tersimpan terenkripsi pada server memakai kunci lokal yang sama dengan koneksi Meta. Key tidak dikirim kembali ke browser. Pemilik dapat menghapus key melalui aplikasi; key yang ditetapkan lewat `GEMINI_API_KEY` atau `OPENAI_API_KEY` harus dihapus dari konfigurasi server. Editor dapat meminta caption jika key telah tersedia; hanya pemilik dapat mengubah konfigurasi AI, arah brand, dan membuat latar AI berbayar. Pembuat desain lokal bisa dipakai editor.
 
-Provider dipanggil dari server ke endpoint OpenAI resmi. Model caption: `gpt-5.4-mini` melalui Responses API dengan structured output; model latar: `gpt-image-2.5-flare` melalui Images API, satu gambar kualitas medium per permintaan. Tidak ada permintaan AI otomatis saat login, membuka editor, menyimpan, atau menjadwalkan.
+Provider dipanggil dari server ke endpoint resmi. Teks: Gemini `generateContent` dengan output JSON terstruktur (key dikirim lewat header, bukan URL), cadangan OpenAI `gpt-5.4-mini` melalui Responses API; model latar: `gpt-image-2.5-flare` melalui Images API, satu gambar kualitas medium per permintaan. Tidak ada permintaan AI otomatis saat login, membuka editor, menyimpan, atau menjadwalkan.
 
 ## Batas analisis dan review
 

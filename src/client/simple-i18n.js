@@ -44,6 +44,19 @@ export const simpleStrings={
   'Simpan & jadwalkan':'Save & schedule','Simpan draft':'Save draft','Simpan & ajukan':'Save & submit','Mulai ulang':'Start over',
   'Posting dijadwalkan.':'Post scheduled.','Draft tersimpan.':'Draft saved.','Posting diajukan untuk ditinjau.':'Post submitted for review.',
   'Klik Buat posting, pilih YouTube Shorts, lalu unggah video vertikal maksimal 3 menit.':'Click Create post, choose YouTube Shorts, then upload a vertical video up to 3 minutes.',
+  // AI writing (Gemini)
+  'Hubungkan Gemini agar judul dan caption terisi otomatis setelah foto diunggah.':'Connect Gemini so the title and caption fill in automatically after upload.','Atur Gemini':'Set up Gemini',
+  'AI sedang melihat media dan menulis judul serta caption…':'AI is looking at the media and writing a title and caption…',
+  'Tulis ulang dengan AI':'Rewrite with AI','Tulis dengan AI':'Write with AI','AI bisa menuliskan judul dan caption dari media ini.':'AI can write a title and caption from this media.',
+  'Ditulis otomatis oleh AI. Periksa dan ubah sesuai kebutuhan sebelum menyimpan.':'Written automatically by AI. Check and edit it as needed before saving.',
+  'Gemini aktif':'Gemini on','Gemini belum diatur':'Gemini not set up','AI aktif':'AI on',
+  'Gemini menulis semua teks: judul dan caption otomatis di Buat posting, serta caption di Asisten caption. OpenAI hanya dipakai untuk membuat latar gambar AI.':'Gemini writes all text: automatic titles and captions in Create post, and captions in the Caption assistant. OpenAI is only used to create AI background images.',
+  'Gemini API key':'Gemini API key','Buat key gratis di Google AI Studio, lalu tempel di sini. Key tersimpan terenkripsi dan tidak ditampilkan lagi.':'Create a free key in Google AI Studio, then paste it here. The key is stored encrypted and never shown again.',
+  'Model Gemini':'Gemini model','Biarkan gemini-flash-latest kecuali kamu tahu model lain yang ingin dipakai.':'Keep gemini-flash-latest unless you know another model you want to use.',
+  'OpenAI API key':'OpenAI API key','opsional, khusus latar gambar AI':'optional, only for AI background images',
+  'Hapus key Gemini':'Remove Gemini key','Hapus key OpenAI':'Remove OpenAI key','Key Gemini dihapus.':'Gemini key removed.','Key OpenAI dihapus.':'OpenAI key removed.',
+  'Buat key Gemini di Google AI Studio ↗':'Create a Gemini key in Google AI Studio ↗',
+  'Koneksi AI disimpan. Judul dan caption kini dibuat otomatis di Buat posting.':'AI connection saved. Titles and captions are now written automatically in Create post.',
   'Pengetahuan brand':'Brand knowledge','Fakta produk, harga, dan pedoman yang dipakai AI saat menulis caption.':'Product facts, prices, and guidelines the AI uses when writing captions.','Buka pengetahuan brand':'Open brand knowledge',
 };
 export const simplePatterns=[
