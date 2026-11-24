@@ -31,7 +31,7 @@ Impor mendukung file media, pengelompokan nama C01-slide-1.png dan seterusnya, s
 
 ## Susunan menu
 
-Sidebar mengikuti urutan kerja: **Konten** (Pustaka, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Koneksi & publikasi.
+Sidebar mengikuti urutan kerja: **Konten** (Pustaka Instagram, Pustaka YouTube, Impor konten, Kalender) → **Buat** (Asisten caption, Desain konten) → **Terbitkan** (Pemeriksaan, Antrean) → **Strategi** (Strategi konten, Marketing, Pengetahuan brand) → **Pengaturan** (Koneksi & publikasi, Pengaturan AI, Akun tim, Riwayat). Alamat halaman tidak berubah, misalnya `/settings` untuk Koneksi & publikasi.
 
 ## Mobile dan bahasa
 
