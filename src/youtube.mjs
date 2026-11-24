@@ -151,7 +151,7 @@ export function createYouTube(store, getPublicBase, options = {}) {
       // Studio caps uploads at 100 MB, so the whole file is read once and sent with an exact Content-Length (no chunked encoding).
       const bytes = await readFile(mediaPath(store, media));
       const token = await accessToken();
-      const metadata = { snippet: { title, description: String(item.caption || '').slice(0, 5000), categoryId: '22' }, status: { privacyStatus: privacy, selfDeclaredMadeForKids: false } };
+      const metadata = { snippet: { title, description: String(item.caption || '').slice(0, 5000), categoryId: '22', ...(Array.isArray(item.tags) && item.tags.length ? { tags: item.tags } : {}) }, status: { privacyStatus: privacy, selfDeclaredMadeForKids: false, ...(item.syntheticMedia ? { containsSyntheticMedia: true } : {}) } };
       const session = await request('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', {
         method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Length': String(bytes.length), 'X-Upload-Content-Type': 'video/mp4' }, body: JSON.stringify(metadata),
       }, { json: false });

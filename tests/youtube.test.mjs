@@ -83,12 +83,13 @@ test('a scheduled Short uploads once with refreshed access, an exact length and 
   try {
     connect(w.store); w.store.set('publishingEnabled', true); w.store.set('paused', false);
     const media = await addVideo(w.store);
-    w.store.insertPost({ id: 'S01', format: 'Short', title: 'Villa <tenang> di Bali', caption: 'Deskripsi Short', mediaIds: [media.id], status: 'scheduled', approved: true, scheduleAt: new Date().toISOString() });
+    w.store.insertPost({ id: 'S01', format: 'Short', title: 'Villa <tenang> di Bali', caption: 'Deskripsi Short', tags: ['Vayora', 'housekeeping villa'], syntheticMedia: true, mediaIds: [media.id], status: 'scheduled', approved: true, scheduleAt: new Date().toISOString() });
     const g = google(); const yt = createYouTube(w.store, () => 'https://studio.example.test', { fetch: g.fetch });
     const item = await yt.run('S01');
     assert.equal(item.status, 'published'); assert.equal(item.mediaId, 'vid123'); assert.equal(item.permalink, 'https://www.youtube.com/shorts/vid123');
     assert.equal(item.youtubeLocked, true, 'requested public but YouTube kept it private');
     assert.equal(g.calls.meta.snippet.title, 'Villa tenang di Bali'); assert.equal(g.calls.meta.status.privacyStatus, 'public'); assert.equal(g.calls.meta.status.selfDeclaredMadeForKids, false);
+    assert.deepEqual(g.calls.meta.snippet.tags, ['Vayora', 'housekeeping villa']); assert.equal(g.calls.meta.status.containsSyntheticMedia, true, 'AI visuals are disclosed');
     assert.equal(g.calls.declaredLength, '7'); assert.equal(g.calls.putLength, '7');
     assert.ok(g.calls.some(c => c.url.href === 'https://oauth2.googleapis.com/token'), 'expired access token was refreshed');
     assert.ok(w.store.get("SELECT id FROM events WHERE post_id='S01' AND detail LIKE '%terkunci privat%'"));
