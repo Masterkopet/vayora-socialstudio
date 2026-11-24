@@ -332,6 +332,7 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 #vayora-studio-complete .vs-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid;border-radius:10px;font-size:13px;line-height:1.5}
 #vayora-studio-complete .vs-alert.danger{background:#fdf1ef;border-color:#efc6bf;color:#7a2a20}
 #vayora-studio-complete .vs-alert.warning{background:#fff8e5;border-color:#f1dca0;color:#5f4700}
+#vayora-studio-complete .vs-ai-note{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;border-radius:10px;background:#eef3fb;color:#00285C;font-size:13px;line-height:1.5}
 #vayora-studio-complete .vs-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 #vayora-studio-complete .vs-choice{display:grid;gap:4px;text-align:left;padding:16px 18px;border:1px solid #dce5ee;border-radius:12px;background:#fff;color:#00285c;font-size:13px;cursor:pointer}
 #vayora-studio-complete .vs-choice span{color:#52677e;font-size:12px}

@@ -55,10 +55,10 @@ export function createSimpleViews(ctx) {
   }
 
   // ---------- "Buat posting": choose platform → upload → words → when ----------
-  let flow = null;
-  const reset = () => { flow = { platform: '', media: [], title: '', caption: '', when: 'review', date: '', time: '09:00', approved: false, busy: false, error: '' }; };
+  let flow = null, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
+  const reset = () => { ai = null; flow = { platform: '', media: [], title: '', caption: '', when: 'review', date: '', time: '09:00', approved: false, busy: false, error: '', writing: false, written: false, aiError: '', aiWarnings: [] }; };
   // Scheduling publishes automatically, so it needs the same explicit approval as the editor.
-  const canSubmit = f => !!formatFor(f.platform, f.media) && !!f.title.trim() && !!f.caption.trim() && (f.when !== 'scheduled' || (f.date && f.time && f.approved)) && !f.busy;
+  const canSubmit = f => !!formatFor(f.platform, f.media) && !!f.title.trim() && !!f.caption.trim() && (f.when !== 'scheduled' || (f.date && f.time && f.approved)) && !f.busy && !f.writing;
   reset();
   function formatFor(platform, media) {
     if (!media.length) return '';
@@ -77,7 +77,7 @@ export function createSimpleViews(ctx) {
     const ready = canSubmit(f);
     return `${step(1, 'Mau posting ke mana?', `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Foto, carousel, atau Reel')}${choice('youtube', 'YouTube Shorts', 'Video vertikal maksimal 3 menit')}</div>`, !!f.platform)}
 ${f.platform ? step(2, 'Pilih foto atau video', `<p class="vs-sub">${mediaHint}</p><label class="vs-label">File<input class="vs-input" type="file" id="create-files" ${f.platform === 'youtube' ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy ? '<p class="vs-mini" role="status">Mengunggah…</p>' : ''}${thumbs ? `<div class="vs-create-thumbs">${thumbs}</div>` : ''}${f.media.length ? `<p class="vs-mini">${format ? 'Jenis konten: <b>' + formatLabel[format] + '</b>' : 'Kombinasi file ini tidak didukung. ' + mediaHint}</p>` : ''}`, !!format) : ''}
-${format ? step(3, 'Tulis judul dan caption', `<label class="vs-label">Judul${f.platform === 'youtube' ? ' <small>tampil sebagai judul video YouTube, maksimal 100 karakter</small>' : ' <small>hanya untuk tim, tidak tampil di Instagram</small>'}<input class="vs-input" id="create-title" maxlength="${f.platform === 'youtube' ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${f.platform === 'youtube' ? 'Deskripsi' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2.200</small><textarea class="vs-input" id="create-caption" maxlength="2200" style="min-height:140px">${esc(f.caption)}</textarea></label><p class="vs-mini">Butuh ide? Setelah disimpan, buka konten lalu gunakan Asisten caption.</p>`, !!(f.title.trim() && f.caption.trim())) : ''}
+${format ? step(3, 'Tulis judul dan caption', `${aiLine(f)}<label class="vs-label">Judul${f.platform === 'youtube' ? ' <small>tampil sebagai judul video YouTube, maksimal 100 karakter</small>' : ' <small>hanya untuk tim, tidak tampil di Instagram</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${f.platform === 'youtube' ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${f.platform === 'youtube' ? 'Deskripsi' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2.200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:140px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Butuh ide? Setelah disimpan, buka konten lalu gunakan Asisten caption.</p>'}`, !!(f.title.trim() && f.caption.trim())) : ''}
 ${format ? step(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Ajukan untuk ditinjau</b> · pemilik memeriksa dulu sebelum dijadwalkan</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Jadwalkan sekarang</b> · terbit otomatis pada waktu yang dipilih</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Simpan sebagai draft</b> · lanjutkan nanti</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Tanggal<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Jam (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>Saya sudah memeriksa foto/video dan caption, dan konten ini boleh terbit.</span></label>` : ''}</div>${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Simpan & jadwalkan' : f.when === 'draft' ? 'Simpan draft' : 'Simpan & ajukan', 'create-submit', 'vs-primary', 'send', ready && !f.busy ? '' : 'disabled')}${button('Mulai ulang', 'create-reset', 'vs-text-button')}</div>`, false) : ''}`;
   }
 
@@ -88,6 +88,29 @@ ${format ? step(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-c
     try { const data = await api('/api/media', 'POST', form); flow.media = data.media || []; }
     catch (error) { flow.media = []; toast(error.message, true); }
     finally { flow.busy = false; ctx.render(); }
+    if (ai?.textConfigured && formatFor(flow.platform, flow.media)) await write(false);
+  }
+  // Asks the AI for a first title and caption. Fields the user already typed are kept unless they ask to rewrite.
+  async function write(force) {
+    const f = flow; if (f.writing || !f.media.length) return;
+    f.writing = true; f.aiError = ''; f.aiWarnings = []; ctx.render();
+    try {
+      const d = await api('/api/assistant/draft', 'POST', { platform: f.platform, mediaIds: f.media.map(m => m.id) });
+      if (flow !== f) return; // the user started over meanwhile
+      if (force || !f.title.trim()) f.title = d.title;
+      if (force || !f.caption.trim()) f.caption = d.caption;
+      f.written = true; f.aiWarnings = d.warnings || [];
+    } catch (error) { if (flow === f) f.aiError = error.message; }
+    finally { if (flow === f) { f.writing = false; ctx.render(); } }
+  }
+  function aiLine(f) {
+    if (ai && !ai.textConfigured) return user().role === 'owner' ? `<div class="vs-alert warning"><span>Hubungkan Gemini agar judul dan caption terisi otomatis setelah foto diunggah.</span>${button('Atur Gemini', 'nav:ai-settings')}</div>` : '';
+    if (!ai) return '';
+    if (f.writing) return '<p class="vs-ai-note" role="status">AI sedang melihat media dan menulis judul serta caption…</p>';
+    const again = button(f.written ? 'Tulis ulang dengan AI' : 'Tulis dengan AI', 'create-ai', 'vs-text-button', 'sparkles');
+    if (f.aiError) return `<div class="vs-alert warning" role="alert"><span>${esc(f.aiError)}</span>${again}</div>`;
+    if (f.written) return `<div class="vs-ai-note"><span>Ditulis otomatis oleh AI. Periksa dan ubah sesuai kebutuhan sebelum menyimpan.</span>${again}</div>${f.aiWarnings.length ? `<ul class="vs-help-list">${f.aiWarnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
+    return `<div class="vs-ai-note"><span>AI bisa menuliskan judul dan caption dari media ini.</span>${again}</div>`;
   }
   async function submit() {
     const f = flow, format = formatFor(f.platform, f.media);
@@ -106,6 +129,7 @@ ${format ? step(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-c
   }
   function bind() {
     const root = ctx.root();
+    if (ai === null && root.querySelector('.vs-step')) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }
     root.querySelectorAll('[data-create-platform]').forEach(el => el.addEventListener('click', () => { if (flow.platform !== el.dataset.createPlatform) { flow.platform = el.dataset.createPlatform; flow.media = []; } ctx.render(); }));
     root.querySelector('#create-files')?.addEventListener('change', e => { if (e.target.files.length) void upload([...e.target.files]); });
     root.querySelector('#create-title')?.addEventListener('input', e => { flow.title = e.target.value; refreshSubmit(); });
@@ -122,6 +146,7 @@ ${format ? step(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-c
   async function action(name) {
     if (name === 'create-submit') { await submit(); return true; }
     if (name === 'create-reset') { reset(); ctx.render(); return true; }
+    if (name === 'create-ai') { await write(true); return true; }
     return false;
   }
   return { homePage, createPage, problemAlerts, bind, action, resetCreate: reset };

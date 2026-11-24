@@ -21,7 +21,7 @@ Perintah alternatif lokal: `npm run start:local` setelah `npm run build`. Untuk 
 
 ## Alur penggunaan
 
-Untuk tim: buka **Beranda** untuk melihat jadwal 7 hari, konten yang perlu ditinjau, status koneksi, dan pemberitahuan masalah (konten gagal atau belum pasti terbit, koneksi Instagram/YouTube terputus atau segera habis, jadwal yang tidak akan terbit). Klik **Buat posting**, lalu ikuti empat langkah: pilih Instagram atau YouTube Shorts → unggah foto/video (jenis konten dipilih otomatis: Foto, Carousel, Reel, atau Short) → tulis judul dan caption → ajukan untuk ditinjau, jadwalkan (wajib mencentang persetujuan), atau simpan draft. Kode konten (I01, S01, …) dibuat otomatis.
+Untuk tim: buka **Beranda** untuk melihat jadwal 7 hari, konten yang perlu ditinjau, status koneksi, dan pemberitahuan masalah (konten gagal atau belum pasti terbit, koneksi Instagram/YouTube terputus atau segera habis, jadwal yang tidak akan terbit). Klik **Buat posting**, lalu ikuti empat langkah: pilih Instagram atau YouTube Shorts → unggah foto/video (jenis konten dipilih otomatis: Foto, Carousel, Reel, atau Short) → tulis judul dan caption → ajukan untuk ditinjau, jadwalkan (wajib mencentang persetujuan), atau simpan draft. Kode konten (I01, S01, …) dibuat otomatis. Bila key Gemini sudah diisi di **Pengaturan AI**, judul dan caption langsung ditulis AI setelah media diunggah (`POST /api/assistant/draft` dengan `{platform, mediaIds}`); tim tinggal memeriksa dan mengubahnya, atau menekan **Tulis ulang dengan AI**.
 
 Alur lengkap: Pustaka → buka ringkasan detail → pilih Edit konten → periksa media dan caption → berikan persetujuan → tandai siap tayang atau simpan jadwal. Perubahan materi perlu persetujuan baru. Semua tanggal publikasi menggunakan WIB.
 
