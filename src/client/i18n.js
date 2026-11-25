@@ -1,6 +1,7 @@
 import { workflowStrings, workflowPatterns } from './workflow-i18n.js';
 import { featureStrings, featurePatterns } from './features-i18n.js';
 import { simpleStrings, simplePatterns } from './simple-i18n.js';
+import { extraStrings, extraPatterns } from './extra-i18n.js';
 // UI language. English is the source language of every UI string in the code; Indonesian is a translation.
 // Change DEFAULT_LANGUAGE to 'id' to make Indonesian the default for people without a stored preference.
 export const DEFAULT_LANGUAGE='en';
@@ -536,6 +537,7 @@ const mainPatterns=[
 // Translations that must win over a dictionary-generated one when two Indonesian phrases share one English text.
 const overrides={'Settings':'Pengaturan','Restore':'Pulihkan','Cancel':'Batal','Review':'Periksa','Disconnect':'Putuskan','Publishing':'Publikasi','Needs attention':'Perlu perhatian','Needs review':'Perlu ditinjau','Content':'Konten','Import':'Impor','Account':'Akun','Design':'Desain','Language':'Bahasa'};
 const strings={
+  ...extraStrings,
   ...workflowStrings,
   ...featureStrings,
   ...simpleStrings,
@@ -547,6 +549,7 @@ const patterns=[
  ...featurePatterns,
  ...simplePatterns,
  ...mainPatterns,
+ ...extraPatterns,
  [/^(\d+) campaigns?$/,(_,n)=>`${n} campaign`],
  [/^(.+) · (\S+) · (\d+) hours · (\d+) posts$/,(_,c,f,h,n)=>`${c} · ${f} · ${h} jam · ${n} konten`],
  [/^(.+) · (Owner|Editor) · joined (.+)$/,(_,e,r,d)=>`${e} · ${r==='Owner'?'Pemilik':'Editor'} · bergabung ${d}`],

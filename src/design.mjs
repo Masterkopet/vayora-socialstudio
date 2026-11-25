@@ -10,7 +10,7 @@ const bad=message=>Object.assign(new Error(message),{status:400});
 function lines(text,max) {
   const result=[];let line='';
   for(const word of text.split(/\s+/).filter(Boolean)) {
-    if(word.length>max)throw bad('Ada kata terlalu panjang. Gunakan kata yang lebih singkat.');
+    if(word.length>max)throw bad('A word is too long. Use a shorter word.');
     if((line+' '+word).trim().length>max){result.push(line);line=word;}else line=(line+' '+word).trim();
   }
   if(line)result.push(line);return result;
@@ -21,14 +21,14 @@ export async function registerImage(store,bytes,name,provenance) {
 }
 export async function composeDesign(store,body) {
   const headline=String(body.headline||'').trim(),subline=String(body.subline||'').trim(),cta=String(body.cta||'Lihat cara kerja').trim();
-  if(!headline||headline.length>85||subline.length>180||!cta||cta.length>30)throw bad('Judul maksimal 85, penjelasan 180, dan CTA 30 karakter.');
-  const heading=lines(headline,20),paragraph=lines(subline,44);if(heading.length>3||paragraph.length>3)throw bad('Teks terlalu panjang untuk desain. Ringkas judul menjadi maksimal tiga baris dan penjelasan menjadi tiga baris.');
+  if(!headline||headline.length>85||subline.length>180||!cta||cta.length>30)throw bad('Headline up to 85, subline up to 180, and CTA up to 30 characters.');
+  const heading=lines(headline,20),paragraph=lines(subline,44);if(heading.length>3||paragraph.length>3)throw bad('The text is too long for the design. Shorten the headline to at most three lines and the subline to three lines.');
   const light=body.theme==='cream',bg=light?'#FFF9E1':'#00285C',fg=light?'#00285C':'#FFF9E1',accent=light?'#00285C':'#FFB600';
   const logo=await readFile(path.join(publicDir,'brand/logo.svg'));
   const overlays=[{input:await sharp(logo).resize(320,86).png().toBuffer(),left:80,top:80}];
   let lower;
   if(body.mediaId) {
-    const row=store.get('SELECT * FROM media WHERE id=?',String(body.mediaId));if(!row)throw bad('Pilih gambar yang tersedia di pustaka.');
+    const row=store.get('SELECT * FROM media WHERE id=?',String(body.mediaId));if(!row)throw bad('Choose an image available in the library.');
     const image=await sharp(mediaPath(store,row,row.mime==='video/mp4')).resize(920,470,{fit:'cover'}).png().toBuffer();
     const mask=Buffer.from('<svg width="920" height="470"><rect width="920" height="470" rx="36" fill="white"/></svg>');
     const rounded=await sharp(image).composite([{input:mask,blend:'dest-in'}]).png().toBuffer();

@@ -40,7 +40,7 @@ function item(fields) {
 
 function jsonRows(data) {
   if (Array.isArray(data)) return data;
-  for (const key of ['items', 'episodes', 'episode', 'posts', 'rows', 'konten']) if (Array.isArray(data?.[key])) return data[key];
+  for (const key of ['items', 'episodes', 'episode', 'posts', 'rows', 'content', 'konten']) if (Array.isArray(data?.[key])) return data[key];
   return Object.values(data || {}).find(Array.isArray) || [];
 }
 
@@ -48,24 +48,26 @@ function jsonRows(data) {
 export function parsePackage(text, fileName = '') {
   const body = clean(text);
   let raw;
-  if (/\.json$/i.test(fileName) || /^\s*[[{]/.test(body)) { try { raw = jsonRows(JSON.parse(body)); } catch { throw Error('File JSON tidak dapat dibaca. Periksa formatnya.'); } }
+  if (/\.json$/i.test(fileName) || /^\s*[[{]/.test(body)) { try { raw = jsonRows(JSON.parse(body)); } catch { throw Error('The JSON file could not be read. Check its format.'); } }
   else raw = parseCSV(body);
   const rows = raw.map(lowerKeys).map((r, i) => item({
-    key: pick(r, ['episode', 'id', 'no', 'nomor', 'kode']) || String(i + 1), id: pick(r, ['id', 'kode']),
-    platform: pick(r, ['platform', 'tujuan', 'channel']),
-    title: pick(r, ['judul', 'title', 'tema']),
-    caption: pick(r, ['deskripsi_lengkap', 'deskripsi', 'description', 'caption', 'caption_pendek']),
-    tags: pick(r, ['tags_opsional', 'tags', 'tag']),
-    files: pick(r, ['file_video', 'file', 'files', 'video', 'media', 'file_media', 'gambar']),
+    // Column names are bilingual: the Indonesian ones (judul, deskripsi_lengkap, ...) are kept for existing packages.
+    key: pick(r, ['episode', 'id', 'no', 'number', 'nomor', 'code', 'kode']) || String(i + 1), id: pick(r, ['id', 'code', 'kode']),
+    platform: pick(r, ['platform', 'tujuan', 'destination', 'channel']),
+    title: pick(r, ['judul', 'title', 'tema', 'theme']),
+    caption: pick(r, ['deskripsi_lengkap', 'full_description', 'deskripsi', 'description', 'caption', 'caption_pendek', 'short_caption']),
+    tags: pick(r, ['tags_opsional', 'optional_tags', 'tags', 'tag']),
+    files: pick(r, ['file_video', 'video_file', 'file', 'files', 'video', 'media', 'file_media', 'media_file', 'gambar', 'image']),
     date: pick(r, ['tanggal', 'date']), time: pick(r, ['jam', 'time', 'waktu']),
   })).filter(r => r.caption && (r.title || r.id));
-  if (!rows.length) throw Error('Tidak ada baris dengan judul atau deskripsi di file ini.');
+  if (!rows.length) throw Error('There are no rows with a title or description in this file.');
   return rows;
 }
 
 // Plain-text package (one episode per file, or several "EPISODE 01 — …" blocks in one file). Sections start with
-// an upper-case heading such as "JUDUL — SALIN KE KOLOM JUDUL" or "DESKRIPSI LENGKAP".
-const SECTIONS = [[/^JUDUL\b/, 'title'], [/^DESKRIPSI( LENGKAP)?\b/, 'caption'], [/^CAPTION\b/, 'short'], [/^TAGS\b/, 'tags'], [/^(TANGGAL|JADWAL)\b/, 'date'], [/^JAM\b/, 'time'], [/^PLATFORM\b/, 'platform']];
+// an upper-case heading such as "TITLE — COPY TO THE TITLE COLUMN" or "FULL DESCRIPTION". The Indonesian headings
+// (JUDUL, DESKRIPSI LENGKAP, TANGGAL/JADWAL, JAM) are still accepted for existing packages.
+const SECTIONS = [[/^(JUDUL|TITLE)\b/, 'title'], [/^(DESKRIPSI( LENGKAP)?|(FULL )?DESCRIPTION)\b/, 'caption'], [/^(CAPTION|SHORT CAPTION)\b/, 'short'], [/^TAGS\b/, 'tags'], [/^(TANGGAL|JADWAL|DATE|SCHEDULE)\b/, 'date'], [/^(JAM|TIME)\b/, 'time'], [/^PLATFORM\b/, 'platform']];
 export function parseEpisodeText(text, fileName = '') {
   const body = clean(text).replace(/\r\n/g, '\n');
   const blocks = body.split(/^(?=EPISODE\s+\d+\b)/m).filter(b => /^EPISODE\s+\d+/.test(b));
@@ -81,7 +83,7 @@ export function parseEpisodeText(text, fileName = '') {
       if (current) found[current].push(line);
     }
     const get = k => (found[k] || []).join('\n').trim();
-    // Episode number: "EPISODE 01" heading, else the file name, else a numbered folder just above ("02 - …/BACA DULU.txt").
+    // Episode number: "EPISODE 01" heading, else the file name, else a numbered folder just above ("02 - …/BACA DULU.txt", i.e. "READ ME FIRST").
     const number = blocks.length ? firstNumber(block.match(/^EPISODE\s+(\d+)/)[1]) : firstNumber(String(fileName).split(/[\\/]/).pop()) ?? folderNumber(fileName);
     return item({ key: number == null ? '' : String(number).padStart(2, '0'), title: get('title'), caption: get('caption') || get('short'), tags: get('tags'), date: get('date'), time: get('time'), platform: get('platform') });
   }).filter(r => r.title && r.caption && r.number != null);
@@ -92,37 +94,38 @@ function folderNumber(path) {
   return null;
 }
 
-// Blog article (Markdown) with a "Metadata SEO" table, e.g. the 12-article Vayora package: the table gives title,
-// meta description, slug, category and publish date; "Prompt gambar" gives the hero image file name and alt text;
-// "Naskah artikel" is the body. Anything after the next "## " heading (e.g. the Instagram caption) is not the article.
-const MONTHS = { januari: 1, februari: 2, maret: 3, april: 4, mei: 5, juni: 6, juli: 7, agustus: 8, september: 9, oktober: 10, november: 11, desember: 12 };
+// Blog article (Markdown) with a "Metadata SEO" / "SEO metadata" table, e.g. the 12-article Vayora package: the table
+// gives title, meta description, slug, category and publish date; "Prompt gambar" / "Image prompt" gives the hero
+// image file name and alt text; "Naskah artikel" / "Article body" is the body. Anything after the next "## " heading
+// (e.g. the Instagram caption) is not the article. Indonesian and English headings, field names and months both work.
+const MONTHS = { januari: 1, februari: 2, maret: 3, april: 4, mei: 5, juni: 6, juli: 7, agustus: 8, september: 9, oktober: 10, november: 11, desember: 12, january: 1, february: 2, march: 3, may: 5, june: 6, july: 7, august: 8, october: 10, december: 12 };
 function tableFields(section) {
   const out = {};
   for (const line of section.split('\n')) { if (!/^\s*\|/.test(line) || /^\s*\|?\s*:?-{2,}/.test(line)) continue; const [k, ...v] = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()); if (k && v.length) out[k.toLowerCase()] = v.join(' | ').trim(); }
   return out;
 }
-export function isArticleMarkdown(text) { return /^##\s+Metadata SEO\s*$/im.test(text) && /^##\s+Naskah artikel\s*$/im.test(text); }
+export function isArticleMarkdown(text) { return /^##\s+(Metadata SEO|SEO metadata)\s*$/im.test(text) && /^##\s+(Naskah artikel|Article body)\s*$/im.test(text); }
 export function parseArticleMarkdown(text, fileName = '') {
   const md = clean(text).replace(/\r\n?/g, '\n'), part = name => { const m = new RegExp('^##\\s+' + name + '[^\\n]*\\n([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))', 'im').exec(md); return m ? m[1] : ''; };
-  const meta = tableFields(part('Metadata SEO')), heading = (md.match(/^#\s+(.+)$/m) || [])[1] || '';
+  const meta = tableFields(part('(?:Metadata SEO|SEO metadata)')), heading = (md.match(/^#\s+(.+)$/m) || [])[1] || '';
   const number = firstNumber(String(fileName).split(/[\\/]/).pop()) ?? firstNumber(heading);
   const title = meta['h1'] || heading.replace(/^\d+\s*\S\s*/, '').trim();
   const slug = (meta['slug'] || '').replace(/^.*\/blog\//, '').replace(/^\/+|\/+$/g, '').toLowerCase();
-  const date = /(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:[^\d]+(\d{1,2})[.:](\d{2}))?/.exec(meta['terbit'] || ''), month = date ? MONTHS[date[2].toLowerCase()] : 0;
-  const hero = part('Prompt gambar').split('\n').find(l => /^\s*\|\s*Utama/i.test(l)), heroCells = hero ? hero.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()) : [];
-  // The date/reading-time line and the "Ditulis oleh …" byline are not part of the article body.
-  const body = part('Naskah artikel').replace(/^\s*\*\d{1,2}\s+\p{L}+\s+\d{4}[^\n]*\*\s*\n/u, '').replace(/\n+\*Ditulis oleh[^\n]*\*\s*$/u, '').trim();
+  const date = /(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:[^\d]+(\d{1,2})[.:](\d{2}))?/.exec(meta['terbit'] || meta['published'] || meta['publish date'] || ''), month = date ? MONTHS[date[2].toLowerCase()] : 0;
+  const hero = part('(?:Prompt gambar|Image prompt)').split('\n').find(l => /^\s*\|\s*(Utama|Main|Primary)/i.test(l)), heroCells = hero ? hero.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()) : [];
+  // The date/reading-time line and the "Ditulis oleh …" / "Written by …" byline are not part of the article body.
+  const body = part('(?:Naskah artikel|Article body)').replace(/^\s*\*\d{1,2}\s+\p{L}+\s+\d{4}[^\n]*\*\s*\n/u, '').replace(/\n+\*(?:Ditulis oleh|Written by)[^\n]*\*\s*$/u, '').trim();
   const excerpt = (meta['meta description'] || '').trim();
   if (!title || !body) return [];
   return [item({
     key: number == null ? slug : String(number).padStart(2, '0'), title, caption: excerpt,
-    tags: (meta['keyword pendukung'] || '').split(','), files: heroCells[3] || '',
+    tags: (meta['keyword pendukung'] || meta['supporting keywords'] || '').split(','), files: heroCells[3] || '',
     date: month ? `${date[3]}-${String(month).padStart(2, '0')}-${String(date[1]).padStart(2, '0')}` : '', time: date && date[4] ? `${String(date[4]).padStart(2, '0')}:${date[5]}` : '07:00',
-    blog: { slug, excerpt, seoTitle: (meta['title tag'] || '').replace(/\s*\(\d+\s*karakter\)\s*$/i, '').trim(), category: meta['kategori'] || '', heroAlt: heroCells[2] || '', body },
+    blog: { slug, excerpt, seoTitle: (meta['title tag'] || '').replace(/\s*\(\d+\s*(?:karakter|characters?)\)\s*$/i, '').trim(), category: meta['kategori'] || meta['category'] || '', heroAlt: heroCells[2] || '', body },
   })];
 }
 
-// Markdown caption list keyed by content ID: "## V01 — Judul" … "Caption:" followed by the caption paragraph.
+// Markdown caption list keyed by content ID: "## V01 — Title" … "Caption:" followed by the caption paragraph.
 export function parseCaptionMarkdown(text) {
   return clean(text).replace(/\r\n/g, '\n').split(/^##\s+/m).slice(1).map(block => {
     const head = block.split('\n')[0], id = head.match(/^([VICS]\d+)/i)?.[1] || '';
@@ -162,7 +165,7 @@ export const isVideo = f => /\.(mp4|mov)$/i.test(f.name) || /^video\//.test(f.ty
 const isCover = f => /^(cover|thumb|thumbnail|sampul)\b/i.test(base(f.name));
 
 // Where a media file belongs: its own content ID (V01-…), the first number in its name, or — for files at most two
-// folders below an episode folder like "01 - Kamar …/Video/x.mp4" — that folder's number. Deeper files (project
+// folders below an episode folder like "01 - Room …/Video/x.mp4" — that folder's number. Deeper files (project
 // assets, references) get no number, so they are never picked by accident.
 export function mediaInfo(file) {
   const path = String(file.webkitRelativePath || file.name).replace(/\\/g, '/'), parts = path.split('/'), name = parts.pop().replace(/\.[^.]+$/, '');
@@ -197,7 +200,7 @@ export function matchFiles(rows, files, platformOf = r => r.platform || 'youtube
   return result;
 }
 
-// Media named with a content ID but described by no text (old "Impor massal" style) become items of their own.
+// Media named with a content ID but described by no text (the old bulk-import style) become items of their own.
 // Pass only the files no text item has taken.
 export function mediaOnlyRows(rows, files) {
   const known = new Set(rows.map(r => r.id).filter(Boolean)), groups = new Map();
@@ -208,7 +211,7 @@ export function mediaOnlyRows(rows, files) {
   });
 }
 
-// "V01-kamar-siap_tamu.mp4" → "Kamar siap tamu"; used when no text source gives a title.
+// "V01-room-ready_for-guests.mp4" → "Room ready for guests"; used when no text source gives a title.
 export function titleFromFile(name) {
   const t = base(name).replace(/\.[^.]+$/, '').replace(/^[VICS]\d+[-_ ]*/i, '').replace(/[-_ ]*slide[-_ ]*\d+$/i, '').replace(/[-_]+/g, ' ').trim();
   return t ? t[0].toUpperCase() + t.slice(1) : '';
@@ -227,24 +230,24 @@ export function formatOf(platform, files) {
 export function checkRow({ row, files, platform, mode = 'scheduled', existingIds = [] }) {
   if (platform === 'blog') {
     const errors = [], warnings = [], b = row.blog || {};
-    if (!row.title) errors.push('Judul kosong.'); if (!b.slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug)) errors.push('Slug tidak valid.'); if (!b.body) errors.push('Isi artikel kosong.');
-    if (!b.excerpt && mode !== 'draft') errors.push('Ringkasan (meta description) kosong.');
-    if (!files.length) { if (mode === 'scheduled') errors.push('Gambar utama belum ada. Tambahkan gambarnya atau simpan sebagai draft.'); else warnings.push('Gambar utama belum ada; wajib sebelum artikel bisa terbit.'); }
-    else if (!b.heroAlt) warnings.push('Teks alternatif gambar kosong; isi di editor sebelum terbit.');
-    if (files.length > 1) errors.push('Artikel hanya memakai satu gambar utama.');
+    if (!row.title) errors.push('The title is empty.'); if (!b.slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug)) errors.push('The slug is not valid.'); if (!b.body) errors.push('The article body is empty.');
+    if (!b.excerpt && mode !== 'draft') errors.push('The summary (meta description) is empty.');
+    if (!files.length) { if (mode === 'scheduled') errors.push('There is no main image yet. Add the image or save as a draft.'); else warnings.push('There is no main image yet; it is required before the article can be published.'); }
+    else if (!b.heroAlt) warnings.push('The image alt text is empty; fill it in the editor before publishing.');
+    if (files.length > 1) errors.push('An article uses only one main image.');
     return { format: 'Blog', errors, warnings };
   }
   const format = formatOf(platform, files), errors = [], warnings = [];
-  if (!files.length) errors.push('Video atau foto belum dipilih.');
-  else if (!format) errors.push(platform === 'youtube' ? 'YouTube Shorts memerlukan tepat satu video MP4.' : 'Gabungan file ini tidak didukung Instagram.');
-  if (row.id && existingIds.includes(row.id)) errors.push(`${row.id} sudah ada di pustaka, tidak diimpor ulang.`);
-  if (row.id && format && { Short: 'S', Reel: 'V', Gambar: 'I', Carousel: 'C' }[format] !== row.id[0]) warnings.push(`Kode ${row.id} tidak cocok dengan jenis ${format}; kode baru dibuat otomatis.`);
-  if (!row.title) errors.push('Judul kosong.');
-  if (!row.caption && mode !== 'draft') errors.push('Deskripsi atau caption kosong.');
-  if (row.caption.length > 2200) errors.push('Deskripsi lebih dari 2.200 karakter.');
-  if (platform === 'youtube' && row.title.length > 100) errors.push('Judul YouTube lebih dari 100 karakter.');
-  if (files.some(f => f.size > 100 * 1024 * 1024)) errors.push('File lebih dari 100 MB.');
-  if (platform === 'instagram' && row.tags.length) warnings.push('Tags hanya dipakai YouTube.');
+  if (!files.length) errors.push('No video or photo selected yet.');
+  else if (!format) errors.push(platform === 'youtube' ? 'YouTube Shorts needs exactly one MP4 video.' : 'Instagram does not support this combination of files.');
+  if (row.id && existingIds.includes(row.id)) errors.push(`${row.id} already exists in the library and will not be imported again.`);
+  if (row.id && format && { Short: 'S', Reel: 'V', Gambar: 'I', Carousel: 'C' }[format] !== row.id[0]) warnings.push(`Code ${row.id} does not match the ${format} type; a new code is generated automatically.`);
+  if (!row.title) errors.push('The title is empty.');
+  if (!row.caption && mode !== 'draft') errors.push('The description or caption is empty.');
+  if (row.caption.length > 2200) errors.push('The description is over 2,200 characters.');
+  if (platform === 'youtube' && row.title.length > 100) errors.push('The YouTube title is over 100 characters.');
+  if (files.some(f => f.size > 100 * 1024 * 1024)) errors.push('A file is larger than 100 MB.');
+  if (platform === 'instagram' && row.tags.length) warnings.push('Tags are only used by YouTube.');
   return { format, errors, warnings };
 }
 

@@ -8,7 +8,7 @@ export const navigationGroups=[
  {label:'Settings',items:[['settings','camera','Connections & publishing',true],['ai-settings','sliders-horizontal','AI settings',true],['profile','user-round','Team account'],['history','history','History']]},
 ];
 // Hidden from the menu: review (now the "Needs review" filter in the libraries), knowledge (inside Pengaturan AI),
-// strategy and marketing (unused), package (merged into the one Impor konten page). Their data stays.
+// strategy and marketing (unused), package (merged into the one Import content page). Their data stays.
 export const hiddenPageIds=['review','knowledge','strategy','marketing','package'];
 export const pageIds=[...new Set([...navigationGroups.flatMap(group=>group.items.map(([id])=>id)),...hiddenPageIds])];
 const visibleGroups=role=>navigationGroups.map(group=>({...group,items:group.items.filter(item=>!item[3]||role==='owner')})).filter(group=>group.items.length);
@@ -20,5 +20,5 @@ export function menuGridHTML({view,alertCount=0,icon,role='owner'}){
  return`<nav class="vs-menu-grid" aria-label="Feature menu">${items.map(item=>`<button type="button" class="vs-menu-tile ${item.id==='logout'?'vs-menu-logout':''}" data-action="${item.action}" aria-label="${item.title}" title="${item.title}" ${current(view,item.id)?'aria-current="page"':''}><span class="vs-menu-icon">${icon(item.name)}${item.id==='home'&&alertCount?`<b class="vs-menu-count">${alertCount}</b>`:''}</span><span class="vs-menu-label">${item.label}</span></button>`).join('')}</nav>`;
 }
 export function navigationHTML({view,alertCount=0,icon,mobile=false,role='owner'}){
- return visibleGroups(role).map(group=>`<section class="vs-navigation-group"><h2>${group.label}</h2><div class="${mobile?'vs-menu-items':'vs-navigation-items'}">${group.items.map(([id,name,title])=>`<button type="button" ${mobile?'class="vs-button"':''} data-action="nav:${id}" ${current(view,id)?'aria-current="page"':''}>${icon(name)}<span>${title}</span>${id==='home'&&alertCount?`<b class="vs-nav-count" aria-label="${alertCount} perlu perhatian">${alertCount}</b>`:''}</button>`).join('')}</div></section>`).join('');
+ return visibleGroups(role).map(group=>`<section class="vs-navigation-group"><h2>${group.label}</h2><div class="${mobile?'vs-menu-items':'vs-navigation-items'}">${group.items.map(([id,name,title])=>`<button type="button" ${mobile?'class="vs-button"':''} data-action="nav:${id}" ${current(view,id)?'aria-current="page"':''}>${icon(name)}<span>${title}</span>${id==='home'&&alertCount?`<b class="vs-nav-count" aria-label="${alertCount} need attention">${alertCount}</b>`:''}</button>`).join('')}</div></section>`).join('');
 }

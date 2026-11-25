@@ -22,7 +22,7 @@ export function openStore(directory) {
   const keyPath = path.join(directory, '.encryption-key');
   if (!existsSync(keyPath)) writeFileSync(keyPath, randomBytes(32), { mode: 0o600, flag: 'wx' });
   const key = readFileSync(keyPath);
-  if (key.length !== 32) throw new Error('Kunci enkripsi lokal tidak valid.');
+  if (key.length !== 32) throw new Error('The local encryption key is invalid.');
   const get = (sql, ...params) => db.prepare(sql).get(...params);
   const all = (sql, ...params) => db.prepare(sql).all(...params);
   const run = (sql, ...params) => db.prepare(sql).run(...params);
@@ -41,7 +41,7 @@ export function openStore(directory) {
   function snapshot(item,{reason='edit',actor=null}={}){run('INSERT OR IGNORE INTO post_versions(id,post_id,revision,body,reason,actor,created_at) VALUES(?,?,?,?,?,?,?)',randomBytes(12).toString('hex'),item.id,item.revision,JSON.stringify(content(item)),reason,actor,new Date().toISOString());}
   function insertPost(item) { const now = new Date().toISOString();db.exec('BEGIN IMMEDIATE');try{run('INSERT INTO posts(id,data,status,schedule_at,updated_at) VALUES(?,?,?,?,?)', item.id, JSON.stringify(item), item.status || 'draft', item.scheduleAt || null, now);const saved=post(item.id);snapshot(saved,{reason:'initial'});db.exec('COMMIT');return saved;}catch(e){db.exec('ROLLBACK');throw e;} }
   function savePost(item, expected = item.revision, metadata={}) { const now = new Date().toISOString();db.exec('BEGIN IMMEDIATE');try{const before=post(item.id);const result = run('UPDATE posts SET data=?,status=?,schedule_at=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?', JSON.stringify(item), item.status, item.scheduleAt || null, now, item.id, expected); if (result.changes !== 1) { const error = new Error('The post changed in another session. Reload it before saving.'); error.status = 409; throw error; }const saved=post(item.id);if(JSON.stringify(content(before))!==JSON.stringify(content(saved)))snapshot(saved,metadata);db.exec('COMMIT');return saved;}catch(e){db.exec('ROLLBACK');throw e;} }
-  function recover() { for (const item of posts().filter(x => x.status === 'processing')) { item.status = item.job?.publishRequested ? 'uncertain' : 'failed'; item.error = item.job?.publishRequested ? 'Server berhenti setelah permintaan publikasi. Periksa status hasil sebelum mencoba lagi.' : 'Persiapan terhenti saat server dimulai ulang. Jadwalkan kembali.'; item.errorCode = 'SERVER_RESTARTED'; savePost(item); event(item.id, 'Pemulihan proses publikasi', item.error, 'failed'); } }
+  function recover() { for (const item of posts().filter(x => x.status === 'processing')) { item.status = item.job?.publishRequested ? 'uncertain' : 'failed'; item.error = item.job?.publishRequested ? 'The server stopped after the publish request. Check the result status before trying again.' : 'Preparation stopped when the server restarted. Reschedule.'; item.errorCode = 'SERVER_RESTARTED'; savePost(item); event(item.id, 'Publishing recovery', item.error, 'failed'); } }
   for(const item of posts())if(!get('SELECT id FROM post_versions WHERE post_id=? LIMIT 1',item.id))snapshot(item,{reason:'baseline'});
   return { db, key, directory, get, all, run, setting, set, secret, setSecret, event, post, posts, insertPost, savePost, recover, close: () => db.close() };
 }

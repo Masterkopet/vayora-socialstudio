@@ -1,75 +1,77 @@
-# Asisten konten Vayora
+# Vayora content assistant
 
-Tersedia melalui **Asisten caption**, **Desain konten**, **Pengetahuan brand**, **Pengaturan AI**, serta editor pada **Pustaka**. Data akun, media, dan jadwal lama tetap dipakai.
+Available through **Caption assistant**, **Content design**, **Brand knowledge**, **AI settings**, and the editor in the **Library**. Existing account, media, and schedule data continue to be used.
 
-## Pengetahuan brand yang digunakan
+Generated captions, titles, and hashtags are written in Indonesian, following the Vayora brand voice. Example wording in this document is therefore kept in Indonesian where it illustrates brand copy.
 
-Bank pengetahuan versi `2026-11-16.1` memuat 57 catatan terkurasi, 14 sumber, dan 24 referensi kampanye. Sumber mencakup beranda/Tentang/blog Vayora, dua artikel, proposal template dan versi desain brand, catatan produk/desain landing page, brief dan manifest kampanye, aset SVG aktif, serta arahan kreatif pemilik.
+## Brand knowledge used
 
-Catatan dapat dicari dan difilter di **Pengetahuan brand**, dengan status tersedia, layanan tambahan, segera hadir, identitas brand, pedoman, atau perlu konfirmasi. Ekspor JSON tersedia setelah login. Ringkasan yang dapat dibaca ada di [PENGETAHUAN-BRAND-VAYORA.md](PENGETAHUAN-BRAND-VAYORA.md).
+The knowledge base version `2026-11-16.1` contains 57 curated notes, 14 sources, and 24 campaign references. Sources include the Vayora home/About/blog pages, two articles, the template proposal and brand design version, product/landing page design notes, campaign briefs and manifests, active SVG assets, and the owner's creative direction.
 
-Saat caption diminta, aplikasi memilih catatan berdasarkan judul, kategori, tujuan, konteks visual, dan kata kunci. AI mendapat identitas brand, aturan klaim, sumber, status, catatan relevan yang diprioritaskan, serta katalog lengkap 57 catatan untuk mencocokkan fitur yang tampak pada gambar meskipun judul belum spesifik. Hasil menampilkan **Pengetahuan yang diberikan kepada asisten** agar konteks dapat diperiksa. Daftar ini menunjukkan konteks yang diberikan, bukan sertifikasi semua klaim keluaran atau bukti AI benar-benar mematuhi setiap catatan.
+Notes can be searched and filtered in **Brand knowledge**, by status: available, add-on service, coming soon, brand identity, guideline, or needs confirmation. A JSON export is available after login. A readable summary is in [PENGETAHUAN-BRAND-VAYORA.md](PENGETAHUAN-BRAND-VAYORA.md) (written in Indonesian on purpose).
 
-Bantuan lokal memakai pemetaan topik untuk laundry, housekeeping, invoice, sarapan, ruang meeting, promo/deposit, sewa utuh/per kamar, website booking, laporan owner, dan status roadmap. Mode lokal tetap tidak membaca piksel media. Generator latar AI juga menerima konteks visual dan batas brand; logo dan tulisan tetap disusun dari aset asli.
+When a caption is requested, the app selects notes by title, category, goal, visual context, and keywords. The AI receives the brand identity, claim rules, sources, status, the prioritized relevant notes, and the full catalog of 57 notes, so it can match features visible in an image even when the title is not yet specific. The result shows **Knowledge given to the assistant** so the context can be inspected. This list shows the context that was provided; it is not a certification of every claim in the output, nor proof that the AI actually followed every note.
 
-Perbedaan sumber disimpan secara eksplisit: harga proposal masih simulasi; placeholder tim/pendiri tidak menjadi fakta; pembayaran/OTA/POS tidak dipromosikan sebagai sudah aktif; video housekeeping dari catatan lama tidak dipakai; data demo/pilot bukan testimoni; varian Key Fob Board tidak menimpa palet kampanye yang disetujui. Data tamu, token, password, dan dokumen rahasia tidak diimpor.
+Local assistance uses topic mapping for laundry, housekeeping, invoices, breakfast, meeting rooms, promos/deposits, whole-villa/per-room rentals, booking websites, owner reports, and roadmap status. Local mode still does not read media pixels. The AI background generator also receives the visual context and brand limits; the logo and text are still composed from the original assets.
 
-Sumber mentah ada di `knowledge/sources`, terpisah dari konteks model. JSON terkurasi ada di `knowledge/vayora-brand.json`. Tidak ada crawling otomatis atau pelatihan ulang model. Pembaruan fakta perlu peninjauan, pembaruan kurasi pada `scripts/build-brand-knowledge.mjs`, lalu `npm run knowledge:build`, pengujian, dan restart server. Website yang berubah tidak otomatis dianggap sebagai fakta baru.
+Source differences are stored explicitly: proposal prices are still simulated; team/founder placeholders are not treated as fact; payments/OTA/POS are not promoted as already active; the housekeeping video from old notes is not used; demo/pilot data is not a testimonial; the Key Fob Board variant does not override the approved campaign palette. Guest data, tokens, passwords, and confidential documents are not imported.
 
-## Yang dapat langsung dipakai
+Raw sources are in `knowledge/sources`, separate from the model context. The curated JSON is in `knowledge/vayora-brand.json`. There is no automatic crawling or model retraining. Updating facts requires review, updating the curation in `scripts/build-brand-knowledge.mjs`, then `npm run knowledge:build`, tests, and a server restart. A changed website is not automatically treated as a new fact.
 
-- Tiga variasi hook/caption, hashtag relevan, dan CTA berdasarkan kategori, judul, serta tujuan konten. Label **Mode lokal** berarti gambar belum dibaca. Hasil bukan analisis piksel atau prediksi jangkauan.
-- Pemeriksaan editorial: konteks brand, CTA, panjang caption, hashtag, deskripsi aksesibilitas, caption duplikat, serta kata yang perlu diverifikasi. Pemeriksaan berbasis aturan ini tidak menjamin semua kesalahan ditemukan.
-- Tiga pilihan waktu uji dalam WIB. Default 08.30, 12.15, dan 19.30 pada hari kerja merupakan hipotesis untuk diuji, bukan hasil Instagram Insights. Slot minimal satu jam mendatang, berjarak minimal dua jam dari jadwal/hasil terbit yang tercatat, dan memakai tanggal pilihan sebagai awal pencarian. Saran tidak mengendalikan delivery iklan berbayar.
-- Pembuat image post 1080 × 1350: logo SVG asli, palet navy/krem/amber, judul/penjelasan/CTA, pilihan potongan maskot atau media pendamping. File JPG dapat diunduh atau dimasukkan sebagai draft baru.
-- Tautan UTM untuk bio atau landing page, serta ringkasan sebaran topik. Analytics website tetap diperlukan untuk menghitung kunjungan dan permintaan demo.
+## What can be used right away
 
-## Mengaktifkan pembacaan gambar dan latar AI
+- Three hook/caption variations, relevant hashtags, and a CTA based on the content's category, title, and goal. The **Local mode** label means the image has not been read. The result is not pixel analysis or a reach prediction.
+- Editorial check: brand context, CTA, caption length, hashtags, accessibility description, duplicate captions, and words that need verification. This rule-based check does not guarantee that every error is found.
+- Three test time options in WIB. The default 08:30, 12:15, and 19:30 on weekdays are hypotheses to test, not Instagram Insights results. Slots are at least one hour ahead, at least two hours away from any recorded schedule/published result, and use the chosen date as the search start. The suggestions do not control paid ad delivery.
+- Image post builder, 1080 × 1350: the original SVG logo, navy/cream/amber palette, title/explanation/CTA, and a choice of mascot crops or a companion media file. The JPG file can be downloaded or added as a new draft.
+- UTM links for the bio or a landing page, plus a summary of topic distribution. Website analytics is still needed to count visits and demo requests.
 
-1. Pemilik membuka **Pengaturan AI**.
-2. Buat API key Gemini di [Google AI Studio](https://aistudio.google.com/apikey) dan tempel di **Pengaturan AI → Gemini API key**. Gemini menulis semua teks: judul dan caption otomatis di **Buat posting**, serta pilihan caption di Asisten caption. Model bawaan `gemini-flash-latest` dapat diganti di formulir yang sama. Key OpenAI ([dashboard OpenAI](https://platform.openai.com/api-keys)) hanya diperlukan untuk membuat latar gambar AI; bila key Gemini tidak ada, teks memakai OpenAI sebagai cadangan.
-3. Masukkan key langsung di aplikasi. Jangan mengirim key atau password melalui chat.
-4. Tetapkan batas permintaan harian. Default: 20 caption dan 3 latar per hari, direset berdasarkan tanggal WIB. Batas menghitung percobaan, termasuk kegagalan; bukan batas biaya uang. Atur batas pengeluaran di dashboard penyedia juga.
-5. Di editor, pilih **AI · baca gambar / poster**, lengkapi konteks jika perlu, lalu **Buat pilihan caption**. Pilih hasil sebelum menerapkannya.
-6. Untuk gambar, buka **Pembuat image post → Buat latar dengan AI**, isi brief dan tekan **Generate satu latar AI**. Periksa latar, lalu **Buat desain brand** untuk menyusun logo dan teks asli di atasnya. Hasil belum menjadi post sampai **Masukkan sebagai draft** dipilih.
+## Enabling image reading and AI backgrounds
 
-API key tersimpan terenkripsi pada server memakai kunci lokal yang sama dengan koneksi Meta. Key tidak dikirim kembali ke browser. Pemilik dapat menghapus key melalui aplikasi; key yang ditetapkan lewat `GEMINI_API_KEY` atau `OPENAI_API_KEY` harus dihapus dari konfigurasi server. Editor dapat meminta caption jika key telah tersedia; hanya pemilik dapat mengubah konfigurasi AI, arah brand, dan membuat latar AI berbayar. Pembuat desain lokal bisa dipakai editor.
+1. The owner opens **AI settings**.
+2. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey) and paste it in **AI settings → Gemini API key**. Gemini writes all text: the automatic title and caption in **Create post**, and the caption options in the Caption assistant. The default model `gemini-flash-latest` can be changed in the same form. An OpenAI key ([OpenAI dashboard](https://platform.openai.com/api-keys)) is only required for creating AI image backgrounds; if there is no Gemini key, text falls back to OpenAI.
+3. Enter the key directly in the app. Do not send keys or passwords through chat.
+4. Set the daily request limit. Default: 20 captions and 3 backgrounds per day, reset by WIB date. The limit counts attempts, including failures; it is not a monetary cost cap. Also set a spending limit in the provider's dashboard.
+5. In the editor, choose **AI · read image / poster**, add context if needed, then **Generate caption options**. Pick a result before applying it.
+6. For images, open **Image post builder → Create an AI background**, fill in the brief and press **Generate one AI background**. Check the background, then **Create brand design** to compose the real logo and text on top of it. The result is not a post until **Create draft** is chosen.
 
-Provider dipanggil dari server ke endpoint resmi. Teks: Gemini `generateContent` dengan output JSON terstruktur (key dikirim lewat header, bukan URL), cadangan OpenAI `gpt-5.4-mini` melalui Responses API; model latar: `gpt-image-2.5-flare` melalui Images API, satu gambar kualitas medium per permintaan. Tidak ada permintaan AI otomatis saat login, membuka editor, menyimpan, atau menjadwalkan.
+The API key is stored encrypted on the server using the same local key as the Meta connection. The key is never sent back to the browser. The owner can delete the key through the app; a key set through `GEMINI_API_KEY` or `OPENAI_API_KEY` must be removed from the server configuration. Editors can request captions if a key is available; only the owner can change the AI configuration and brand direction, and create paid AI backgrounds. The local design builder can be used by editors.
 
-## Batas analisis dan review
+Providers are called from the server to the official endpoints. Text: Gemini `generateContent` with structured JSON output (the key is sent in a header, not the URL), with OpenAI `gpt-5.4-mini` via the Responses API as a fallback; background model: `gpt-image-2.5-flare` via the Images API, one medium-quality image per request. There are no automatic AI requests on login, opening the editor, saving, or scheduling.
 
-- Mode AI mengirim teks draft serta gambar terpilih ke OpenAI. Carousel mengirim semua slide sesuai urutan; alt text yang disarankan hanya untuk gambar pertama sesuai satu kolom deskripsi yang tersedia saat ini. Hindari data tamu pribadi pada materi yang dikirim.
-- Reel dianalisis dari cover terpilih atau poster, bukan gerakan, keseluruhan video, atau audionya.
-- Respons caption diminta dengan `store:false`. Ini tidak menjanjikan tidak ada retensi lain oleh provider; ikuti pengaturan dan kebijakan project API.
-- Teks dalam gambar dan caption lama diperlakukan sebagai data tidak tepercaya, bukan instruksi kepada asisten.
-- Hasil tetap memerlukan pemeriksaan manusia. Menekan **Bandingkan caption** menampilkan perbandingan; **Gunakan usulan ini** baru mengganti teks draft dan menghapus persetujuan lama. Tidak ada penyimpanan atau publikasi otomatis.
-- Latar generatif adalah ilustrasi, bukan foto villa/pelanggan atau bukti hasil Vayora. Logo dan copy dibuat terpisah agar identitas brand tidak digambar ulang AI.
-- Kegagalan provider tidak diulang otomatis agar tidak menambah permintaan berbayar tanpa tindakan pengguna. Tidak ada klaim keberhasilan ketika key atau saldo belum tersedia.
+## Analysis and review limits
 
-## Dasar brand dan strategi penemuan
+- AI mode sends the draft text and the selected images to OpenAI. A carousel sends all slides in order; the suggested alt text applies only to the first image, because there is currently one description field. Avoid private guest data in the material that is sent.
+- A Reel is analyzed from the selected cover or poster, not its motion, the whole video, or its audio.
+- Caption responses are requested with `store:false`. This does not promise that the provider has no other retention; follow the API project's settings and policies.
+- Text inside images and old captions is treated as untrusted data, not as instructions to the assistant.
+- Results still need human review. Pressing **Compare caption** shows a comparison; **Apply suggestion** is what replaces the draft text and clears the previous approval. There is no automatic saving or publishing.
+- A generated background is an illustration, not a photo of a villa/customer or proof of Vayora's results. The logo and copy are created separately so the brand identity is not redrawn by AI.
+- Provider failures are not retried automatically, so paid requests are not added without user action. No success is claimed when the key or balance is unavailable.
 
-Fakta produk diperiksa dari [website Vayora](https://vayora.id/) pada 16 November 2026. Booking engine diperlakukan sebagai layanan tambahan. Integrasi OTA dan semua cara bayar tidak dipromosikan sebagai fitur yang sudah aktif. Nama villa, angka dan transaksi demo bukan bukti hasil pelanggan. Pemilik dapat menyesuaikan audiens dan nada bicara; perubahan fakta produk perlu pembaruan daftar fakta pada aplikasi.
+## Brand foundation and discovery strategy
 
-Fokus sosial: topik yang dicari operator villa, hook yang spesifik, manfaat yang sesuai visual, keyword natural, dan satu ajakan bertindak. Alt text untuk aksesibilitas. Tidak ada jaminan ranking Instagram, TikTok, atau Google dari caption/hashtag.
+Product facts were checked against the [Vayora website](https://vayora.id/) on 16 November 2026. The booking engine is treated as an add-on service. OTA integrations and all payment methods are not promoted as active features. Villa names, demo numbers, and transactions are not proof of customer results. The owner can adjust the audience and tone of voice; changes to product facts require updating the fact list in the app.
 
-Prioritas pengembangan berikutnya:
+Social focus: topics villa operators search for, specific hooks, benefits that match the visual, natural keywords, and a single call to action. Alt text for accessibility. There is no guarantee of Instagram, TikTok, or Google ranking from captions/hashtags.
 
-1. Pencatatan hasil per campaign: jangkauan, simpan, bagikan, kunjungan profil, klik website, dan permintaan demo. Pisahkan organik dengan iklan berbayar.
-2. Sinkronisasi Insights resmi setelah akun dan izin yang diperlukan tersedia; simpan tanggal pengambilan serta batas cakupan data. Jangan mengisi dashboard dengan angka contoh.
-3. Bandingkan hook dan waktu dengan format/topik serupa, serta jendela pengukuran yang sama. Gunakan hasil untuk rekomendasi berikutnya, bukan satu post yang kebetulan tinggi.
-4. Hubungkan campaign ke landing page yang sesuai masalah, pasang analytics/conversion event, dan perbaiki SEO website secara terpisah: isi halaman, judul/meta, tautan internal, indexing, dan kecepatan halaman.
+Next development priorities:
 
-Referensi implementasi: [vision](https://developers.openai.com/api/docs/guides/images-vision), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Images API](https://developers.openai.com/api/reference/resources/images/methods/generate).
+1. Recording results per campaign: reach, saves, shares, profile visits, website clicks, and demo requests. Keep organic separate from paid ads.
+2. Official Insights sync once the required account and permissions are available; store the retrieval date and the limits of data coverage. Do not fill the dashboard with sample numbers.
+3. Compare hooks and times against similar formats/topics, using the same measurement window. Use the results for the next recommendation, not a single post that happened to do well.
+4. Connect campaigns to the landing page that matches the problem, set up analytics/conversion events, and improve website SEO separately: page content, titles/meta, internal links, indexing, and page speed.
 
-## Verifikasi
+Implementation references: [vision](https://developers.openai.com/api/docs/guides/images-vision), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Images API](https://developers.openai.com/api/reference/resources/images/methods/generate).
 
-`npm test` mencakup mode lokal tanpa jaringan, media asli yang dikirim pada mode vision, penyimpanan key terenkripsi, batas harian, sanitasi error, larangan retry otomatis, waktu uji, pemeriksaan klaim, dan hasil desain nyata. Browser test memakai database terpisah dan provider simulasi, tanpa kredit API atau perubahan akun pengguna. Pemanggilan OpenAI dengan key nyata perlu uji pengguna setelah konfigurasi.
+## Verification
 
-## Pembaruan alur dan marketing
+`npm test` covers local mode without a network, real media sent in vision mode, encrypted key storage, daily limits, error sanitization, the ban on automatic retries, test times, claim checks, and real design output. Browser tests use a separate database and a simulated provider, with no API credit or changes to user accounts. Calling OpenAI with a real key needs user testing after configuration.
 
-Caption dapat dibandingkan, diterapkan, dibatalkan sebelum disimpan, dan dipulihkan melalui versi tersimpan. Checklist kesiapan tersedia pada detail/editor. Marketing sekarang menyediakan campaign UTM per konten/pembuka, tracking kunjungan/CTA dengan consent, demo terkonfirmasi manual/backend, laporan produksi/uji terpisah, serta pengamatan performa manual/CSV. Daftar prioritas di atas tetap merupakan arah pengembangan untuk sinkronisasi platform dan SEO website; pemasangan serta batas aktual fitur sekarang dijelaskan pada [MARKETING.md](MARKETING.md).
+## Workflow and marketing updates
 
-## Navigasi fitur
+Captions can be compared, applied, undone before saving, and restored through saved versions. A readiness checklist is available in the detail/editor. Marketing now provides per-content/opener UTM campaigns, visit/CTA tracking with consent, manually or backend-confirmed demos, separate production/test reports, and manual/CSV performance observations. The priority list above remains the direction for platform sync and website SEO; setup and the actual limits of the feature are now described in [MARKETING.md](MARKETING.md).
 
-Halaman Asisten lama telah dipisah: `#assistant` (caption), `#designer` (desain), `#knowledge` (bank pengetahuan dengan halaman dan detail sumber), `#ai-settings` (koneksi dan arah brand), serta `#strategy` (panduan strategi). Buka lewat sidebar desktop atau kelompok Menu di ponsel. Label dan bantuan antarmuka tersedia dalam ID/EN; isi catatan sumber tidak diterjemahkan otomatis.
+## Feature navigation
+
+The old Assistant page has been split: `#assistant` (captions), `#designer` (design), `#knowledge` (knowledge base with pages and source details), `#ai-settings` (connections and brand direction), and `#strategy` (strategy guide). Open them from the desktop sidebar or the Menu group on phones. UI labels and help are available in ID/EN; the content of source notes is not translated automatically.

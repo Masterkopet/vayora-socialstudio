@@ -18,10 +18,10 @@ export function postReadiness(store,item,instagram,youtube) {
     const channel=youtube?youtube.status():{connected:false};
     const checks=[
       {id:'media',label:'Short video',ok:!!formatReady,required:true,action:'edit',detail:!filesReady?'Upload the media again.':!formatReady?'Use one vertical or square MP4 video, up to 3 minutes.':'The video fits the Shorts format.'},
-      {id:'title',label:'YouTube title',ok:titleReady,required:true,action:'edit',detail:titleReady?'The title is ready for YouTube.':`Isi judul maksimal ${YOUTUBE_TITLE_MAX} karakter.`},
+      {id:'title',label:'YouTube title',ok:titleReady,required:true,action:'edit',detail:titleReady?'The title is ready for YouTube.':`Enter a title of up to ${YOUTUBE_TITLE_MAX} characters.`},
       {id:'caption',label:'Description',ok:descriptionReady,required:true,action:'edit',detail:descriptionReady?'Description filled in.':'Fill in the description (caption), up to 2,200 characters.'},
       approval,
-      {id:'youtube',label:'YouTube connection',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} terhubung.`.replace(/\s+\./,'.'):'Connect a YouTube channel in Connections & publishing.'},
+      {id:'youtube',label:'YouTube connection',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} connected.`.replace(/\s+\./,'.'):'Connect a YouTube channel in Connections & publishing.'},
       live,
     ];
     const contentReady=!!formatReady&&titleReady&&descriptionReady&&item.approved===true;

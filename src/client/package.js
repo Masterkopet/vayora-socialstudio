@@ -5,7 +5,8 @@ import { readSources, matchFiles, mediaOnlyRows, checkRow, planSchedule, mediaIn
 
 const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
 const tomorrow = () => new Date(Date.now() + 7 * 3600000 + 86400000).toISOString().slice(0, 10);
-const AI_NOTE = /ilustrasi AI|dibuat (dengan )?AI|buatan AI|AI[- ]generated/i;
+// Detects a caption that says the image is AI-made (Indonesian and English wording).
+const AI_NOTE = /ilustrasi AI|dibuat (dengan )?AI|buatan AI|AI[- ]generated|AI[- ]made|(made|created) (with|by) AI|AI illustration/i;
 const PREFIX = { Short: 'S', Reel: 'V', Gambar: 'I', Carousel: 'C' };
 const pathOf = f => f.webkitRelativePath || f.name;
 
@@ -53,9 +54,9 @@ export function createPackageImport(ctx) {
     const slotOf = plan(), rows = st.rows, count = ready().length;
     const step = (n, title, body) => `<section class="vs-panel vs-pad vs-stack vs-step"><div class="vs-step-head"><span class="vs-step-number">${n}</span><h2>${title}</h2></div>${body}</section>`;
     const usedSources = st.sources.filter(s => s.added), otherSources = st.sources.filter(s => s.rows && !s.added).length;
-    const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} video/foto · ${usedSources.length ? 'teks dari ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'belum ada file teks judul/deskripsi'}${otherSources ? ` · ${otherSources} file teks lain hanya melengkapi yang kosong` : ''} · ${rows.length} konten terbaca.</p>` : '';
+    const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} videos/photos ·${usedSources.length ? 'text from ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'no title/description text file yet'}${otherSources ? ` · ${otherSources} other text files only fill in what is empty` : ''} · ${rows.length} posts found.</p>` : '';
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
-<ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (JUDUL, DESKRIPSI LENGKAP, TAGS), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
+<ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
 <div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
 <label class="vs-label">Default platform<select class="vs-input" id="pkg-platform"><option value="youtube" ${st.platform === 'youtube' ? 'selected' : ''}>YouTube Shorts</option><option value="instagram" ${st.platform === 'instagram' ? 'selected' : ''}>Instagram</option></select><small>Used when the text names no platform. Code S01 is always YouTube; V01, I01, C01 are always Instagram.</small></label>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
@@ -64,19 +65,19 @@ ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary
     const s2 = step(2, 'Set the schedule', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="pkg-mode" value="scheduled" ${st.mode === 'scheduled' ? 'checked' : ''}><span><b>Schedule automatically</b> · goes live on the dates in the table</span></label><label class="vs-check"><input type="radio" name="pkg-mode" value="review" ${st.mode === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · dates are saved, scheduled after review</span></label><label class="vs-check"><input type="radio" name="pkg-mode" value="draft" ${st.mode === 'draft' ? 'checked' : ''}><span><b>Save as draft</b> · caption may be empty, fill it in later</span></label></div>
 ${st.mode === 'draft' ? '' : `<div class="vs-two"><label class="vs-label">Start date<input class="vs-input" type="date" id="pkg-start" value="${esc(st.start)}"></label><label class="vs-label">Publish time (WIB)<input class="vs-input" id="pkg-times" value="${esc(st.times)}" placeholder="19:00, 09:00"><small>Separate with commas for more than one time per day.</small></label></div>
 <div><span class="vs-label">Publish days</span><div class="vs-day-row">${dayBoxes}</div></div>
-${rows.some(r => r.row.date) ? `<label class="vs-check"><input type="checkbox" id="pkg-file-dates" ${st.useFileDates ? 'checked' : ''}><span>Pakai tanggal dan jam dari file bila ada</span></label>` : ''}`}
-${rows.some(r => !r.row.caption) && st.mode !== 'draft' ? (ai?.textConfigured ? `<label class="vs-check"><input type="checkbox" id="pkg-ai-fill" ${st.aiFill ? 'checked' : ''}><span><b>Write empty captions with AI</b> · Gemini watches the video or looks at the photo. These items are submitted for review (not scheduled right away) so someone reads them first.</span></label>` : `<p class="vs-mini">${rows.filter(r => !r.row.caption).length} konten belum punya caption. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis.</p>`) : ''}
+${rows.some(r => r.row.date) ? `<label class="vs-check"><input type="checkbox" id="pkg-file-dates" ${st.useFileDates ? 'checked' : ''}><span>Use the date and time from the file when present</span></label>` : ''}`}
+${rows.some(r => !r.row.caption) && st.mode !== 'draft' ? (ai?.textConfigured ? `<label class="vs-check"><input type="checkbox" id="pkg-ai-fill" ${st.aiFill ? 'checked' : ''}><span><b>Write empty captions with AI</b> · Gemini watches the video or looks at the photo. These items are submitted for review (not scheduled right away) so someone reads them first.</span></label>` : `<p class="vs-mini">${rows.filter(r => !r.row.caption).length} posts have no caption yet. Connect Gemini in AI settings so empty captions can be written automatically.</p>`) : ''}
 ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input type="checkbox" id="pkg-synthetic" ${st.synthetic ? 'checked' : ''}><span>Videos contain realistic AI-generated visuals. Disclose this to YouTube ("altered or synthetic content").</span></label>` : ''}`);
     const table = rows.map((r, i) => {
       const c = checked(r), slot = slotOf(r), p = platformOf(r), res = r.result, e = edit(r), locked = res?.ok || st.running;
       const media = r.files.length ? esc(r.files.map(f => f.name).join(', ')) + (r.cover ? `<small class="vs-mini">Cover: ${esc(r.cover.name)}</small>` : '') : r.choices.length ? `<select class="vs-input" data-pkg-choice="${i}"><option value="">Choose a version…</option>${r.choices.map((f, j) => `<option value="${j}">${esc(pathOf(f).split('/').slice(-2).join('/'))}</option>`).join('')}</select>` : p === 'blog' ? '<span class="vs-mini">No main image</span>' : '<span class="vs-mini">None yet</span>';
       const state = res ? (res.ok ? `<span class="vs-status scheduled">${esc(res.text)}</span>` : res.busy ? `<span class="vs-status">${esc(res.text)}</span>` : `<span class="vs-status failed">Failed</span><small class="vs-inline-error">${esc(res.text)}</small>`)
-        : c.errors.length ? `<small class="vs-inline-error">${esc(c.errors.join(' '))}</small>` : `<span class="vs-status scheduled">Siap · ${c.format}</span>${c.warnings.map(w => `<small class="vs-mini">${esc(w)}</small>`).join('')}`;
+        : c.errors.length ? `<small class="vs-inline-error">${esc(c.errors.join(' '))}</small>` : `<span class="vs-status scheduled">Ready · ${c.format}</span>${c.warnings.map(w => `<small class="vs-mini">${esc(w)}</small>`).join('')}`;
       const when = slot ? `<input class="vs-input" type="date" data-pkg-date="${i}" value="${slot.date}" ${locked ? 'disabled' : ''}><input class="vs-input" type="time" data-pkg-time="${i}" value="${slot.time}" ${locked ? 'disabled' : ''}>` : '<span class="vs-mini">—</span>';
       const label = r.row.id || r.row.key || '—';
-      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Ikutkan ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : p === 'blog' ? 'Blog' : 'Instagram'}</small></td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Deskripsi${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">No caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
+      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Include ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : p === 'blog' ? 'Blog' : 'Instagram'}</small></td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Description${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">No caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
     }).join('');
-    const label = st.mode === 'scheduled' ? `Jadwalkan ${count} konten` : st.mode === 'review' ? `Ajukan ${count} konten` : `Simpan ${count} draft`;
+    const label = st.mode === 'scheduled' ? `Schedule ${count} posts` : st.mode === 'review' ? `Submit ${count} posts for review` : `Save ${count} drafts`;
     const s3 = step(3, 'Review and run', `<div class="vs-table-wrap"><table class="vs-pkg-table"><thead><tr><th></th><th>No</th><th>Title</th><th>Media</th><th>${st.mode === 'draft' ? 'Schedule' : 'Schedule (WIB)'}</th><th>Status</th></tr></thead><tbody>${table}</tbody></table></div>
 ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="pkg-approved" ${st.approved ? 'checked' : ''} ${st.running ? 'disabled' : ''}><span>I have checked the videos, titles, and descriptions above, and all of them may go live on schedule.</span></label>` : ''}
 <div class="vs-actions">${st.done ? button('Open library', 'pkg-open', 'vs-primary', 'layout-grid') : button(st.running ? 'Processing…' : label, 'pkg-run', 'vs-primary', 'send', !count || st.running || (st.mode === 'scheduled' && !st.approved) ? 'disabled' : '')}${button('Start over', 'pkg-reset', 'vs-text-button', '', st.running ? 'disabled' : '')}</div>
@@ -102,7 +103,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
           const b = r.row.blog, intent = st.mode === 'draft' ? 'draft' : st.mode;
           let art = await api('/api/blog', 'POST', { title: r.row.title, slug: b.slug, excerpt: b.excerpt, seoTitle: b.seoTitle, seoDescription: b.excerpt, category: b.category, body: b.body, heroMediaId: media[0]?.id || null, heroAlt: b.heroAlt });
           if (intent !== 'draft') art = await api('/api/blog/' + encodeURIComponent(art.id), 'PUT', { title: art.title, slug: art.slug, excerpt: art.excerpt, seoTitle: art.seoTitle, seoDescription: art.seoDescription, category: art.category, body: art.body, heroMediaId: art.heroMediaId, heroAlt: art.heroAlt, revision: art.revision, intent, approved: intent === 'scheduled', date: slot?.date, time: slot?.time });
-          ok++; set(intent === 'scheduled' ? `${art.id} · terjadwal` : intent === 'review' ? `${art.id} · ditinjau` : `${art.id} · draft`, { ok: true }); continue;
+          ok++; set(intent === 'scheduled' ? `${art.id} · scheduled` : intent === 'review' ? `${art.id} · in review` : `${art.id} · draft`, { ok: true }); continue;
         }
         let coverId = null;
         if (r.cover && format === 'Reel') { const cf = new FormData(); cf.append('files', r.cover); coverId = (await api('/api/media?role=cover', 'POST', cf)).media?.[0]?.id || null; }
@@ -117,14 +118,14 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
         const id = r.row.id && r.row.id[0] === PREFIX[format] && !taken.includes(r.row.id) ? r.row.id : undefined;
         const body = { format, title: r.row.title, caption: r.row.caption, mediaIds: media.map(m => m.id), ...(p === 'youtube' ? { tags: r.row.tags, syntheticMedia: st.synthetic } : {}) };
         // Keep the code from the file (V01, C02…) when it is free; otherwise the server picks the next one.
-        let item = id ? await api('/api/posts', 'POST', { ...body, id }).catch(e => { if (/ID konten/.test(e.message)) return api('/api/posts', 'POST', body); throw e; }) : await api('/api/posts', 'POST', body);
+        let item = id ? await api('/api/posts', 'POST', { ...body, id }).catch(e => { if (/ID konten|content ID|post ID/i.test(e.message)) return api('/api/posts', 'POST', body); throw e; }) : await api('/api/posts', 'POST', body);
         if (intent !== 'draft' || coverId) item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent, approved: intent === 'scheduled', title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId, coverTime: null, date: slot?.date || item.date, time: slot?.time || item.time });
-        ok++; set(intent === 'scheduled' ? `${item.id} · terjadwal` : intent === 'review' ? `${item.id} · ditinjau` : `${item.id} · draft`, { ok: true });
-      } catch (error) { set(error.message || 'Gagal diproses.'); }
+        ok++; set(intent === 'scheduled' ? `${item.id} · scheduled` : intent === 'review' ? `${item.id} · in review` : `${item.id} · draft`, { ok: true });
+      } catch (error) { set(error.message || 'Processing failed.'); }
     }
     st.running = false; st.approved = false; st.done = st.rows.every(r => !edit(r).include || r.result?.ok);
     await ctx.reload();
-    toast(`${ok} dari ${list.length} konten diproses.`, ok < list.length);
+    toast(`${ok} of ${list.length} posts processed.`, ok < list.length);
   }
 
   // ---------- events ----------
@@ -172,7 +173,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   async function withRetry(call) {
     for (let attempt = 0; ; attempt++) {
       try { return await call(); }
-      catch (e) { if (attempt < 4 && /Tunggu beberapa detik|sedang berjalan/.test(e.message || '')) { await new Promise(r => setTimeout(r, 6000)); continue; } throw e; }
+      catch (e) { if (attempt < 4 && /Tunggu beberapa detik|sedang berjalan|a few seconds|in progress|already running/i.test(e.message || '')) { await new Promise(r => setTimeout(r, 6000)); continue; } throw e; }
     }
   }
   // Turns a drop into File objects with folder paths like the folder picker gives ("Short YT/01 - …/Video/x.mp4").

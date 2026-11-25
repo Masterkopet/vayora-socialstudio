@@ -10,5 +10,5 @@ if(process.argv.includes('--local')){
  process.env.HOSTNAME='127.0.0.1';process.env.APP_ORIGIN='http://localhost:'+process.env.PORT;process.env.ALLOW_LOCAL_PRODUCTION='true';process.env.REQUIRE_EXISTING_OWNER='true';
 }
 const entry=path.join(root,'.next/standalone/server.js');
-if(!existsSync(entry))throw Error('Jalankan npm run build sebelum membuka aplikasi.');
+if(!existsSync(entry))throw Error('Run npm run build before opening the app.');
 await import(pathToFileURL(entry).href);

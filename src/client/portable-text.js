@@ -128,6 +128,7 @@ export function portableTextToMarkdown(blocks) {
 
 export function plainText(blocks) { return blocks.map(b => b.children.map(c => c.text).join('')).join('\n'); }
 export function readingMinutes(markdown) { return Math.max(1, Math.round((String(markdown).match(/\S+/g) || []).length / 200)); }
+// "&" becomes the Indonesian "dan" on purpose: the published blog (vayora.id) uses Indonesian URLs.
 export function slugify(text) {
   return String(text).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 96).replace(/-+$/g, '');
 }
