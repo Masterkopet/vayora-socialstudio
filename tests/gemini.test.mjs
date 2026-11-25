@@ -26,7 +26,8 @@ test('Gemini key is validated, stored encrypted, never shown, and becomes the te
   try {
     const ai = createAssistant(f.store, { fetch: async () => { throw Error('no network expected'); } });
     assert.equal(ai.status().textConfigured, false);
-    assert.throws(() => ai.configure({ geminiKey: 'password123' }), /AIza/);
+    assert.throws(() => ai.configure({ geminiKey: 'password123' }), /API key Gemini tidak valid/);
+    assert.throws(() => ai.configure({ geminiKey: 'kunci dengan spasi 0123456789' }), /tanpa spasi/);
     assert.throws(() => ai.configure({ geminiModel: 'gpt-4; rm -rf' }), /model Gemini/);
     const s = ai.configure({ geminiKey: KEY });
     assert.equal(s.textProvider, 'gemini'); assert.equal(s.gemini.configured, true); assert.equal(s.gemini.model, GEMINI_DEFAULT_MODEL);
@@ -140,5 +141,26 @@ test('large videos go through the Gemini Files API and wait until processed', as
     assert.equal(d.watched, true); assert.deepEqual(d.tags, ['villa']);
     assert.ok(calls.some(u => u.endsWith('/v1beta/files/abc')), 'polled until ACTIVE');
     assert.ok(!calls.some(u => u.includes('AIza')), 'the key never appears in a URL');
+  } finally { await f.cleanup(); }
+});
+
+test('Check Gemini verifies the key with a free metadata request and explains failures; other key formats are accepted', async () => {
+  const f = await fixture();
+  try {
+    let reply = () => Response.json({ name: 'models/gemini-flash-latest', displayName: 'Gemini Flash' });
+    const calls = [];
+    const ai = createAssistant(f.store, { fetch: async (url, init = {}) => { calls.push({ url: String(url), method: init.method || 'GET', key: init.headers?.['x-goog-api-key'] }); return reply(); } });
+    await assert.rejects(() => ai.checkGemini(), e => e.status === 422);
+    ai.configure({ geminiKey: 'AQ.Ab8RN6Newer-Style_Key-0123456789abcdef' });
+    const ok = await ai.checkGemini();
+    assert.equal(ok.ok, true); assert.equal(ok.name, 'Gemini Flash');
+    assert.equal(calls[0].method, 'GET'); assert.ok(calls[0].url.endsWith('/v1beta/models/gemini-flash-latest')); assert.ok(!calls[0].url.includes('AQ.'), 'the key is only sent in a header');
+    assert.equal(ai.status().gemini.check.ok, true); assert.ok(!JSON.stringify(ai.status()).includes('AQ.Ab8'));
+    reply = () => Response.json({ error: { status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' } }, { status: 400 });
+    await assert.rejects(() => ai.checkGemini(), /ditolak Google/);
+    assert.equal(ai.status().gemini.check.ok, false);
+    reply = () => Response.json({ error: {} }, { status: 404 });
+    await assert.rejects(() => ai.checkGemini(), /Model .* tidak ditemukan/);
+    assert.equal(f.store.posts().length, 1, 'checking never touches content');
   } finally { await f.cleanup(); }
 });

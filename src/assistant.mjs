@@ -85,11 +85,11 @@ export function createAssistant(store,options={}) {
   const textProvider=c=>c.geminiKey?'gemini':c.apiKey?'openai':null;
   let running=false;
   function usage(){return store.setting('assistant.usage.'+dayKey(Date.now()),{caption:0,image:0});}
-  function status(){const c=config(),provider=textProvider(c),geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;return {configured:!!c.apiKey,environmentKey:!!process.env.OPENAI_API_KEY,textConfigured:!!provider,textProvider:provider,gemini:{configured:!!c.geminiKey,environmentKey:!!process.env.GEMINI_API_KEY,model:geminiModel},model:provider==='openai'?OPENAI_TEXT_MODEL:geminiModel,imageModel:'gpt-image-2.5-flare',dailyCaptionLimit:c.dailyCaptionLimit||20,dailyImageLimit:c.dailyImageLimit||3,usage:usage()};}
+  function status(){const c=config(),provider=textProvider(c),geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;return {configured:!!c.apiKey,environmentKey:!!process.env.OPENAI_API_KEY,textConfigured:!!provider,textProvider:provider,gemini:{configured:!!c.geminiKey,environmentKey:!!process.env.GEMINI_API_KEY,model:geminiModel,check:store.setting('assistant.geminiCheck',null)},model:provider==='openai'?OPENAI_TEXT_MODEL:geminiModel,imageModel:'gpt-image-2.5-flare',dailyCaptionLimit:c.dailyCaptionLimit||20,dailyImageLimit:c.dailyImageLimit||3,usage:usage()};}
   function configure(body){
     const c=store.secret('assistant.config',{});let key=c.apiKey||'',geminiKey=c.geminiKey||'',geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;
     if(body.removeKey)key='';else if(body.apiKey){key=str(body.apiKey,1000);if(!/^sk-[A-Za-z0-9_-]{10,}$/.test(key))throw fail('API key tidak valid. Masukkan key dari dashboard OpenAI, bukan password.');}
-    if(body.removeGeminiKey)geminiKey='';else if(body.geminiKey){geminiKey=str(body.geminiKey,200);if(!/^AIza[0-9A-Za-z_-]{30,}$/.test(geminiKey))throw fail('API key Gemini tidak valid. Salin key dari Google AI Studio (diawali AIza), bukan password.');}
+    if(body.removeGeminiKey)geminiKey='';else if(body.geminiKey){geminiKey=str(body.geminiKey,200);if(!/^[A-Za-z0-9._~-]{20,200}$/.test(geminiKey)||/\s/.test(geminiKey))throw fail('API key Gemini tidak valid. Salin key dari Google AI Studio (tanpa spasi), bukan password.');}
     if(body.geminiModel!==undefined){geminiModel=str(body.geminiModel,80)||GEMINI_DEFAULT_MODEL;if(!/^gemini-[a-z0-9.-]{1,70}$/.test(geminiModel))throw fail('Nama model Gemini tidak valid, contoh: gemini-flash-latest.');}
     const dailyCaptionLimit=Number(body.dailyCaptionLimit??c.dailyCaptionLimit??20),dailyImageLimit=Number(body.dailyImageLimit??c.dailyImageLimit??3);if(!Number.isInteger(dailyCaptionLimit)||dailyCaptionLimit<1||dailyCaptionLimit>100||!Number.isInteger(dailyImageLimit)||dailyImageLimit<1||dailyImageLimit>20)throw fail('Batas caption 1–100 dan gambar 1–20 permintaan per hari.');
     store.setSecret('assistant.config',{apiKey:key,geminiKey,geminiModel,dailyCaptionLimit,dailyImageLimit});return status();
@@ -227,5 +227,16 @@ export function createAssistant(store,options={}) {
     if(!title||text.length<400)throw fail('Hasil AI belum lengkap. Coba lagi atau tulis manual.',502);
     return {provider:textProvider(config()),title,slug:str(data.slug,96).toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,''),excerpt:str(data.excerpt,300),seoTitle:str(data.seoTitle,140),category:str(data.category,80),heroAlt:str(data.imageAlt,300),body:text,warnings:(Array.isArray(data.warnings)?data.warnings:[]).slice(0,6).map(x=>str(x,300)).filter(Boolean)};
   }
-  return {status,configure,caption,background,draft,article};
+  // Verifies the Gemini key and model with a free metadata request (no generation, no quota used).
+  async function checkGemini() {
+    const c=config();if(!c.geminiKey)throw fail('Isi key Gemini terlebih dahulu.',422);
+    const model=c.geminiModel||GEMINI_DEFAULT_MODEL;let response;
+    try{response=await transport(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`,{headers:{'x-goog-api-key':c.geminiKey},signal:AbortSignal.timeout(20000)});}
+    catch{throw fail('Tidak dapat menghubungi Google. Periksa koneksi internet server lalu coba lagi.',502);}
+    if(response.ok){const data=await response.json().catch(()=>({}));const result={ok:true,model,name:str(data.displayName,120)||model,checkedAt:new Date().toISOString()};store.set('assistant.geminiCheck',result);return result;}
+    const reason=await response.json().then(j=>JSON.stringify(j.error||{})).catch(()=>'');
+    const message=response.status===404?`Model "${model}" tidak ditemukan. Ganti nama model di Pengaturan AI.`:response.status===400&&/API_KEY_INVALID|API key not valid/i.test(reason)||response.status===401||response.status===403?'Key Gemini ditolak Google. Salin ulang key dari Google AI Studio dan pastikan Generative Language API aktif.':response.status===429?'Kuota Gemini habis atau dibatasi. Coba lagi nanti.':'Gemini belum dapat dihubungi. Coba lagi nanti.';
+    store.set('assistant.geminiCheck',{ok:false,error:message,checkedAt:new Date().toISOString()});throw fail(message,502);
+  }
+  return {status,configure,caption,background,draft,article,checkGemini};
 }

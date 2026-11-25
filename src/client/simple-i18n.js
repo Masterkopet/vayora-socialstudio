@@ -68,6 +68,8 @@ export const simpleStrings={
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
   // Sanity sync
   'Sinkronkan dari Sanity':'Sync from Sanity','Menyinkronkan…':'Syncing…','Semua artikel dari Sanity sudah ada di sini.':'All articles from Sanity are already here.','tidak dapat diubah karena sudah tayang':'cannot be changed because it is already live',
+  // Gemini check
+  'Cek Gemini':'Check Gemini','Gemini terhubung dan model tersedia.':'Gemini is connected and the model is available.',
   // Tabs
   'Publikasi':'Publishing','Brand':'Brand','Akun saya':'My account','Detail & gambar':'Details & image','Isi artikel':'Article body','Jadwal & terbit':'Schedule & publish',
   // Team management
