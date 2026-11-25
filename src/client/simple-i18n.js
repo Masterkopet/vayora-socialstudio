@@ -1,5 +1,6 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"Article on vayora.id/blog":"Artikel di vayora.id/blog",
 "Admin":"Admin",
 "Make admin":"Jadikan admin",
 "Make editor":"Jadikan editor",

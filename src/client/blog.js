@@ -110,6 +110,12 @@ ${st.error ? `<p class="vs-inline-error" role="alert">${esc(st.error)}</p>` : ''
 <div id="blog-preview" class="smart-design-result vs-create-preview vs-blog-preview-box" aria-label="Preview">${previewHTML()}</div></div></section>`;
   }
 
+  const onCreatePage = () => ctx.getView?.() === 'create';
+  // The blog editor as the body of Create post: a new, unsaved article unless one is already being written.
+  function embeddedEditor() {
+    if (!(st.mode === 'edit' && st.a && !st.a.id)) { resetTab('blog-editor'); st = { ...fresh(), mode: 'edit', a: blank() }; }
+    return editPage();
+  }
   function page() { return st.mode === 'edit' ? editPage() : listPage(); }
 
   // ---------- Pengaturan: Sanity connection ----------
@@ -244,10 +250,10 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
   async function action(name, id) {
     if (name === 'blog-new') { resetTab('blog-editor'); st = { ...fresh(), mode: 'edit', a: blank() }; ctx.render(); return true; }
     if (name === 'blog-open') { await open(id); return true; }
-    if (name === 'blog-back') { st = fresh(); await ctx.reload(); ctx.render(); return true; }
+    if (name === 'blog-back') { st = fresh(); await ctx.reload(); if (onCreatePage()) ctx.navigate('blog'); else ctx.render(); return true; }
     if (name === 'blog-save') {
       st.busy = true; st.error = ''; ctx.render();
-      try { const intent = st.a.status === 'published' ? 'published' : st.when; const item = await save(intent); await ctx.reload(); toast(intent === 'scheduled' ? `Article scheduled: ${ctx.stamp(item.scheduleAt)}.` : 'Article saved.'); st.busy = false; if (st.when !== 'draft' || st.a.status === 'published') { st = fresh(); } ctx.render(); }
+      try { const intent = st.a.status === 'published' ? 'published' : st.when; const item = await save(intent); await ctx.reload(); toast(intent === 'scheduled' ? `Article scheduled: ${ctx.stamp(item.scheduleAt)}.` : 'Article saved.'); st.busy = false; if (onCreatePage() || st.when !== 'draft' || st.a.status === 'published') { st = fresh(); } if (onCreatePage()) ctx.navigate('blog'); else ctx.render(); }
       catch (error) { st.busy = false; st.error = error.message; ctx.render(); }
       return true;
     }
@@ -303,5 +309,5 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
     if (name === 'blog-remove-token') { await api('/api/sanity/config', 'POST', { removeToken: true }); await ctx.reload(); ctx.render(); toast('Sanity token removed.'); return true; }
     return false;
   }
-  return { page, bind, action, settingsPanel, problemAlerts, queuePanel, reset: () => { st = fresh(); } };
+  return { page, bind, action, embeddedEditor, settingsPanel, problemAlerts, queuePanel, reset: () => { st = fresh(); } };
 }
