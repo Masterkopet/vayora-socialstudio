@@ -59,9 +59,26 @@ export function createSimpleViews(ctx) {
 
   // ---------- "Create post": form on the left (platform → upload → words → when), live preview on the right ----------
   let flow = null, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
-  const reset = () => { ai = null; flow = { platform: 'instagram', media: [], title: '', caption: '', when: 'review', date: '', time: '09:00', approved: false, busy: false, error: '', writing: false, written: false, aiError: '', aiWarnings: [], tags: [], slide: 0, more: false }; };
-  // Scheduling publishes automatically, so it needs the same explicit approval as the editor.
-  const canSubmit = f => !!formatFor(f.platform, f.media) && !!f.title.trim() && !!f.caption.trim() && (f.when !== 'scheduled' || (f.date && f.time && f.approved)) && !f.busy && !f.writing;
+  // A post can go to several places at once: `targets` are the ticked platforms, `platform` is the one whose text is open (or
+  // 'blog'), `drafts` keeps the text of the others and `sched` the time of each. Every target becomes its own post.
+  const ORDER = ['instagram', 'youtube', 'facebook', 'tiktok'];
+  const reset = () => { ai = null; flow = { platform: 'instagram', targets: ['instagram'], drafts: {}, sched: {}, note: '', media: [], title: '', caption: '', when: 'review', busy: false, error: '', writing: false, written: false, aiError: '', aiWarnings: [], tags: [], slide: 0, more: false }; };
+  const textOf = (f, p) => p === f.platform ? { title: f.title, caption: f.caption, tags: f.tags } : (f.drafts[p] || { title: '', caption: '', tags: [] });
+  const complete = (f, p) => { const t = textOf(f, p); return !!String(t.title).trim() && !!String(t.caption).trim(); };
+  const canSubmit = f => f.targets.length > 0 && f.targets.every(p => !!formatFor(p, f.media) && complete(f, p) && (f.when !== 'scheduled' || (f.sched[p]?.date && f.sched[p]?.time && f.sched[p]?.approved))) && !f.busy && !f.writing;
+  const syncActive = f => { if (f.platform !== 'blog') f.drafts[f.platform] = { title: f.title, caption: f.caption, tags: f.tags, written: f.written }; };
+  const loadDraft = (f, p) => { const d = f.drafts[p] || { title: '', caption: '', tags: [], written: false }; f.title = d.title; f.caption = d.caption; f.tags = d.tags || []; f.written = !!d.written; };
+  const activate = (f, p) => { syncActive(f); f.platform = p; loadDraft(f, p); };
+  // Staggered start: the first place at 09:00 tomorrow, each next one an hour later, so posts do not all go out at once.
+  function defaultSchedule(f) { const day = wibDate(new Date(Date.now() + DAY).toISOString()); f.targets.forEach((p, i) => { if (!f.sched[p]) { const m = 9 * 60 + i * 60; f.sched[p] = { date: day, time: String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'), approved: false }; } }); }
+  const compatible = (p, media) => !media.length || !!formatFor(p, media);
+  function toggleTarget(id) {
+    const has = flow.targets.includes(id);
+    if (has) { if (flow.targets.length === 1) return; flow.targets = flow.targets.filter(p => p !== id); if (flow.platform === id) activate(flow, flow.targets[0]); }
+    else flow.targets = ORDER.filter(p => p === id || flow.targets.includes(p));
+    if (flow.when === 'scheduled') defaultSchedule(flow);
+    if (!has && ai?.textConfigured && flow.media.length) void write(false);
+  }
   reset();
   function formatFor(platform, media) {
     if (!media.length) return '';
@@ -73,28 +90,33 @@ export function createSimpleViews(ctx) {
   const LABELS = { instagram: { Gambar: 'Photo (1 image)', Carousel: 'Carousel (several images)', Reel: 'Reel (video)' }, youtube: { Short: 'YouTube Short (vertical video)' }, facebook: { Gambar: 'Facebook photo', Carousel: 'Facebook album (several photos)', Reel: 'Facebook Reel (video)' }, tiktok: { Gambar: 'TikTok photo post', Carousel: 'TikTok photo post (several photos)', Reel: 'TikTok video' } };
   const formatLabel = (platform, format) => LABELS[platform]?.[format] || format;
   const HINTS = { instagram: 'Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.', youtube: 'Choose 1 vertical MP4 video, up to 3 minutes.', facebook: 'Choose 1 photo, 2–20 photos for an album, or 1 video (3–90 seconds) for a Reel.', tiktok: 'Choose 1 vertical video, or 1–20 photos for a photo post.' };
-  const platformChoices = current => { const choice = (id, title, hint) => `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${current === id}"><b>${title}</b><span>${hint}</span></button>`; return `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}${choice('facebook', 'Facebook', 'Page post: photo, album, or Reel')}${choice('tiktok', 'TikTok', 'Video or photo post')}${choice('blog', 'Blog', 'Article on vayora.id/blog')}</div>`; };
+  const platformChoices = () => {
+    const blog = flow.platform === 'blog';
+    const choice = (id, title, hint) => { const on = id === 'blog' ? blog : !blog && flow.targets.includes(id), off = !blog && id !== 'blog' && flow.media.length && !compatible(id, flow.media) && !on; return `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${on}" ${off ? 'disabled title="These files do not fit here"' : ''}><b>${title}</b><span>${hint}</span></button>`; };
+    return `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}${choice('facebook', 'Facebook', 'Page post: photo, album, or Reel')}${choice('tiktok', 'TikTok', 'Video or photo post')}${choice('blog', 'Blog', 'Article on vayora.id/blog')}</div>${blog ? '' : '<p class="vs-mini">You can choose several places. Each one becomes its own post, with its own caption and time.</p>'}`;
+  };
   const accountName = platform => { const w = workspace(); return platform === 'facebook' ? w.facebook?.pageName || 'Vayora' : platform === 'tiktok' ? (w.tiktok?.username ? '@' + w.tiktok.username : 'vayora.id') : w.instagram?.username || 'vayora.id'; };
   const icon = name => (ctx.icon ? ctx.icon(name) : '');
 
   function createPage() {
     if (flow.platform === 'blog' && ctx.blogEditor) return blogCreate();
-    const f = flow, format = formatFor(f.platform, f.media), yt = f.platform === 'youtube', ready = canSubmit(f);
+    const f = flow, format = formatFor(f.platform, f.media), yt = f.platform === 'youtube', ready = canSubmit(f), many = f.targets.length > 1, onlyYt = f.targets.length === 1 && f.targets[0] === 'youtube';
     const group = (n, title, body, disabled = false, hint = '') => `<fieldset class="vs-create-group" ${disabled ? 'disabled' : ''}><legend><span class="vs-step-number">${n}</span>${title}</legend>${disabled && hint ? `<p class="vs-mini">${hint}</p>` : body}</fieldset>`;
-    const mediaHint = HINTS[f.platform] || HINTS.instagram;
+    const mediaHint = many ? 'Choose the photos or video for all selected places. A video fits everywhere; photos cannot go to YouTube.' : HINTS[f.platform] || HINTS.instagram;
     const files = f.media.length ? `<ul class="vs-create-files">${f.media.map(m => `<li>${esc(m.name)}${m.duration ? ' · ' + Math.round(m.duration) + ' sec' : ''}</li>`).join('')}</ul>` : '';
-    const g1 = group(1, 'Where do you want to post?', platformChoices(f.platform));
-    const g2 = group(2, 'Choose a photo or video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Replace files: drag & drop here' : 'Drag & drop files here'}</b><span>or click to choose from your computer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Choose a photo or video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Uploading…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Content type: <b>' + formatLabel(f.platform, format) + '</b>' : 'This combination of files is not supported. ' + mediaHint}</p>` : ''}`);
-    const g3 = group(3, 'Write a title and caption', `${aiLine(f)}<label class="vs-label">Title${yt ? ' <small>shown as the YouTube video title, up to 100 characters</small>' : f.platform === 'tiktok' ? ' <small>shown as the title of TikTok photo posts (up to 90 characters); videos use only the caption</small>' : ' <small>for the team only, not shown on the post</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Description' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2,200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Need ideas? After saving, open the content and use the Caption assistant.</p>'}${yt && f.tags.length ? `<p class="vs-mini">YouTube tags: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Available after a photo or video is uploaded.');
-    const g4 = group(4, 'When should it go live?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it before it is scheduled</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule now</b> · goes live automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b> · continue later</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>I have checked the photo/video and caption, and this content may go live.</span></label>` : ''}</div>`, !format, 'Available after a photo or video is uploaded.');
-    const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Save & schedule' : f.when === 'draft' ? 'Save draft' : 'Save & submit', 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Start over', 'create-reset', 'vs-text-button')}</div>`;
-    const spec = format ? formatLabel(f.platform, format) : { youtube: 'YouTube Shorts · 9:16', facebook: 'Facebook Page', tiktok: 'TikTok · 9:16' }[f.platform] || 'Instagram · 4:5 to 1.91:1';
+    const g1 = group(1, 'Where do you want to post?', platformChoices());
+    const g2 = group(2, 'Choose a photo or video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Replace files: drag & drop here' : 'Drag & drop files here'}</b><span>or click to choose from your computer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Choose a photo or video" ${onlyYt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.note ? `<p class="vs-mini" role="status">${esc(f.note)}</p>` : ''}${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Uploading…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${f.targets.some(p => formatFor(p, f.media)) ? f.targets.map(p => { const fm = formatFor(p, f.media); return `${PLATFORM[p]}: ${fm ? '<b>' + esc(formatLabel(p, fm)) + '</b>' : 'not possible with these files'}`; }).join(' · ') : 'This combination of files is not supported. ' + mediaHint}</p>` : ''}`);
+    const tabs = many ? `<div class="vs-tabs"><div class="vs-tablist" role="tablist" aria-label="Text for each place">${f.targets.map(p => `<button type="button" role="tab" class="vs-tab" data-create-tab="${p}" aria-selected="${p === f.platform}">${PLATFORM[p]}<span class="vs-tab-dot ${complete(f, p) ? 'ok' : 'warn'}" aria-hidden="true"></span></button>`).join('')}</div></div>` : '';
+    const g3 = group(3, many ? 'Write a title and caption for each place' : 'Write a title and caption', `${aiLine(f)}${tabs}<label class="vs-label">Title${yt ? ' <small>shown as the YouTube video title, up to 100 characters</small>' : f.platform === 'tiktok' ? ' <small>shown as the title of TikTok photo posts (up to 90 characters); videos use only the caption</small>' : ' <small>for the team only, not shown on the post</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Description' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2,200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Need ideas? After saving, open the content and use the Caption assistant.</p>'}${yt && f.tags.length ? `<p class="vs-mini">YouTube tags: ${esc(f.tags.join(', '))}</p>` : ''}`, !f.media.length, 'Available after a photo or video is uploaded.');
+    const g4 = group(4, 'When should it go live?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it before it is scheduled</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule now</b> · goes live automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b> · continue later</span></label>${f.when === 'scheduled' ? f.targets.map(p => { const sc = f.sched[p] || { date: '', time: '09:00', approved: false }; return `<div class="vs-stack">${many ? `<b>${PLATFORM[p]}</b>` : ''}<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" data-create-date="${p}" value="${esc(sc.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" data-create-time="${p}" value="${esc(sc.time)}"></label></div><label class="vs-check"><input type="checkbox" data-create-approved="${p}" ${sc.approved ? 'checked' : ''}><span>I have checked the photo/video and caption${many ? ' for ' + PLATFORM[p] : ''}, and this content may go live.</span></label></div>`; }).join('') + (many ? '<p class="vs-mini">The times are spaced one hour apart so the posts do not all go out at once. Change them as you like; each place needs its own approval.</p>' : '') : ''}</div>`, !f.media.length, 'Available after a photo or video is uploaded.');
+    const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button((f.when === 'scheduled' ? 'Save & schedule' : f.when === 'draft' ? 'Save draft' : 'Save & submit') + (many ? ` (${f.targets.length} posts)` : ''), 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Start over', 'create-reset', 'vs-text-button')}</div>`;
+    const spec = many ? f.targets.map(p => PLATFORM[p]).join(' + ') : format ? formatLabel(f.platform, format) : { youtube: 'YouTube Shorts · 9:16', facebook: 'Facebook Page', tiktok: 'TikTok · 9:16' }[f.platform] || 'Instagram · 4:5 to 1.91:1';
     return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Upload, write, then choose when it goes live.</h2></div><span class="vs-status">${esc(spec)}</span></div><p class="vs-sub">The preview on the right updates as you type. Content is only saved when you press Save.</p><div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${g1}${g2}${g3}${g4}${actions}</div><div id="create-preview" class="smart-design-result vs-create-preview" aria-label="Preview">${preview(f)}</div></div></section>`;
   }
 
   // Blog: the platform choice stays on top, the article editor (with its own preview) takes over below.
   function blogCreate() {
-    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Where do you want to post?</h2></div></div>${platformChoices(flow.platform)}</section>${ctx.blogEditor()}`;
+    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Where do you want to post?</h2></div></div>${platformChoices()}</section>${ctx.blogEditor()}`;
   }
 
   // ---------- live preview ----------
@@ -135,52 +157,93 @@ export function createSimpleViews(ctx) {
     const form = new FormData();
     for (const file of files) form.append('files', file);
     flow.busy = true; flow.error = ''; ctx.render();
-    try { const data = await api('/api/media', 'POST', form); flow.media = data.media || []; flow.slide = 0; }
+    flow.note = '';
+    try {
+      const data = await api('/api/media', 'POST', form); flow.media = data.media || []; flow.slide = 0;
+      // Places that cannot take these files (a photo for YouTube) are dropped, with a note.
+      const keep = flow.targets.filter(p => compatible(p, flow.media));
+      if (keep.length && keep.length < flow.targets.length) { flow.note = flow.targets.filter(p => !keep.includes(p)).map(p => PLATFORM[p]).join(', ') + ' was removed because these files do not fit there.'; flow.targets = keep; if (!keep.includes(flow.platform)) activate(flow, keep[0]); }
+    }
     catch (error) { flow.media = []; toast(error.message, true); }
     finally { flow.busy = false; ctx.render(); }
-    if (ai?.textConfigured && formatFor(flow.platform, flow.media)) await write(false);
+    if (ai?.textConfigured && flow.targets.some(p => formatFor(p, flow.media))) await write(false);
   }
-  // Asks the AI for a first title and caption. Fields the user already typed are kept unless they ask to rewrite.
-  async function write(force) {
+  // The AI endpoint allows one request every few seconds; wait and retry instead of failing.
+  async function withRetry(call) {
+    for (let attempt = 0; ; attempt++) {
+      try { return await call(); }
+      catch (e) { if (attempt < 4 && /Tunggu beberapa detik|sedang berjalan|a few seconds|in progress|already running/i.test(e.message || '')) { await new Promise(r => setTimeout(r, 6000)); continue; } throw e; }
+    }
+  }
+  // Asks the AI for a title and caption, one request per place (each platform has its own style). Text the user already typed
+  // is kept unless they ask to rewrite; `only` rewrites just the open place.
+  async function write(force, only = null) {
     const f = flow; if (f.writing || !f.media.length) return;
     f.writing = true; f.aiError = ''; f.aiWarnings = []; ctx.render();
     try {
-      const d = await api('/api/assistant/draft', 'POST', { platform: f.platform, mediaIds: f.media.map(m => m.id) });
-      if (flow !== f) return; // the user started over meanwhile
-      if (force || !f.title.trim()) f.title = d.title;
-      if (force || !f.caption.trim()) f.caption = d.caption;
-      f.written = true; f.aiWarnings = d.warnings || []; if (force || !f.tags.length) f.tags = d.tags || [];
+      for (const p of only ? [only] : f.targets) {
+        if (!formatFor(p, f.media)) continue;
+        const cur = textOf(f, p);
+        if (!force && String(cur.title).trim() && String(cur.caption).trim()) continue;
+        const d = await withRetry(() => api('/api/assistant/draft', 'POST', { platform: p, mediaIds: f.media.map(m => m.id) }));
+        if (flow !== f) return; // the user started over meanwhile
+        const next = { title: force || !String(cur.title).trim() ? d.title : cur.title, caption: force || !String(cur.caption).trim() ? d.caption : cur.caption, tags: force || !(cur.tags || []).length ? (d.tags || []) : cur.tags, written: true };
+        if (p === f.platform) { f.title = next.title; f.caption = next.caption; f.tags = next.tags; f.written = true; f.aiWarnings = d.warnings || []; } else f.drafts[p] = next;
+      }
     } catch (error) { if (flow === f) f.aiError = error.message; }
     finally { if (flow === f) { f.writing = false; ctx.render(); } }
   }
   function aiLine(f) {
     if (ai && !ai.textConfigured) return ['owner','admin'].includes(user().role) ? `<div class="vs-alert warning"><span>Connect Gemini so the title and caption fill in automatically after upload.</span>${button('Set up Gemini', 'nav:ai-settings')}</div>` : '';
     if (!ai) return '';
-    if (f.writing) return '<p class="vs-ai-note" role="status">AI is looking at the media and writing a title and caption…</p>';
+    if (f.writing) return '<p class="vs-ai-note" role="status">AI is looking at the media and writing the titles and captions…</p>';
     const again = button(f.written ? 'Rewrite with AI' : 'Write with AI', 'create-ai', 'vs-text-button', 'sparkles');
     if (f.aiError) return `<div class="vs-alert warning" role="alert"><span>${esc(f.aiError)}</span>${again}</div>`;
     if (f.written) return `<div class="vs-ai-note"><span>Written automatically by AI. Check and edit it as needed before saving.</span>${again}</div>${f.aiWarnings.length ? `<ul class="vs-help-list">${f.aiWarnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
-    return `<div class="vs-ai-note"><span>AI can write a title and caption from this media.</span>${again}</div>`;
+    return `<div class="vs-ai-note"><span>${f.targets.length > 1 ? 'AI can write a separate title and caption for each place from this media.' : 'AI can write a title and caption from this media.'}</span>${again}</div>`;
   }
+  const LIBRARY = { instagram: 'library', youtube: 'youtube-library', facebook: 'facebook-library', tiktok: 'tiktok-library' };
+  // Creates one post per ticked place (linked by a shared group id). Places that fail stay in the form so they can be retried
+  // without creating the others twice.
   async function submit() {
-    const f = flow, format = formatFor(f.platform, f.media);
-    if (!format || f.busy) return;
-    f.busy = true; f.error = ''; ctx.render();
-    try {
-      let item = await api('/api/posts', 'POST', { format, platform: f.platform, title: f.title.trim(), caption: f.caption, mediaIds: f.media.map(m => m.id), ...(f.platform === 'youtube' && f.tags.length ? { tags: f.tags } : {}) });
+    const f = flow; if (!canSubmit(f)) return;
+    syncActive(f); f.busy = true; f.error = ''; ctx.render();
+    const group = f.targets.length > 1 ? 'G' + Math.random().toString(16).slice(2, 10) : undefined, done = [], failed = [], warnings = [];
+    for (const p of f.targets) {
+      const t = textOf(f, p), sc = f.sched[p] || {};
+      let item;
+      try { item = await api('/api/posts', 'POST', { format: formatFor(p, f.media), platform: p, ...(group ? { group } : {}), title: t.title.trim(), caption: t.caption, mediaIds: f.media.map(m => m.id), ...(p === 'youtube' && (t.tags || []).length ? { tags: t.tags } : {}) }); }
+      catch (error) { failed.push({ p, message: error.message }); continue; }
+      done.push({ p, id: item.id });
       if (f.when !== 'draft') {
-        item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent: f.when, approved: f.when === 'scheduled' && f.approved, title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId: null, coverTime: null, date: f.when === 'scheduled' ? f.date : item.date, time: f.when === 'scheduled' ? f.time : item.time });
+        try { item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent: f.when, approved: f.when === 'scheduled' && !!sc.approved, title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId: null, coverTime: null, date: f.when === 'scheduled' ? sc.date : item.date, time: f.when === 'scheduled' ? sc.time : item.time }); }
+        catch (error) { warnings.push(`${PLATFORM[p]} (${item.id}) was saved as a draft but could not be ${f.when === 'scheduled' ? 'scheduled' : 'submitted'}: ${error.message}`); }
       }
-      const target = { youtube: 'youtube-library', facebook: 'facebook-library', tiktok: 'tiktok-library' }[f.platform] || 'library';
-      reset(); await ctx.reload();
-      toast(f.when === 'scheduled' ? 'Post scheduled.' : f.when === 'draft' ? 'Draft saved.' : 'Post submitted for review.');
-      ctx.navigate(target);
-    } catch (error) { f.error = error.message; f.busy = false; ctx.render(); }
+    }
+    const verb = f.when === 'scheduled' ? 'scheduled' : f.when === 'draft' ? 'saved as a draft' : 'submitted for review';
+    if (done.length) await ctx.reload();
+    if (!failed.length) {
+      const first = done[0].p; reset();
+      toast(done.length > 1 ? `${done.length} posts ${verb}: ${done.map(d => d.id).join(', ')}.` : `Post ${verb}.`, warnings.length > 0);
+      if (warnings.length) toast(warnings.join(' '), true);
+      ctx.navigate(LIBRARY[first] || 'library'); return;
+    }
+    f.targets = f.targets.filter(p => failed.some(x => x.p === p)); if (!f.targets.includes(f.platform)) activate(f, f.targets[0]);
+    f.busy = false; f.error = failed.map(x => `${PLATFORM[x.p]}: ${x.message}`).join(' · ') + (done.length ? ` · Already ${verb}: ${done.map(d => d.id).join(', ')}.` : '');
+    if (done.length) toast(`${done.map(d => d.id).join(', ')} ${verb}. The rest need another try.`);
+    ctx.render();
   }
   function bind() {
     const root = ctx.root();
     if (ai === null && root.querySelector('#create-post')) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }
-    root.querySelectorAll('[data-create-platform]').forEach(el => el.addEventListener('click', () => { if (flow.platform !== el.dataset.createPlatform) { flow.platform = el.dataset.createPlatform; flow.media = []; flow.slide = 0; } ctx.render(); }));
+    root.querySelectorAll('[data-create-platform]').forEach(el => el.addEventListener('click', () => {
+      const id = el.dataset.createPlatform;
+      if (id === 'blog') { if (flow.platform !== 'blog') { syncActive(flow); flow.platform = 'blog'; flow.media = []; flow.slide = 0; flow.note = ''; } }
+      else if (flow.platform === 'blog') { flow.targets = [id]; flow.platform = id; loadDraft(flow, id); flow.media = []; flow.slide = 0; flow.note = ''; }
+      else toggleTarget(id);
+      ctx.render();
+    }));
+    root.querySelectorAll('[data-create-tab]').forEach(el => el.addEventListener('click', () => { if (el.dataset.createTab !== flow.platform) { activate(flow, el.dataset.createTab); ctx.render(); } }));
     root.querySelector('#create-files')?.addEventListener('change', e => { if (e.target.files.length) void upload([...e.target.files]); });
     // Dropping anywhere on the page section uploads (and keeps the browser from opening the file instead).
     const section = root.querySelector('#create-post'), zone = root.querySelector('#create-drop');
@@ -194,14 +257,15 @@ export function createSimpleViews(ctx) {
     }
     root.querySelector('#create-title')?.addEventListener('input', e => { flow.title = e.target.value; refreshSubmit(); refreshPreviewText(); });
     root.querySelector('#create-caption')?.addEventListener('input', e => { flow.caption = e.target.value; const c = root.querySelector('#create-caption-count'); if (c) c.textContent = String(e.target.value.length); refreshSubmit(); refreshPreviewText(); });
-    root.querySelectorAll('[name="create-when"]').forEach(el => el.addEventListener('change', () => { flow.when = el.value; if (flow.when === 'scheduled' && !flow.date) flow.date = wibDate(new Date(Date.now() + DAY).toISOString()); ctx.render(); }));
-    root.querySelector('#create-date')?.addEventListener('input', e => { flow.date = e.target.value; refreshSubmit(); });
-    root.querySelector('#create-time')?.addEventListener('input', e => { flow.time = e.target.value; refreshSubmit(); });
-    root.querySelector('#create-approved')?.addEventListener('change', e => { flow.approved = e.target.checked; refreshSubmit(); });
+    root.querySelectorAll('[name="create-when"]').forEach(el => el.addEventListener('change', () => { flow.when = el.value; if (flow.when === 'scheduled') defaultSchedule(flow); ctx.render(); }));
+    const sched = p => flow.sched[p] || (flow.sched[p] = { date: '', time: '09:00', approved: false });
+    root.querySelectorAll('[data-create-date]').forEach(el => el.addEventListener('input', e => { sched(el.dataset.createDate).date = e.target.value; refreshSubmit(); }));
+    root.querySelectorAll('[data-create-time]').forEach(el => el.addEventListener('input', e => { sched(el.dataset.createTime).time = e.target.value; refreshSubmit(); }));
+    root.querySelectorAll('[data-create-approved]').forEach(el => el.addEventListener('change', e => { sched(el.dataset.createApproved).approved = e.target.checked; refreshSubmit(); }));
   }
   // Keeps only files the chosen platform accepts; YouTube takes a single MP4.
   function dropped(list) {
-    const yt = flow.platform === 'youtube';
+    const yt = flow.targets.length === 1 && flow.targets[0] === 'youtube';
     const ok = list.filter(f => yt ? /\.mp4$/i.test(f.name) || f.type === 'video/mp4' : /\.(jpe?g|png|webp|mp4)$/i.test(f.name) || /^(image\/(jpeg|png|webp)|video\/mp4)$/.test(f.type));
     if (!ok.length) { toast(yt ? 'YouTube Shorts need an MP4 video.' : 'Use JPG, PNG, WebP, or MP4.', true); return; }
     if (ok.length < list.length) toast(`${list.length - ok.length} files were skipped because their format is not supported.`);
@@ -214,7 +278,7 @@ export function createSimpleViews(ctx) {
   async function action(name) {
     if (name === 'create-submit') { await submit(); return true; }
     if (name === 'create-reset') { reset(); ctx.render(); return true; }
-    if (name === 'create-ai') { await write(true); return true; }
+    if (name === 'create-ai') { await (flow.written ? write(true, flow.platform) : write(false)); return true; }
     if (name === 'create-more') { flow.more = !flow.more; refreshPreviewText(); return true; }
     if (name === 'create-slide-prev' || name === 'create-slide-next') { flow.slide = Math.max(0, Math.min(flow.media.length - 1, flow.slide + (name.endsWith('next') ? 1 : -1))); ctx.render(); return true; }
     return false;

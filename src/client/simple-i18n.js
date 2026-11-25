@@ -1,5 +1,14 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"You can choose several places. Each one becomes its own post, with its own caption and time.":"Anda bisa memilih beberapa tempat. Masing-masing menjadi posting sendiri, dengan caption dan waktu sendiri.",
+"These files do not fit here":"File ini tidak cocok di sini",
+"Choose the photos or video for all selected places. A video fits everywhere; photos cannot go to YouTube.":"Pilih foto atau video untuk semua tempat yang dipilih. Video cocok di mana saja; foto tidak bisa ke YouTube.",
+"not possible with these files":"tidak bisa dengan file ini",
+"Write a title and caption for each place":"Tulis judul dan caption untuk tiap tempat",
+"Text for each place":"Teks untuk tiap tempat",
+"The times are spaced one hour apart so the posts do not all go out at once. Change them as you like; each place needs its own approval.":"Waktunya diberi jarak satu jam agar posting tidak keluar bersamaan. Ubah sesuka Anda; tiap tempat perlu persetujuan sendiri.",
+"AI can write a separate title and caption for each place from this media.":"AI bisa menulis judul dan caption terpisah untuk tiap tempat dari media ini.",
+"AI is looking at the media and writing the titles and captions…":"AI melihat media dan menulis judul dan caption…",
 "Videos contain realistic AI-generated visuals. Disclose this to YouTube (\"altered or synthetic content\") and TikTok (\"AI-generated\").":"Video berisi visual realistis buatan AI. Ungkapkan ini ke YouTube (\"konten yang diubah atau sintetis\") dan TikTok (\"dibuat dengan AI\").",
 "Facebook library":"Pustaka Facebook",
 "TikTok library":"Pustaka TikTok",
@@ -544,6 +553,12 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^(.+) was removed because these files do not fit there\.$/,(_,n)=>`${n} dihapus karena file ini tidak cocok di sana.`],
+[/^I have checked the photo\/video and caption for (.+), and this content may go live\.$/,(_,n)=>`Saya sudah memeriksa foto/video dan caption untuk ${n}, dan konten ini boleh tayang.`],
+[/^Save & (schedule|submit) \((\d+) posts\)$/,(_,a,n)=>`Simpan & ${a==='schedule'?'jadwalkan':'ajukan'} (${n} posting)`],
+[/^Save draft \((\d+) posts\)$/,(_,n)=>`Simpan draf (${n} posting)`],
+[/^(\d+) posts (scheduled|saved as a draft|submitted for review): (.+)\.$/,(_,n,v,ids)=>`${n} posting ${{scheduled:'dijadwalkan','saved as a draft':'disimpan sebagai draf','submitted for review':'diajukan untuk ditinjau'}[v]}: ${ids}.`],
+[/^Also on: (.+)$/,(_,ids)=>`Juga di: ${ids}`],
 [/^Connect (Instagram|YouTube|Facebook|TikTok) and enable publishing in Settings before using Post now\.$/,(_,p)=>`Hubungkan ${p} dan aktifkan publikasi di Pengaturan sebelum memakai Posting sekarang.`],
 [/^Page (.+) connected\.$/,(_,n)=>`Halaman ${n} terhubung.`],
 [/^TikTok (.+) connected\.$/,(_,n)=>`TikTok ${n} terhubung.`],
