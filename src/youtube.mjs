@@ -80,7 +80,7 @@ export function createYouTube(store, getPublicBase, options = {}) {
   function start(userId, sessionHash) {
     const c = config();
     if (!c.clientId || !c.clientSecret) throw fail('Enter the Client ID and Client Secret from Google Cloud first.', 'YOUTUBE_NOT_CONFIGURED');
-    if (!/^https:\/\//.test(String(getPublicBase() || ''))) throw fail('Koneksi YouTube memerlukan alamat HTTPS publik.', 'PUBLIC_URL_REQUIRED');
+    if (!/^https:\/\//.test(String(getPublicBase() || ''))) throw fail('The YouTube connection needs a public HTTPS address.', 'PUBLIC_URL_REQUIRED');
     const state = randomBytes(32).toString('hex');
     store.run('DELETE FROM oauth_states WHERE expires<?', Date.now());
     store.run('INSERT INTO oauth_states(hash,user_id,session_hash,expires) VALUES(?,?,?,?)', hash('yt:' + state), userId, sessionHash, Date.now() + 600000);

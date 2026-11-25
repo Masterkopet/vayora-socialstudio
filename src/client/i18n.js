@@ -535,7 +535,28 @@ const mainPatterns=[
 ];
 
 // Translations that must win over a dictionary-generated one when two Indonesian phrases share one English text.
-const overrides={'Settings':'Pengaturan','Restore':'Pulihkan','Cancel':'Batal','Review':'Periksa','Disconnect':'Putuskan','Publishing':'Publikasi','Needs attention':'Perlu perhatian','Needs review':'Perlu ditinjau','Content':'Konten','Import':'Impor','Account':'Akun','Design':'Desain','Language':'Bahasa'};
+const overrides={
+  "Instagram connection cancelled.":"Koneksi Instagram dibatalkan.",
+  "Publication confirmed":"Publikasi dikonfirmasi",
+  "A Reel needs one MP4 video.":"Reel memerlukan satu video MP4.",
+  "A YouTube Short needs one MP4 video.":"YouTube Short memerlukan satu video MP4.",
+  "Workspace created":"Workspace dibuat",
+  "Campaign created":"Campaign dibuat",
+  "Version restored":"Versi dipulihkan",
+  "Password updated":"Password diperbarui",
+  "Preferences updated":"Preferensi diperbarui",
+  "Invitation cancelled":"Undangan dibatalkan",
+  "Team member removed":"Anggota tim dihapus",
+  "Post now confirmed":"Post sekarang dikonfirmasi",
+  "Copy created":"Salinan dibuat",
+  "Instagram disconnected":"Instagram dilepaskan",
+  "Sanity connection updated":"Koneksi Sanity diperbarui",
+  "Turn on live publishing in Connections & publishing first.":"Aktifkan publikasi nyata di Koneksi & publikasi terlebih dahulu.",
+  "The YouTube connection needs a public HTTPS address.":"Koneksi YouTube memerlukan alamat HTTPS publik.",
+ 'Settings':'Pengaturan','Restore':'Pulihkan','Cancel':'Batal','Review':'Periksa','Disconnect':'Putuskan','Publishing':'Publikasi','Needs attention':'Perlu perhatian','Needs review':'Perlu ditinjau','Content':'Konten','Import':'Impor','Account':'Akun','Design':'Desain','Language':'Bahasa','posts':'konten','Sanity rejected the request':'Sanity menolak permintaan',
+  'Create one at sanity.io/manage → project → API → Tokens with the':'Buat di sanity.io/manage → project → API → Tokens dengan peran',
+  'role. It is stored encrypted and never shown again. Do not send it over chat.':'. Disimpan terenkripsi dan tidak ditampilkan lagi. Jangan kirim lewat chat.',
+  ': JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).':': paket JSON/CSV (judul, deskripsi, tags, file, tanggal, jam), file .txt per episode (JUDUL, DESKRIPSI LENGKAP, TAGS; judul berbahasa Indonesia juga didukung), atau daftar caption Markdown (## V01 … Caption:).'};
 const strings={
   ...extraStrings,
   ...workflowStrings,
@@ -550,6 +571,7 @@ const patterns=[
  ...simplePatterns,
  ...mainPatterns,
  ...extraPatterns,
+ [/^· reviewed (.+). Facts need updating when the product changes.$/,(_,d)=>`· ditinjau ${d}. Fakta perlu diperbarui ketika produk berubah.`],
  [/^(\d+) campaigns?$/,(_,n)=>`${n} campaign`],
  [/^(.+) · (\S+) · (\d+) hours · (\d+) posts$/,(_,c,f,h,n)=>`${c} · ${f} · ${h} jam · ${n} konten`],
  [/^(.+) · (Owner|Editor) · joined (.+)$/,(_,e,r,d)=>`${e} · ${r==='Owner'?'Pemilik':'Editor'} · bergabung ${d}`],
@@ -563,7 +585,7 @@ export const getLanguage=()=>language;
 export const locale=()=>language==='en'?'en-GB':'id-ID';
 export function translate(value){
   const text=String(value);
-  if(language==='en')return legacy[text]||text.replace(dataLabelPattern,label=>dataLabels[label]);
+  if(language==='en')return legacy[text]||(text.includes(' · ')?text.split(' · ').map(part=>legacy[part]||part).join(' · '):text).replace(dataLabelPattern,label=>dataLabels[label]);
   if(strings[text])return strings[text];
   for(const [pattern,replace] of patterns){if(pattern.test(text))return text.replace(pattern,replace);}
   return text;

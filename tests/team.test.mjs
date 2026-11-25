@@ -48,7 +48,7 @@ test('owner sees members and pending invites, can cancel invites and remove memb
     const after = await send(owner, '/api/team/' + editorUser.id, 'DELETE');
     assert.equal(after.status, 200); assert.deepEqual(after.data.users.map(u => u.role), ['owner']);
     assert.equal((await send(editor, '/api/workspace')).status, 401, "the removed member's session ends at once");
-    assert.ok(runtime.store.get("SELECT id FROM events WHERE title='Anggota tim dihapus' AND detail LIKE '%editor@example.test%'"), 'removal is recorded in the history');
+    assert.ok(runtime.store.get("SELECT id FROM events WHERE title='Team member removed' AND detail LIKE '%editor@example.test%'"), 'removal is recorded in the history');
     // The same email can be invited again afterwards.
     assert.equal((await send(owner, '/api/team/invites', 'POST', { email: 'editor@example.test' })).status, 201);
   } finally { await new Promise(r => server.close(r)); runtime.close(); await rm(directory, { recursive: true, force: true }); }

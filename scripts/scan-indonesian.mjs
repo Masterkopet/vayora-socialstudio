@@ -10,7 +10,7 @@ const targets = args.filter(a => !a.startsWith('--'));
 
 // Intentional Indonesian: translation dictionaries, brand knowledge, seeded brand copy, import parsers.
 const EXCLUDED = [
-  /^src\/client\/(i18n|workflow-i18n|features-i18n|simple-i18n)\.js$/,
+  /^src\/client\/(i18n|workflow-i18n|features-i18n|simple-i18n|extra-i18n)\.js$/,
   /^src\/knowledge\.mjs$/,
   /^docs\/PENGETAHUAN-BRAND-VAYORA\.md$/,
   /^knowledge\//,
