@@ -164,3 +164,29 @@ test('Check Gemini verifies the key with a free metadata request and explains fa
     assert.equal(f.store.posts().length, 1, 'checking never touches content');
   } finally { await f.cleanup(); }
 });
+
+test('blog hero image: Gemini image model is asked for 16:9, the result is stored as a normal image, and quota is separate', async () => {
+  const f = await fixture();
+  try {
+    const square = await sharp({ create: { width: 1024, height: 1024, channels: 3, background: '#FFB600' } }).png().toBuffer();
+    let reply = () => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Here is your image' }, { inlineData: { mimeType: 'image/png', data: square.toString('base64') } }] } }] });
+    let captured;
+    const ai = createAssistant(f.store, { fetch: async (url, init) => { captured = { url, headers: init.headers, body: JSON.parse(init.body) }; return reply(); } });
+    await assert.rejects(() => ai.heroImage({ prompt: 'A villa at golden hour with palm trees' }), e => e.status === 422, 'needs a Gemini key');
+    ai.configure({ geminiKey: KEY });
+    await assert.rejects(() => ai.heroImage({ prompt: 'short' }), /at least 12 characters/);
+    const media = await ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom, soft daylight' });
+    assert.ok(captured.url.endsWith('/models/gemini-2.5-flash-image:generateContent')); assert.equal(captured.headers['x-goog-api-key'], KEY);
+    assert.deepEqual(captured.body.generationConfig.responseModalities, ['IMAGE']); assert.equal(captured.body.generationConfig.imageConfig.aspectRatio, '16:9');
+    assert.match(captured.body.contents[0].parts[0].text, /^Photorealistic editorial photo of a villa bedroom/);
+    assert.ok(Math.abs(media.width / media.height - 16 / 9) < 0.02, 'cropped to 16:9'); assert.equal(media.mime, 'image/jpeg');
+    assert.deepEqual([ai.status().usage.hero, ai.status().usage.image, ai.status().dailyHeroLimit], [1, 0, 30], 'hero images have their own counter and limit');
+    ready(f.store); reply = () => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'I cannot do that' }] } }] });
+    await assert.rejects(() => ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' }), /did not return an image/);
+    ready(f.store); reply = () => Response.json({ promptFeedback: { blockReason: 'SAFETY' }, candidates: [] });
+    await assert.rejects(() => ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' }), /refused|did not return/);
+    ai.configure({ dailyHeroLimit: 2 }); ready(f.store);
+    await assert.rejects(() => ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' }), e => e.status === 429, 'the daily limit applies');
+    assert.throws(() => ai.configure({ dailyHeroLimit: 500 }), /1–100/);
+  } finally { await f.cleanup(); }
+});

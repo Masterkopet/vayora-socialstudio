@@ -37,7 +37,7 @@ export function createBlog(store, sanity) {
     return {
       title, slug, body, heroMediaId, excerpt,
       seoTitle: str(b.seoTitle ?? current.seoTitle, 140), seoDescription: str(b.seoDescription ?? current.seoDescription, 300),
-      category: str(b.category ?? current.category, 80), heroAlt: str(b.heroAlt ?? current.heroAlt, 400),
+      category: str(b.category ?? current.category, 80), heroAlt: str(b.heroAlt ?? current.heroAlt, 400), heroPrompt: str(b.heroPrompt ?? current.heroPrompt, 1500),
     };
   }
   let lastSync = 0;

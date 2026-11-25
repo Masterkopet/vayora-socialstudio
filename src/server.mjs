@@ -193,6 +193,7 @@ export function createApp(options={}) {
  app.post('/api/sanity/config',auth.owner,(req,res)=>{const result=sanity.configure(req.body||{});store.event(null,'Sanity connection updated','The token is not shown again.','connection',req.user.id);res.json(result);});
  app.post('/api/sanity/check',auth.owner,async(_req,res)=>res.json(await sanity.check()));
  app.get('/api/blog',(_req,res)=>res.json({articles:blog.list()}));
+ app.post('/api/blog/image',async(req,res)=>res.status(201).json({media:await assistant.heroImage(req.body||{})}));
  app.post('/api/blog/draft',async(req,res)=>res.json(await assistant.article({...(req.body||{}),examples:blog.examples()})));
  app.post('/api/blog/sync',async(req,res)=>res.json(await blog.sync({force:req.body?.force===true})));
  app.get('/api/blog/:id',(req,res)=>res.json(blog.get(req.params.id)));

@@ -77,6 +77,12 @@ The **Blog** menu writes, schedules, and publishes articles to a Sanity dataset 
 
 Long pages use **tabs** to reduce scrolling: Connections & publishing (Instagram, YouTube, Blog, Publishing), AI settings (Brand, AI connection), Team account (My account, Team members), and the article editor (Details & image, Article body, Schedule & publish). The save button is always visible below the tabs.
 
+**Importing articles.** Drop the `.zip` of an article package (for example `Vayora-Artikel-Blog.zip`) or its unpacked folder onto **Import content**; zip files are read in the browser, no unpacking needed. Each `.md` article with an SEO metadata table becomes a blog article (title, slug, summary, category, publish date, hero image file name, alt text and image prompt). Past publish dates are moved to the next free slot.
+
+**Main image.** Upload an image (drag & drop), or write/keep an image prompt and press **Generate with AI**: Gemini (`gemini-2.5-flash-image`, 16:9) creates it and it is stored like an uploaded image. On import, articles with a prompt but no image can get their image generated automatically (one request each, daily limit set in AI settings, default 30); such articles are submitted for review instead of being scheduled so a person sees the picture first.
+
+**Deleting.** Delete in the list or the editor removes the article from Studio only; the Sanity document and the live page stay, and a synced article is not brought back by the next sync. Images inside the article body are not supported yet (the blog schema only holds text blocks).
+
 ## Menu layout
 
 The sidebar is kept compact: **Start** (Home, Create post) → **Content** (Instagram library, YouTube library, Blog, Calendar, Queue, Import content) → **AI help** (Caption assistant, Content design) → **Settings** (Connections & publishing, AI settings, Team account, History). Editors do not see Import content, Connections & publishing, and AI settings. Review is now the **Needs review** filter in the libraries; Brand knowledge is opened from AI settings; Marketing and Content strategy are hidden from the menu. Data and the old addresses (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) still work.

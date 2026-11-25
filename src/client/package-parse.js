@@ -121,7 +121,7 @@ export function parseArticleMarkdown(text, fileName = '') {
     key: number == null ? slug : String(number).padStart(2, '0'), title, caption: excerpt,
     tags: (meta['keyword pendukung'] || meta['supporting keywords'] || '').split(','), files: heroCells[3] || '',
     date: month ? `${date[3]}-${String(month).padStart(2, '0')}-${String(date[1]).padStart(2, '0')}` : '', time: date && date[4] ? `${String(date[4]).padStart(2, '0')}:${date[5]}` : '07:00',
-    blog: { slug, excerpt, seoTitle: (meta['title tag'] || '').replace(/\s*\(\d+\s*(?:karakter|characters?)\)\s*$/i, '').trim(), category: meta['kategori'] || meta['category'] || '', heroAlt: heroCells[2] || '', body },
+    blog: { slug, excerpt, seoTitle: (meta['title tag'] || '').replace(/\s*\(\d+\s*(?:karakter|characters?)\)\s*$/i, '').trim(), category: meta['kategori'] || meta['category'] || '', heroAlt: heroCells[2] || '', heroPrompt: heroCells[1] || '', body },
   })];
 }
 
@@ -227,12 +227,13 @@ export function formatOf(platform, files) {
 }
 
 // Problems that block a row, and softer warnings. A caption is only required when the item goes beyond draft.
-export function checkRow({ row, files, platform, mode = 'scheduled', existingIds = [] }) {
+export function checkRow({ row, files, platform, mode = 'scheduled', existingIds = [], willGenerate = false }) {
   if (platform === 'blog') {
     const errors = [], warnings = [], b = row.blog || {};
     if (!row.title) errors.push('The title is empty.'); if (!b.slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug)) errors.push('The slug is not valid.'); if (!b.body) errors.push('The article body is empty.');
     if (!b.excerpt && mode !== 'draft') errors.push('The summary (meta description) is empty.');
-    if (!files.length) { if (mode === 'scheduled') errors.push('There is no main image yet. Add the image or save as a draft.'); else warnings.push('There is no main image yet; it is required before the article can be published.'); }
+    if (!files.length && willGenerate) warnings.push('The main image will be generated from its prompt (Gemini); the article is then submitted for review.');
+    else if (!files.length) { if (mode === 'scheduled') errors.push('There is no main image yet. Add the image or save as a draft.'); else warnings.push('There is no main image yet; it is required before the article can be published.'); }
     else if (!b.heroAlt) warnings.push('The image alt text is empty; fill it in the editor before publishing.');
     if (files.length > 1) errors.push('An article uses only one main image.');
     return { format: 'Blog', errors, warnings };
