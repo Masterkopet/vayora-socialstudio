@@ -1,5 +1,15 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"Not set up":"Belum diatur",
+"Connect":"Hubungkan",
+"Instagram is not connected. Posts here cannot be published until it is.":"Instagram belum terhubung. Posting di sini belum bisa terbit sebelum terhubung.",
+"YouTube is not connected. Posts here cannot be published until it is.":"YouTube belum terhubung. Posting di sini belum bisa terbit sebelum terhubung.",
+"Facebook is not connected. Posts here cannot be published until it is.":"Facebook belum terhubung. Posting di sini belum bisa terbit sebelum terhubung.",
+"TikTok is not connected. Posts here cannot be published until it is.":"TikTok belum terhubung. Posting di sini belum bisa terbit sebelum terhubung.",
+"Instagram is not connected yet. Connect it to publish from this library.":"Instagram belum terhubung. Hubungkan untuk menerbitkan dari pustaka ini.",
+"YouTube is not connected yet. Connect it to publish from this library.":"YouTube belum terhubung. Hubungkan untuk menerbitkan dari pustaka ini.",
+"Facebook is not connected yet. Connect it to publish from this library.":"Facebook belum terhubung. Hubungkan untuk menerbitkan dari pustaka ini.",
+"TikTok is not connected yet. Connect it to publish from this library.":"TikTok belum terhubung. Hubungkan untuk menerbitkan dari pustaka ini.",
 "Connected accounts":"Akun terhubung",
 "Writing & AI":"Penulisan & AI",
 "Tone and product facts":"Gaya bahasa dan fakta produk",
@@ -559,6 +569,7 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^(.+), (not connected|not set up)$/,(_,n,s)=>`${n}, ${s==="not set up"?"belum diatur":"belum terhubung"}`],
 [/^(.+) was removed because these files do not fit there\.$/,(_,n)=>`${n} dihapus karena file ini tidak cocok di sana.`],
 [/^I have checked the photo\/video and caption for (.+), and this content may go live\.$/,(_,n)=>`Saya sudah memeriksa foto/video dan caption untuk ${n}, dan konten ini boleh tayang.`],
 [/^Save & (schedule|submit) \((\d+) posts\)$/,(_,a,n)=>`Simpan & ${a==='schedule'?'jadwalkan':'ajukan'} (${n} posting)`],
