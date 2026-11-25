@@ -24,7 +24,7 @@ export function postReadiness(store,item,instagram,youtube,{facebook=null,tiktok
       {id:'title',label:'YouTube title',ok:titleReady,required:true,action:'edit',detail:titleReady?'The title is ready for YouTube.':`Enter a title of up to ${YOUTUBE_TITLE_MAX} characters.`},
       {id:'caption',label:'Description',ok:descriptionReady,required:true,action:'edit',detail:descriptionReady?'Description filled in.':'Fill in the description (caption), up to 2,200 characters.'},
       approval,
-      {id:'youtube',label:'YouTube connection',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} connected.`.replace(/\s+\./,'.'):'Connect a YouTube channel in Connections & publishing.'},
+      {id:'youtube',label:'YouTube connection',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} connected.`.replace(/\s+\./,'.'):'Connect a YouTube channel in Settings.'},
       live,
     ];
     const contentReady=!!formatReady&&titleReady&&descriptionReady&&item.approved===true;
@@ -60,7 +60,7 @@ export function postReadiness(store,item,instagram,youtube,{facebook=null,tiktok
     {id:'caption',label:'Caption',ok:captionReady,required:true,action:'edit',detail:captionReady?'Caption is present and within the character limit.':'Enter a caption of up to 2,200 characters.'},
     {id:'alt',label:'Accessibility description',ok:item.format==='Reel'||!!String(item.alt||'').trim(),required:false,action:'edit',detail:item.format==='Reel'?'Not applicable to Reels.':String(item.alt||'').trim()?'A description has been added.':'Add an image description for screen readers.'},
     approval,
-    {id:'instagram',label:'Instagram connection',ok:ig.connected,required:true,action:'settings',detail:ig.connected?'Instagram connected.':'Connect a professional account in Connections & publishing.'},
+    {id:'instagram',label:'Instagram connection',ok:ig.connected,required:true,action:'settings',detail:ig.connected?'Instagram connected.':'Connect a professional account in Settings.'},
     {id:'https',label:'Public HTTPS',ok:ig.publicUrlReady,required:true,action:'settings',detail:ig.publicUrlReady?'The public media address is ready.':'Set up public HTTPS so Meta can retrieve the media.'},
     live,
   ];

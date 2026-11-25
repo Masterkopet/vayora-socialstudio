@@ -116,7 +116,7 @@ export function createApp(options={}) {
  app.get('/api/assistant',(_req,res)=>res.json({status:assistant.status(),brand:brandProfile(store)}));
  app.get('/api/assistant/knowledge',(req,res)=>{const query=String(req.query.q||'').slice(0,250),topic=String(req.query.topic||'').slice(0,80),status=String(req.query.status||'').slice(0,40);res.json({overview:knowledgeOverview(),facts:searchKnowledge({query,topic,status}),campaigns:campaignReferences(query)});});
  app.get('/api/assistant/knowledge/export',(_req,res)=>{res.set('Content-Disposition','attachment; filename="vayora-brand-knowledge.json"');res.json(exportKnowledge());});
- app.post('/api/assistant/config',auth.admin,(req,res)=>{const result=assistant.configure(req.body||{});store.event(null,'AI settings updated','The API key is not shown again.','change',req.user.id);res.json(result);});
+ app.post('/api/assistant/config',auth.admin,(req,res)=>{const result=assistant.configure(req.body||{});store.event(null,'Settings updated','The API key is not shown again.','change',req.user.id);res.json(result);});
  app.post('/api/assistant/check',auth.admin,async(_req,res)=>res.json(await assistant.checkGemini()));
  app.post('/api/assistant/brand',auth.admin,(req,res)=>res.json(saveBrand(store,req.body||{})));
  app.post('/api/assistant/caption',async(req,res)=>res.json(await assistant.caption(req.body||{})));
@@ -233,7 +233,7 @@ export function createApp(options={}) {
  app.post('/api/blog',(req,res)=>res.status(201).json(blog.create(req.body||{},req.user.id)));
  app.put('/api/blog/:id',(req,res)=>res.json(blog.update(req.params.id,req.body||{},req.user.id)));
  app.delete('/api/blog/:id',(req,res)=>{const a=blog.get(req.params.id);if(a.status==='published'&&!auth.isAdmin(req.user.role))throw error('Only an admin can delete articles that have been published.',403);blog.remove(req.params.id,req.user.id);res.json({ok:true});});
- app.post('/api/blog/:id/publish',async(req,res)=>{if(!sanity.status().configured)throw error('Connect Sanity in Settings first.',422);if(!store.setting('publishingEnabled',false))throw error('Turn on live publishing in Connections & publishing first.',409);if(req.body?.approved!==true)throw error('Review the article and approve it before publishing.');res.json(await blog.run(req.params.id,{user:req.user.id}));});
+ app.post('/api/blog/:id/publish',async(req,res)=>{if(!sanity.status().configured)throw error('Connect Sanity in Settings first.',422);if(!store.setting('publishingEnabled',false))throw error('Turn on live publishing in Settings first.',409);if(req.body?.approved!==true)throw error('Review the article and approve it before publishing.');res.json(await blog.run(req.params.id,{user:req.user.id}));});
  app.use('/api',(_req,res)=>res.status(404).json({error:'Feature not found.'}));
  app.use((err,_req,res,_next)=>{const status=Number(err.status)|| (err.code?.startsWith('SQLITE_CONSTRAINT')?409:err.code?.startsWith('LIMIT_')?400:500);res.status(status).json({error:status===500?'A server problem occurred. Try again or check the application log.':err.message});if(status===500)console.error('[server]',err.name,err.code||'',String(err.message).slice(0,160));});
  let working=false,closed=false;

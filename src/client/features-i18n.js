@@ -13,7 +13,7 @@ export const featureStrings={
 "Caption assistant":"Asisten caption",
 "Content designer":"Desain konten",
 "Brand knowledge":"Pengetahuan brand",
-"AI settings":"Pengaturan AI",
+"Settings":"Pengaturan",
 "Accounts, publishing, brand writing direction, and AI connections.":"Akun, publikasi, arahan penulisan brand, dan koneksi AI.",
 "Content strategy":"Strategi konten",
 "Write captions and hashtags from your chosen media.":"Tulis caption dan hashtag dari media yang kamu pilih.",

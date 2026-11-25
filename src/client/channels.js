@@ -27,7 +27,7 @@ export function createChannels(ctx) {
     return `<section class="vs-panel vs-pad vs-stack">${head('TikTok', who, t.connected, t.error)}${t.error ? `<p class="vs-inline-error">${esc(t.error)}</p>` : ''}${body}</section>`;
   }
 
-  const defs = () => { const w = ctx.getWorkspace(); return [{ id: 'facebook', label: 'Facebook', status: w.facebook?.connected ? 'ok' : 'warn' }, { id: 'tiktok', label: 'TikTok', status: w.tiktok?.connected && w.tiktok?.privacy ? 'ok' : 'warn' }]; };
+  const defs = () => { const w = ctx.getWorkspace(), f = w.facebook || {}, t = w.tiktok || {}; return [{ id: 'facebook', label: 'Facebook', status: f.connected ? 'ok' : 'warn', hint: f.connected ? f.pageName || 'Connected' : f.error ? 'Reconnect required' : 'Not connected' }, { id: 'tiktok', label: 'TikTok', status: t.connected && t.privacy ? 'ok' : 'warn', hint: t.connected ? (t.privacy ? (t.username ? '@' + t.username : t.displayName || 'Connected') : 'Choose who can see posts') : t.error ? 'Reconnect required' : 'Not connected' }]; };
 
   function bind(root) {
     const $ = sel => root.querySelector(sel);

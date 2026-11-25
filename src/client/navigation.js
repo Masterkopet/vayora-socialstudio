@@ -7,7 +7,7 @@ export const navigationGroups=[
  {label:'AI help',items:[['assistant','sparkles','Caption assistant'],['designer','palette','Content design']]},
  {label:'Settings',items:[['settings','settings','Settings',true],['profile','user-round','Team account'],['history','history','History']]},
 ];
-// Hidden from the menu: review (now the "Needs review" filter in the libraries), knowledge (inside Pengaturan AI),
+// Hidden from the menu: review (now the "Needs review" filter in the libraries), knowledge (inside Pengaturan),
 // strategy and marketing (unused), package (merged into the one Import content page). Their data stays.
 export const hiddenPageIds=['review','knowledge','strategy','marketing','package','ai-settings'];
 export const pageIds=[...new Set([...navigationGroups.flatMap(group=>group.items.map(([id])=>id)),...hiddenPageIds])];
@@ -22,7 +22,7 @@ export function crumbs(view, extra = null) {
   if (view === 'home') return [];
   const out = [{ label: 'Home', view: 'home' }], own = menuItem(view), parent = PARENTS[view] ? menuItem(PARENTS[view]) : null;
   const place = own || parent;
-  if (place) out.push({ label: place.group });
+  if (place && place.group !== place.title) out.push({ label: place.group }); // not twice: the Settings group holds the Settings page
   if (own) out.push(extra ? { label: own.title, view } : { label: own.title, current: true });
   else if (parent) out.push({ label: parent.title, view: PARENTS[view] });
   if (!own) out.push({ label: HIDDEN_TITLES[view] || view, current: true });

@@ -98,6 +98,7 @@ test('breadcrumb trails: Home › group › page, details hang under their page,
   assert.deepEqual(crumbs('profile').map(c => c.label), ['Home', 'Settings', 'Team account']);
   assert.deepEqual(crumbs('blog', 'Edit article'), [{ label: 'Home', view: 'home' }, { label: 'Content' }, { label: 'Blog', view: 'blog' }, { label: 'Edit article', current: true }], 'something open inside a page makes the page a link');
   assert.deepEqual(crumbs('delivery'), [{ label: 'Home', view: 'home' }, { label: 'Content' }, { label: 'Queue', view: 'queue' }, { label: 'Publishing details', current: true }]);
-  assert.deepEqual(crumbs('knowledge').map(c => c.label), ['Home', 'Settings', 'Settings', 'Brand knowledge']);
+  assert.deepEqual(crumbs('knowledge').map(c => c.label), ['Home', 'Settings', 'Brand knowledge']);
+  assert.deepEqual(crumbs('settings', 'Facebook').map(c => c.label), ['Home', 'Settings', 'Facebook'], 'the Settings group is not repeated before the Settings page');
   assert.deepEqual([parentOf('delivery'), parentOf('knowledge'), parentOf('calendar')], ['queue', 'settings', 'home']);
 });
