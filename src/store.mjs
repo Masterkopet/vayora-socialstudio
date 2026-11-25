@@ -10,7 +10,7 @@ export function openStore(directory) {
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL,created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),csrf TEXT NOT NULL,expires INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS invites(hash TEXT PRIMARY KEY,email TEXT NOT NULL,expires INTEGER NOT NULL,created_by TEXT NOT NULL,used INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS invites(hash TEXT PRIMARY KEY,email TEXT NOT NULL,expires INTEGER NOT NULL,created_by TEXT NOT NULL,used INTEGER NOT NULL DEFAULT 0,role TEXT NOT NULL DEFAULT 'editor');
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS media(id TEXT PRIMARY KEY,path TEXT NOT NULL,mime TEXT NOT NULL,name TEXT NOT NULL,size INTEGER NOT NULL,width INTEGER,height INTEGER,duration REAL,poster TEXT,created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS posts(id TEXT PRIMARY KEY,data TEXT NOT NULL,status TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,schedule_at TEXT,updated_at TEXT NOT NULL);
@@ -19,6 +19,8 @@ export function openStore(directory) {
     CREATE TABLE IF NOT EXISTS oauth_states(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,session_hash TEXT NOT NULL,expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS post_versions(id TEXT PRIMARY KEY,post_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,reason TEXT NOT NULL,actor TEXT,created_at TEXT NOT NULL,UNIQUE(post_id,revision));
   `);
+  // Databases created before roles existed: invitations gain the role they grant (default editor).
+  if (!db.prepare('PRAGMA table_info(invites)').all().some(column => column.name === 'role')) db.exec("ALTER TABLE invites ADD COLUMN role TEXT NOT NULL DEFAULT 'editor'");
   const keyPath = path.join(directory, '.encryption-key');
   if (!existsSync(keyPath)) writeFileSync(keyPath, randomBytes(32), { mode: 0o600, flag: 'wx' });
   const key = readFileSync(keyPath);

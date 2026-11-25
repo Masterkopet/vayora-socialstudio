@@ -11,7 +11,7 @@ const FIELD_LABELS = { title: 'Title', slug: 'Slug', excerpt: 'Summary', body: '
 
 export function createBlogViews(ctx) {
   const { api, esc, button, toast } = ctx;
-  const workspace = () => ctx.getWorkspace(), user = () => ctx.getUser(), owner = () => user().role === 'owner';
+  const workspace = () => ctx.getWorkspace(), user = () => ctx.getUser(), owner = () => ['owner','admin'].includes(user().role);
   const icon = name => (ctx.icon ? ctx.icon(name) : '');
   let st, autoSynced = false;
   const fresh = () => ({ mode: 'list', a: null, slugTouched: false, when: 'review', date: '', time: '07:00', approved: false, busy: false, error: '', ai: { topic: '', keyword: '', notes: '', busy: false, error: '', warnings: [] }, uploading: false, generating: false, checking: false, check: null });
