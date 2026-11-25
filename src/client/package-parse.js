@@ -4,7 +4,7 @@
 
 const pick = (row, names) => { for (const n of names) { const v = row[n]; if (v != null && String(v).trim() !== '') return String(v).trim(); } return ''; };
 const lowerKeys = obj => Object.fromEntries(Object.entries(obj || {}).map(([k, v]) => [String(k).trim().toLowerCase().replace(/\s+/g, '_'), v]));
-const CONTENT_ID = /^([VICS])(\d{1,4})$/i;
+const CONTENT_ID = /^([VICSFT])(\d{1,4})$/i;
 const firstNumber = s => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : null; };
 const clean = text => String(text).replace(/﻿/g, '');
 
@@ -30,7 +30,7 @@ function item(fields) {
   return {
     key: key || id, number: idMatch ? Number(idMatch[2]) : firstNumber(key), id,
     ...(fields.blog ? { blog: fields.blog } : {}),
-    platform: fields.blog ? 'blog' : /insta|ig\b|reel/.test(platformRaw) ? 'instagram' : /you|yt|short/.test(platformRaw) ? 'youtube' : id ? (id.startsWith('S') ? 'youtube' : 'instagram') : '',
+    platform: fields.blog ? 'blog' : /tik ?tok|\btt\b/.test(platformRaw) ? 'tiktok' : /face ?book|\bfb\b/.test(platformRaw) ? 'facebook' : /insta|ig\b|reel/.test(platformRaw) ? 'instagram' : /you|yt|short/.test(platformRaw) ? 'youtube' : id ? ({ S: 'youtube', F: 'facebook', T: 'tiktok' }[id[0]] || 'instagram') : '',
     title: String(fields.title || '').trim(), caption: String(fields.caption || '').trim(),
     tags: (Array.isArray(fields.tags) ? fields.tags : String(fields.tags || '').split(',')).map(s => String(s).trim()).filter(Boolean),
     files: (Array.isArray(fields.files) ? fields.files : String(fields.files || '').split(/[;|\n]/)).map(s => String(s).trim()).filter(Boolean),
@@ -128,9 +128,9 @@ export function parseArticleMarkdown(text, fileName = '') {
 // Markdown caption list keyed by content ID: "## V01 — Title" … "Caption:" followed by the caption paragraph.
 export function parseCaptionMarkdown(text) {
   return clean(text).replace(/\r\n/g, '\n').split(/^##\s+/m).slice(1).map(block => {
-    const head = block.split('\n')[0], id = head.match(/^([VICS]\d+)/i)?.[1] || '';
+    const head = block.split('\n')[0], id = head.match(/^([VICSFT]\d+)/i)?.[1] || '';
     const caption = block.match(/Caption:\s*\n([\s\S]*?)(?=\n\s*\n|$)/i)?.[1] || ''; // ends at the first blank line, as before
-    return item({ key: id, id, title: head.replace(/^([VICS]\d+)\s*[—–:-]?\s*/i, '').trim(), caption });
+    return item({ key: id, id, title: head.replace(/^([VICSFT]\d+)\s*[—–:-]?\s*/i, '').trim(), caption });
   }).filter(r => r.id && (r.caption || r.title));
 }
 
@@ -169,7 +169,7 @@ const isCover = f => /^(cover|thumb|thumbnail|sampul)\b/i.test(base(f.name));
 // assets, references) get no number, so they are never picked by accident.
 export function mediaInfo(file) {
   const path = String(file.webkitRelativePath || file.name).replace(/\\/g, '/'), parts = path.split('/'), name = parts.pop().replace(/\.[^.]+$/, '');
-  const id = name.match(/^([VICS])(\d{1,4})(?=\D|$)/i);
+  const id = name.match(/^([VICSFT])(\d{1,4})(?=\D|$)/i);
   const own = firstNumber(name);
   const folder = folderNumber(path);
   return { path, id: id ? id[1].toUpperCase() + id[2].padStart(2, '0') : '', own: id ? Number(id[2]) : own, number: id ? Number(id[2]) : own ?? folder, ignored: IGNORED.test(path) || name.startsWith('.') };
@@ -213,7 +213,7 @@ export function mediaOnlyRows(rows, files) {
 
 // "V01-room-ready_for-guests.mp4" → "Room ready for guests"; used when no text source gives a title.
 export function titleFromFile(name) {
-  const t = base(name).replace(/\.[^.]+$/, '').replace(/^[VICS]\d+[-_ ]*/i, '').replace(/[-_ ]*slide[-_ ]*\d+$/i, '').replace(/[-_]+/g, ' ').trim();
+  const t = base(name).replace(/\.[^.]+$/, '').replace(/^[VICSFT]\d+[-_ ]*/i, '').replace(/[-_ ]*slide[-_ ]*\d+$/i, '').replace(/[-_]+/g, ' ').trim();
   return t ? t[0].toUpperCase() + t.slice(1) : '';
 }
 

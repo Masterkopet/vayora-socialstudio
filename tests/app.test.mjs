@@ -304,7 +304,7 @@ test('delete hides content everywhere, keeps its id reserved and history, and re
     const editor={cookie:join.response.headers.get('set-cookie').split(';')[0],csrf:join.data.csrf};
     assert.equal((await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,editor)).response.status,403,'only the owner removes published content');
     const removed=await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,owner);assert.equal(removed.response.status,200);
-    assert.match(f.store.get("SELECT detail FROM events WHERE post_id='I02' AND title='Content deleted'").detail,/Instagram post remains/);
+    assert.match(f.store.get("SELECT detail FROM events WHERE post_id='I02' AND title='Content deleted'").detail,/published post stays online/);
     assert.ok(copy.data);
   }finally{await f.cleanup();}
 });
