@@ -10,7 +10,7 @@ import { migrationSnapshot } from '../scripts/migrate-data.mjs';
 test('production owner guard fails closed until the existing internal account is imported',async()=>{
  const directory=await mkdtemp(path.join(os.tmpdir(),'vayora-deploy-'));
  try{
-  assert.throws(()=>createApp({dataDir:directory,requireExistingOwner:true,scheduler:false}),/pemilik belum dimigrasikan/);
+  assert.throws(()=>createApp({dataDir:directory,requireExistingOwner:true,scheduler:false}),/has not been migrated/);
   const store=openStore(directory);store.run('INSERT INTO users(id,email,name,password_hash,role,created_at) VALUES(?,?,?,?,?,?)','owner','owner@example.test','Owner','fixture-hash','owner',new Date().toISOString());store.close();
   const app=createApp({dataDir:directory,requireExistingOwner:true,scheduler:false});assert.equal(app.store.get('SELECT count(*) n FROM users').n,1);app.close();
  }finally{const target=path.resolve(directory);assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep)&&path.basename(target).startsWith('vayora-deploy-'));await rm(target,{recursive:true,force:true});}
@@ -27,7 +27,7 @@ test('migration snapshot keeps accounts, media and encrypted settings without ch
   const report=await migrationSnapshot(source,destination);assert.deepEqual(report,{posts:1,users:1,media:1,files:1});
   const copy=openStore(destination);try{assert.equal(copy.get('SELECT count(*) n FROM sessions').n,0);assert.equal(copy.get('SELECT password_hash FROM users').password_hash,'existing-password-hash');assert.deepEqual(copy.post('I01'),post);assert.equal(copy.secret('deployment.fixture').value,'private-setting-fixture');assert.equal(copy.setting('paused'),true);assert.equal(copy.setting('publishingEnabled'),false);}finally{copy.close();}
   assert.equal(store.get('SELECT count(*) n FROM sessions').n,1);assert.deepEqual(store.post('I01'),post);assert.equal(await readFile(path.join(destination,'media','image.jpg'),'utf8'),'image-fixture');
-  await assert.rejects(migrationSnapshot(source,destination),/EEXIST/);await assert.rejects(migrationSnapshot(source,path.join(source,'nested')),/terpisah/);
-  store.set('publishingEnabled',true);await assert.rejects(migrationSnapshot(source,path.join(directory,'must-not-export')),/Jeda antrean/);
+  await assert.rejects(migrationSnapshot(source,destination),/EEXIST/);await assert.rejects(migrationSnapshot(source,path.join(source,'nested')),/must be separate/);
+  store.set('publishingEnabled',true);await assert.rejects(migrationSnapshot(source,path.join(directory,'must-not-export')),/Pause the queue/);
  }finally{store.close();const target=path.resolve(directory);assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep)&&path.basename(target).startsWith('vayora-deploy-'));await rm(target,{recursive:true,force:true});}
 });

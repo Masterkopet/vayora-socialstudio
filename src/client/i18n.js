@@ -557,7 +557,7 @@ const patterns=[
 ];
 // Stored data (post formats, categories, older history entries) can still be Indonesian; show it in English when the UI is English.
 const legacy=Object.fromEntries(Object.entries(strings).map(([en,id])=>[id,en]));
-const dataLabels={Gambar:'Image',Operasional:'Operations',Reservasi:'Reservations','Laporan owner':'Owner report','Website booking':'Website booking','Demo produk':'Product demo'};
+const dataLabels={Gambar:'Image','Pengenalan brand':'Brand awareness','Edukasi fitur':'Feature education','Permintaan demo':'Demo requests',Operasional:'Operations',Reservasi:'Reservations','Laporan owner':'Owner report','Website booking':'Website booking','Demo produk':'Product demo'};
 const dataLabelPattern=new RegExp('(?<![\\p{L}\\p{N}])('+Object.keys(dataLabels).join('|')+')(?![\\p{L}\\p{N}])','gu');
 export const getLanguage=()=>language;
 export const locale=()=>language==='en'?'en-GB':'id-ID';

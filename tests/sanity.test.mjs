@@ -51,8 +51,8 @@ test('Sanity config validates input, keeps the token encrypted, and never expose
   try {
     assert.equal(f.sanity.status().configured, false);
     assert.throws(() => f.sanity.configure({ projectId: 'BAD ID!' }), /Project ID/);
-    assert.throws(() => f.sanity.configure({ token: 'password123' }), /Token Sanity/);
-    assert.throws(() => f.sanity.configure({ publishMode: 'live' }), /published atau draft/);
+    assert.throws(() => f.sanity.configure({ token: 'password123' }), /Sanity token/);
+    assert.throws(() => f.sanity.configure({ publishMode: 'live' }), /published or draft/);
     assert.throws(() => f.sanity.configure({ extraFields: '{bad' }), /JSON/);
     assert.throws(() => f.sanity.configure({ extraFields: { _id: 'x' } }), /_id/);
     assert.throws(() => f.sanity.configure({ siteUrl: 'http://vayora.id' }), /https/);
@@ -122,16 +122,16 @@ test('draft mode writes a drafts. document; missing pieces and Sanity errors are
   try {
     connect(f); f.sanity.configure({ publishMode: 'draft' });
     f.blog.create(article({ heroMediaId: null }));
-    await assert.rejects(() => f.blog.run('B01'), /Gambar utama belum dipilih/);
+    await assert.rejects(() => f.blog.run('B01'), /No featured image chosen/);
     f.blog.update('B01', { ...article(), slug: 'sop', intent: 'draft', revision: 1 });
-    await assert.rejects(() => f.blog.run('B01'), e => /izin/.test(e.message) && !e.message.includes(TOKEN));
-    assert.equal(f.blog.get('B01').status, 'failed'); assert.match(f.blog.get('B01').error, /izin/);
+    await assert.rejects(() => f.blog.run('B01'), e => /permission/.test(e.message) && !e.message.includes(TOKEN));
+    assert.equal(f.blog.get('B01').status, 'failed'); assert.match(f.blog.get('B01').error, /permission/);
     reply = (url, init) => mutateOk(JSON.parse(init.body).mutations[0].createOrReplace._id);
     const done = await f.blog.run('B01');
     assert.equal(done.status, 'published'); assert.equal(done.sanityId, 'drafts.vayora-b01'); assert.equal(done.sanityDraft, true);
     assert.equal(done.categoryMissing, true, 'category title not found in Sanity is flagged, not guessed');
-    assert.throws(() => f.blog.create(article({ slug: 'sop' })), /sudah dipakai/);
-    assert.throws(() => f.blog.create({ title: 'x', slug: 'Slug Salah!' }), /Slug hanya boleh/);
+    assert.throws(() => f.blog.create(article({ slug: 'sop' })), /already used/);
+    assert.throws(() => f.blog.create({ title: 'x', slug: 'Slug Salah!' }), /Slug may only contain/);
   } finally { await f.cleanup(); }
 });
 
@@ -142,12 +142,12 @@ test('scheduling needs approval and a complete article; the scheduler publishes 
     const a = f.blog.create(article()), b = f.blog.create(article({ title: 'Artikel kedua' }));
     const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     const base = { ...article(), slug: a.slug, intent: 'scheduled', date: day, time: '07:00', revision: 1 };
-    assert.throws(() => f.blog.update('B01', { ...base, approved: false }), /persetujuan/);
-    assert.throws(() => f.blog.update('B01', { ...base, approved: true, date: '2020-01-01' }), /30 detik/);
-    assert.throws(() => f.blog.update('B01', { ...base, approved: true, excerpt: '' }), /Ringkasan/);
+    assert.throws(() => f.blog.update('B01', { ...base, approved: false }), /approve it/);
+    assert.throws(() => f.blog.update('B01', { ...base, approved: true, date: '2020-01-01' }), /30 seconds/);
+    assert.throws(() => f.blog.update('B01', { ...base, approved: true, excerpt: '' }), /summary/);
     const s = f.blog.update('B01', { ...base, approved: true });
     assert.equal(s.status, 'scheduled'); assert.equal(s.scheduleAt, new Date(`${day}T07:00:00+07:00`).toISOString());
-    assert.throws(() => f.blog.update('B01', { ...base, approved: true, revision: 1 }), /sesi lain/, 'stale revision is refused');
+    assert.throws(() => f.blog.update('B01', { ...base, approved: true, revision: 1 }), /another session/, 'stale revision is refused');
     await f.blog.tickDue(Date.now()); assert.equal(f.blog.get('B01').status, 'scheduled', 'not due yet');
     await f.blog.tickDue(Date.parse(s.scheduleAt) + 1000);
     assert.equal(f.blog.get('B01').status, 'published'); assert.equal(f.blog.get('B01').publishedAt, s.scheduleAt, 'publishedAt is the scheduled time');
@@ -189,7 +189,7 @@ test('routes: the token stays owner-only and out of every response; publishing n
     runtime.store.set('publishingEnabled', true);
     assert.equal((await request('/api/blog/B01/publish', 'POST', { approved: false })).status, 400, 'approval is required');
     const noImage = await request('/api/blog/B01/publish', 'POST', { approved: true });
-    assert.equal(noImage.status, 400); assert.match(noImage.data.error, /Gambar utama/);
+    assert.equal(noImage.status, 400); assert.match(noImage.data.error, /featured image/i);
     assert.ok(!calls.some(u => u.includes('/data/mutate/')), 'nothing was sent to Sanity');
     assert.equal((await request('/api/sanity/check', 'POST', {})).status, 200);
     assert.equal((await request('/api/blog/NOPE')).status, 404);

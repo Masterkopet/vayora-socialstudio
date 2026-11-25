@@ -19,7 +19,8 @@ const button=(text,action,kind='',ico='',extra='')=>`<button type="button" class
 const icons=()=>globalThis.lucide?.createIcons({attrs:{width:17,height:17}});
 const names={draft:'Draft',review:'Needs review',ready:'Ready',scheduled:'Scheduled',processing:'Processing',published:'Published',failed:'Failed',uncertain:'Check outcome'};
 const categories=['Operasional','Reservasi','Laporan owner','Website booking','Demo produk'];
-const goals=['Brand awareness','Feature education','Demo requests'];
+// Goal values are stored data (Indonesian); the UI translates them for display.
+const goals=['Pengenalan brand','Edukasi fitur','Permintaan demo'];
 let csrf='',user=null,workspace=null,draft=null,dirty=false,busy=false,slide=0,confirmation=null,inviteToken='',authMode='login',team=null;
 const state={view:'calendar',mode:'week',anchor:today(),day:null,selected:null,format:'All',status:'All',goal:'All',history:'All',modal:null,detailMode:'summary',search:'',quick:'all',sort:'newest',versions:[],versionId:''};
 function today(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(type=>parts.find(x=>x.type===type).value).join('-');}

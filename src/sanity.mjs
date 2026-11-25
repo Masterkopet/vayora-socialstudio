@@ -68,7 +68,7 @@ export function createSanity(store, options = {}) {
     if (response.status === 403) throw fail('The Sanity token does not have permission for this. Use a token with the Editor role.', 502, 'FORBIDDEN');
     if (response.status === 404) throw fail('Sanity project or dataset not found. Check the Project ID and dataset name.', 502, 'NOT_FOUND');
     if (response.status === 429) throw fail('Sanity is limiting requests. Try again in a moment.', 502, 'RATE');
-    throw fail('Sanity menolak permintaan' + (detail ? ': ' + detail : '.'), 502, 'REJECTED');
+    throw fail('Sanity rejected the request' + (detail ? ': ' + detail : '.'), 502, 'REJECTED');
   }
   const query = (c, groq, params = {}, extra = {}) => call(c, `/data/query/${c.dataset}`, { ...extra, query: '?' + new URLSearchParams({ query: groq, ...Object.fromEntries(Object.entries(params).map(([k, v]) => ['$' + k, JSON.stringify(v)])) }) });
 

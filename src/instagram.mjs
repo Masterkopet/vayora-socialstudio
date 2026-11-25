@@ -90,13 +90,13 @@ export function createInstagram(store, getConfig, options = {}) {
     const attempt=async(label,run)=>{try{await run();answered++;}catch(error){if(error.code==='META_AUTH')rejected=true;reasons.push(`${label}: ${String(error.message).replace(/^Meta rejected the request/,'rejected').replace(/\. Check the permissions and media specifications\.$/,'')}`);}};
     // debug_token fields are ids, types and scope names only (no secrets), so they are safe to show for diagnosis.
     const scan=info=>{const data=info.data||{};notes.push(`token=${String(data.type||'?')}`);for(const key of ['user_id','profile_id'])if(data[key]){notes.push(`${key}=${String(data[key])}`);candidates.add(String(data[key]));}
-      const grants=(data.granular_scopes||[]).map(grant=>`${grant.scope}:${(grant.target_ids||[]).length}`);notes.push(`aset=${grants.join(',')||'-'}`);
+      const grants=(data.granular_scopes||[]).map(grant=>`${grant.scope}:${(grant.target_ids||[]).length}`);notes.push(`assets=${grants.join(',')||'-'}`);
       for(const grant of data.granular_scopes||[])if(/^instagram_/.test(grant.scope))for(const id of grant.target_ids||[])candidates.add(String(id));};
     await attempt(appToken?'debug_token (app token)':'debug_token',async()=>scan(await graph('debug_token',{input_token:token},'GET',appToken||token,'facebook')));
     await attempt('me',async()=>{const me=await graph('me',{fields:'id,name'},'GET',token,'facebook');if(/^\d+$/.test(String(me.id||'')))candidates.add(String(me.id));notes.push(`me=${String(me.id||'?')}`);});
     await attempt('me/accounts',async()=>{const pages=await graph('me/accounts',{fields:'instagram_business_account{id,username}',limit:'100'},'GET',token,'facebook');notes.push(`Page=${(pages.data||[]).length}`);for(const page of pages.data||[])add(page.instagram_business_account?.id,page.instagram_business_account?.username);});
     await attempt('me/businesses',async()=>{const businesses=await graph('me/businesses',{fields:'id',limit:'10'},'GET',token,'facebook');for(const business of businesses.data||[]){const owned=await graph(`${business.id}/instagram_business_accounts`,{fields:'id,username',limit:'25'},'GET',token,'facebook');for(const ig of owned.data||[])add(ig.id,ig.username);}});
-    await attempt('me/permissions',async()=>{const list=await graph('me/permissions',{},'GET',token,'facebook');notes.push('izin='+(list.data||[]).filter(x=>x.status==='granted').map(x=>x.permission).join(','));});
+    await attempt('me/permissions',async()=>{const list=await graph('me/permissions',{},'GET',token,'facebook');notes.push('permissions='+(list.data||[]).filter(x=>x.status==='granted').map(x=>x.permission).join(','));});
     for(const id of candidates){if(found.some(x=>x.id===id))continue;try{const ig=await graph(id,{fields:'id,username'},'GET',token,'facebook');add(ig.id,ig.username);}catch{}}
     if(found.length===1)return found[0];
     if(found.length>1)throw fail(`This token can access ${found.length} Instagram accounts (${found.map(x=>'@'+x.username).join(', ')}). Create a token for the Vayora account only.`,'ACCOUNT_AMBIGUOUS');
