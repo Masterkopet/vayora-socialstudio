@@ -232,7 +232,7 @@ export function checkRow({ row, files, platform, mode = 'scheduled', existingIds
     const errors = [], warnings = [], b = row.blog || {};
     if (!row.title) errors.push('The title is empty.'); if (!b.slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug)) errors.push('The slug is not valid.'); if (!b.body) errors.push('The article body is empty.');
     if (!b.excerpt && mode !== 'draft') errors.push('The summary (meta description) is empty.');
-    if (!files.length && willGenerate) warnings.push('The main image will be generated from its prompt (Gemini); the article is then submitted for review.');
+    if (!files.length && willGenerate) warnings.push('The main image will be generated from its prompt; the article is then submitted for review.');
     else if (!files.length) { if (mode === 'scheduled') errors.push('There is no main image yet. Add the image or save as a draft.'); else warnings.push('There is no main image yet; it is required before the article can be published.'); }
     else if (!b.heroAlt) warnings.push('The image alt text is empty; fill it in the editor before publishing.');
     if (files.length > 1) errors.push('An article uses only one main image.');

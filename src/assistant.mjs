@@ -78,6 +78,7 @@ const INLINE_VIDEO_MAX=14*1024*1024; // inline requests are capped at 20 MB afte
 const geminiSchema=s=>{const out={type:String(s.type).toUpperCase()};if(s.properties){out.properties=Object.fromEntries(Object.entries(s.properties).map(([k,v])=>[k,geminiSchema(v)]));out.required=s.required;out.propertyOrdering=Object.keys(s.properties);}if(s.items)out.items=geminiSchema(s.items);return out;};
 export const GEMINI_DEFAULT_MODEL='gemini-flash-latest';
 export const GEMINI_IMAGE_DEFAULT_MODEL='gemini-2.5-flash-image';
+export const OPENAI_IMAGE_DEFAULT_MODEL='gpt-image-2';
 const OPENAI_TEXT_MODEL='gpt-5.4-mini';
 
 export function createAssistant(store,options={}) {
@@ -85,21 +86,27 @@ export function createAssistant(store,options={}) {
   const config=()=>({...store.secret('assistant.config',{}),...(process.env.OPENAI_API_KEY?{apiKey:process.env.OPENAI_API_KEY}:{}),...(process.env.GEMINI_API_KEY?{geminiKey:process.env.GEMINI_API_KEY}:{})});
   // Text (captions, titles) uses Gemini when a Gemini key exists; OpenAI stays as fallback and for AI backgrounds.
   const textProvider=c=>c.geminiKey?'gemini':c.apiKey?'openai':null;
+  // Blog images are made by Gemini unless the owner chose OpenAI in AI settings.
+  const heroProvider=c=>c.imageProvider==='openai'?'openai':'gemini';
   let running=false;
   function usage(){return store.setting('assistant.usage.'+dayKey(Date.now()),{caption:0,image:0,hero:0});}
-  function status(){const c=config(),provider=textProvider(c),geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;return {configured:!!c.apiKey,environmentKey:!!process.env.OPENAI_API_KEY,textConfigured:!!provider,textProvider:provider,gemini:{configured:!!c.geminiKey,environmentKey:!!process.env.GEMINI_API_KEY,model:geminiModel,check:store.setting('assistant.geminiCheck',null)},model:provider==='openai'?OPENAI_TEXT_MODEL:geminiModel,imageModel:'gpt-image-2.5-flare',dailyCaptionLimit:c.dailyCaptionLimit||20,dailyImageLimit:c.dailyImageLimit||3,dailyHeroLimit:c.dailyHeroLimit||30,imageModel_gemini:c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL,usage:usage()};}
+  function status(){const c=config(),provider=textProvider(c),geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;return {configured:!!c.apiKey,environmentKey:!!process.env.OPENAI_API_KEY,textConfigured:!!provider,textProvider:provider,gemini:{configured:!!c.geminiKey,environmentKey:!!process.env.GEMINI_API_KEY,model:geminiModel,check:store.setting('assistant.geminiCheck',null)},model:provider==='openai'?OPENAI_TEXT_MODEL:geminiModel,imageModel:'gpt-image-2.5-flare',dailyCaptionLimit:c.dailyCaptionLimit||20,dailyImageLimit:c.dailyImageLimit||3,dailyHeroLimit:c.dailyHeroLimit||30,imageProvider:heroProvider(c),heroConfigured:heroProvider(c)==='openai'?!!c.apiKey:!!c.geminiKey,geminiImageModel:c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL,openaiImageModel:c.openaiImageModel||OPENAI_IMAGE_DEFAULT_MODEL,usage:usage()};}
   function configure(body){
     const c=store.secret('assistant.config',{});let key=c.apiKey||'',geminiKey=c.geminiKey||'',geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;
     if(body.removeKey)key='';else if(body.apiKey){key=str(body.apiKey,1000);if(!/^sk-[A-Za-z0-9_-]{10,}$/.test(key))throw fail('Invalid API key. Enter a key from the OpenAI dashboard, not an account password.');}
     if(body.removeGeminiKey)geminiKey='';else if(body.geminiKey){geminiKey=str(body.geminiKey,200);if(!/^[A-Za-z0-9._~-]{20,200}$/.test(geminiKey)||/\s/.test(geminiKey))throw fail('Invalid Gemini API key. Copy the key from Google AI Studio (without spaces), not a password.');}
     if(body.geminiModel!==undefined){geminiModel=str(body.geminiModel,80)||GEMINI_DEFAULT_MODEL;if(!/^gemini-[a-z0-9.-]{1,70}$/.test(geminiModel))throw fail('Invalid Gemini model name, for example: gemini-flash-latest.');}
     const dailyCaptionLimit=Number(body.dailyCaptionLimit??c.dailyCaptionLimit??20),dailyImageLimit=Number(body.dailyImageLimit??c.dailyImageLimit??3);if(!Number.isInteger(dailyCaptionLimit)||dailyCaptionLimit<1||dailyCaptionLimit>100||!Number.isInteger(dailyImageLimit)||dailyImageLimit<1||dailyImageLimit>20)throw fail('Limits are 1–100 caption requests and 1–20 image requests per day.');
+    let imageProvider=c.imageProvider||'gemini',geminiImageModel=c.geminiImageModel||'',openaiImageModel=c.openaiImageModel||'';
+    if(body.imageProvider!==undefined){if(!['gemini','openai'].includes(body.imageProvider))throw fail('The image provider must be gemini or openai.');imageProvider=body.imageProvider;}
+    if(body.geminiImageModel!==undefined){geminiImageModel=str(body.geminiImageModel,80);if(geminiImageModel&&!/^gemini-[a-z0-9.-]{1,70}$/.test(geminiImageModel))throw fail('The Gemini image model name is not valid, for example gemini-2.5-flash-image.');}
+    if(body.openaiImageModel!==undefined){openaiImageModel=str(body.openaiImageModel,80);if(openaiImageModel&&!/^[a-z0-9][a-z0-9.-]{1,70}$/.test(openaiImageModel))throw fail('The OpenAI image model name is not valid, for example gpt-image-2.');}
     const dailyHeroLimit=Number(body.dailyHeroLimit??c.dailyHeroLimit??30);if(!Number.isInteger(dailyHeroLimit)||dailyHeroLimit<1||dailyHeroLimit>100)throw fail('The blog image limit is 1–100 requests per day.');
-    store.setSecret('assistant.config',{...c,apiKey:key,geminiKey,geminiModel,dailyCaptionLimit,dailyImageLimit,dailyHeroLimit});return status();
+    store.setSecret('assistant.config',{...c,imageProvider,geminiImageModel,openaiImageModel,apiKey:key,geminiKey,geminiModel,dailyCaptionLimit,dailyImageLimit,dailyHeroLimit});return status();
   }
   async function paid(kind,provider,request) {
     const c=config();
-    if(provider==='openai'&&!c.apiKey)throw fail('Connect the OpenAI API in AI settings to create AI backgrounds. The local brand design can be used now.',422);
+    if(provider==='openai'&&!c.apiKey)throw fail('Connect the OpenAI API in AI settings to create AI images. The local brand design can be used now.',422);
     if(!provider)throw fail('Connect the Gemini API in AI settings to write with AI. Local assistance is still available.',422);
     if(running)throw fail('An AI request is already running. Wait for its result first.',409);
     const u=usage(),limit=kind==='caption'?status().dailyCaptionLimit:kind==='hero'?status().dailyHeroLimit:status().dailyImageLimit;
@@ -244,14 +251,22 @@ export function createAssistant(store,options={}) {
   // Blog hero image from a text prompt with the Gemini image model, cropped to 16:9 and stored like any uploaded image.
   async function heroImage(body) {
     const prompt=str(body.prompt,1500);if(prompt.length<12)throw fail('Describe the image you want, at least 12 characters.');
-    const c=config();if(!c.geminiKey)throw fail('Connect the Gemini API in AI settings to generate images.',422);
-    const model=c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL;
+    const c=config(),provider=heroProvider(c);
+    if(provider==='gemini'&&!c.geminiKey)throw fail('Connect the Gemini API in AI settings to generate images (or choose OpenAI as the image provider).',422);
+    if(provider==='openai'&&!c.apiKey)throw fail('Connect the OpenAI API in AI settings to generate images (or choose Gemini as the image provider).',422);
+    const model=provider==='openai'?(c.openaiImageModel||OPENAI_IMAGE_DEFAULT_MODEL):(c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL),wide='Wide 16:9 landscape blog header image. No text, letters, logos or watermarks in the picture.';
+    let encoded;
+    if(provider==='openai'){
+      const data=await paid('hero','openai',k=>transport('https://api.openai.com/v1/images/generations',{method:'POST',headers:{Authorization:'Bearer '+k.apiKey,'Content-Type':'application/json'},body:JSON.stringify({model,n:1,size:'1536x1024',quality:'medium',output_format:'png',prompt:prompt+'\n\n'+wide}),signal:AbortSignal.timeout(180000)}));
+      encoded=data.data?.[0]?.b64_json;if(typeof encoded!=='string'||encoded.length>30*1024*1024)throw fail('OpenAI did not return an image. Try again or upload your own.',502);
+    } else {
     const request={contents:[{role:'user',parts:[{text:prompt+'\n\nWide 16:9 landscape blog header image. No text, letters, logos or watermarks in the picture.'}]}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'16:9'}}};
     const result=await paid('hero','gemini',k=>transport(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':k.geminiKey,'Content-Type':'application/json'},body:JSON.stringify(request),signal:AbortSignal.timeout(120000)}));
-    const parts=result.candidates?.[0]?.content?.parts||[],part=parts.find(p=>(p.inlineData||p.inline_data)?.data),encoded=(part?.inlineData||part?.inline_data)?.data;
+    const parts=result.candidates?.[0]?.content?.parts||[],part=parts.find(p=>(p.inlineData||p.inline_data)?.data);encoded=(part?.inlineData||part?.inline_data)?.data;
     if(typeof encoded!=='string'||encoded.length>30*1024*1024)throw fail(result.candidates?.[0]?.finishReason==='SAFETY'||result.promptFeedback?.blockReason?'Gemini refused to create this image. Reword the prompt.':'Gemini did not return an image. Try again or upload your own.',502);
+    }
     let png;try{png=await sharp(Buffer.from(encoded,'base64'),{limitInputPixels:40000000}).resize(1600,900,{fit:'cover'}).png().toBuffer();}catch{throw fail('The generated image could not be read. Try again.',502);}
-    return registerImage(store,png,'blog-hero-'+Date.now()+'.png',{kind:'ai-hero',model,prompt:prompt.slice(0,500)});
+    return registerImage(store,png,'blog-hero-'+Date.now()+'.png',{kind:'ai-hero',provider,model,prompt:prompt.slice(0,500)});
   }
   return {status,configure,caption,background,draft,article,checkGemini,heroImage};
 }

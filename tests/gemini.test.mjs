@@ -190,3 +190,29 @@ test('blog hero image: Gemini image model is asked for 16:9, the result is store
     assert.throws(() => ai.configure({ dailyHeroLimit: 500 }), /1–100/);
   } finally { await f.cleanup(); }
 });
+
+test('blog images can use OpenAI instead: landscape request, own key check, shared hero quota, readable setup errors', async () => {
+  const f = await fixture();
+  try {
+    const wide = await sharp({ create: { width: 1536, height: 1024, channels: 3, background: '#00285C' } }).png().toBuffer();
+    const calls = [];
+    const ai = createAssistant(f.store, { fetch: async (url, init) => { calls.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) }); return Response.json({ data: [{ b64_json: wide.toString('base64') }] }); } });
+    ai.configure({ geminiKey: KEY });
+    assert.equal(ai.status().imageProvider, 'gemini'); assert.equal(ai.status().heroConfigured, true);
+    assert.throws(() => ai.configure({ imageProvider: 'midjourney' }), /gemini or openai/);
+    assert.throws(() => ai.configure({ openaiImageModel: 'bad model!' }), /not valid/);
+    ai.configure({ imageProvider: 'openai' });
+    assert.equal(ai.status().heroConfigured, false, 'the chosen provider has no key yet');
+    await assert.rejects(() => ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' }), e => e.status === 422 && /OpenAI/.test(e.message) && /Gemini/.test(e.message));
+    ai.configure({ apiKey: 'sk-test-openai-key-123456' });
+    assert.equal(ai.status().heroConfigured, true);
+    const media = await ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' });
+    assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations'); assert.equal(calls[0].headers.Authorization, 'Bearer sk-test-openai-key-123456');
+    assert.equal(calls[0].body.model, 'gpt-image-2'); assert.equal(calls[0].body.size, '1536x1024'); assert.match(calls[0].body.prompt, /16:9/);
+    assert.ok(Math.abs(media.width / media.height - 16 / 9) < 0.02); assert.equal(ai.status().usage.hero, 1, 'same daily blog image counter as Gemini');
+    ai.configure({ openaiImageModel: 'gpt-image-1-mini' }); ready(f.store);
+    await ai.heroImage({ prompt: 'Photorealistic editorial photo of a villa bedroom' }); assert.equal(calls[1].body.model, 'gpt-image-1-mini');
+    assert.ok(!JSON.stringify(ai.status()).includes('sk-test'), 'keys are never in the status');
+    ai.configure({ imageProvider: 'gemini' }); assert.equal(ai.status().imageProvider, 'gemini');
+  } finally { await f.cleanup(); }
+});
