@@ -152,7 +152,7 @@ function pollPublication(id){if(publicationTimers.has(id)||!workspace)return;con
 const languageObserver=observeLanguage(root);
 root.addEventListener('change',event=>{if(event.target.matches('[data-language]')){if(draft&&$('#edit-caption'))readEditor();setLanguage(event.target.value);document.querySelectorAll('[data-language]').forEach(el=>el.value=getLanguage());localize(root);if(workspace){for(const card of root.querySelectorAll('[data-post-id]')){const post=workspace.posts.find(p=>p.id===card.dataset.postId);if(post)card.querySelector('.vs-card-schedule').innerHTML=cardTime(post);}for(const time of root.querySelectorAll('time[datetime]'))time.textContent=stamp(time.dateTime);icons();}}},{signal:lifetime.signal});
 const smart=createSmartTools({api,$,esc,button,icons,toast,readEditor,markDirty,render,run,reload:load,openEditor,openCaption,getDraft:()=>draft,getWorkspace:()=>workspace,getUser:()=>user});
-const simple=createSimpleViews({api,esc,button,toast,stamp,previewImage,names,getWorkspace:()=>workspace,getUser:()=>user,render,reload:load,navigate,root:()=>root});
+const simple=createSimpleViews({api,esc,button,toast,stamp,previewImage,names,icon,getWorkspace:()=>workspace,getUser:()=>user,render,reload:load,navigate,root:()=>root});
 const pkg=createPackageImport({api,esc,button,toast,getWorkspace:()=>workspace,render,reload:load,navigate,root:()=>root});
 const market=createMarketingUI({api,$,esc,button,icons,toast,ask,parseCSV,stamp,render,run,workspace:()=>workspace,user:()=>user});
 function syncRoute(view){pendingRoute=view;if(disposed||!workspace||!pageIds.includes(view)||view===state.view)return;if(busy){options.navigate?.(state.view,{replace:true});return;}if(dirty)options.navigate?.(state.view,{replace:true});navigate(view);}

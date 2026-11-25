@@ -66,6 +66,14 @@ export const simpleStrings={
   'Video atau foto belum dipilih.':'No video or photo chosen yet.','YouTube Shorts memerlukan tepat satu video MP4.':'YouTube Shorts need exactly one MP4 video.','Gabungan file ini tidak didukung Instagram.':'Instagram does not support this combination of files.',
   'Judul kosong.':'Title is empty.','Deskripsi atau caption kosong.':'Description or caption is empty.','Deskripsi lebih dari 2.200 karakter.':'Description is longer than 2,200 characters.',
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
+  // Buat posting: two columns with a live preview
+  'BUAT POSTING':'CREATE POST','Unggah, tulis, lalu pilih kapan terbit.':'Upload, write, then choose when it goes live.',
+  'Pratinjau ikut berubah saat kamu mengetik. Konten baru tersimpan setelah kamu menekan Simpan.':'The preview on the right updates as you type. Content is only saved when you press Save.',
+  'Aktif setelah foto atau video diunggah.':'Available after a photo or video is uploaded.','Pratinjau postinganmu di sini.':'Your post preview appears here.',
+  'Pratinjau Instagram':'Instagram preview','Pratinjau YouTube Shorts':'YouTube Shorts preview','Pratinjau':'Preview','Caption tampil di sini.':'The caption appears here.',
+  'Judul video tampil di sini.':'The video title appears here.','lainnya':'more','Channel YouTube':'YouTube channel','Judul YouTube maksimal 100 karakter.':'YouTube titles are limited to 100 characters.',
+  'YouTube Shorts · 9:16':'YouTube Shorts · 9:16','Instagram · 4:5 sampai 1,91:1':'Instagram · 4:5 to 1.91:1','Pilih foto atau video':'Choose a photo or video',
+  'Slide sebelumnya':'Previous slide','Slide berikutnya':'Next slide',
   // Caption assistant: video, YouTube, house style
   'YouTube menghasilkan judul, deskripsi, dan tags.':'YouTube produces a title, description, and tags.','AI · tonton video / baca gambar':'AI · watch video / read images',
   'Gemini menonton video utuh (gambar dan narasi) atau membaca gambar/carousel. Media dan teks dikirim ke Google dalam mode AI.':'Gemini watches the whole video (picture and narration) or reads images/carousels. Media and text are sent to Google in AI mode.',
@@ -100,6 +108,7 @@ export const simplePatterns=[
   [/^Siap · (.+)$/,(_,f)=>`Ready · ${f}`],[/^(\d+) dari (\d+) konten diproses\.$/,(_,a,b)=>`${a} of ${b} items processed.`],
   [/^(\d+) tags disiapkan\. Simpan draft untuk menyimpannya\.$/,(_,n)=>`${n} tags prepared. Save the draft to keep them.`],[/^Tags YouTube: (.+)$/,(_,t)=>`YouTube tags: ${t}`],
   [/^(\d+) konten belum punya caption\. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis\.$/,(_,n)=>`${n} item(s) have no caption. Connect Gemini in AI settings so empty captions can be written automatically.`],
+  [/^Unggah foto atau video untuk melihat tampilannya di (.+)\.$/,(_,p)=>`Upload a photo or video to see how it looks on ${p}.`],
   [/^Cover: (.+)$/,(_,a)=>`Cover: ${a}`],[/^(\S+) sudah ada di pustaka, tidak diimpor ulang\.$/,(_,a)=>`${a} is already in the library and is not imported again.`],
   [/^Kode (\S+) tidak cocok dengan jenis (\S+); kode baru dibuat otomatis\.$/,(_,a,b)=>`Code ${a} does not match type ${b}; a new code is created automatically.`],
   [/^(\d+) perlu perhatian$/,(_,n)=>`${n} need attention`],
