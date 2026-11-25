@@ -8,6 +8,7 @@ import { createAuth, verifyPassword, hashPassword, validateAccount } from './aut
 import { addMedia, mediaPath, publicMedia } from './media.mjs';
 import { createInstagram, publicHTTPS } from './instagram.mjs';
 import { createYouTube } from './youtube.mjs';
+import { createDrive } from './drive.mjs';
 import { createSanity } from './sanity.mjs';
 import { createBlog } from './blog.mjs';
 import { createAssistant, brandProfile, saveBrand, inspectContent, postingSuggestions } from './assistant.mjs';
@@ -31,6 +32,7 @@ export function createApp(options={}) {
  const getConfig=()=>{const c=store.secret('instagram.config',{});return{appId:process.env.INSTAGRAM_APP_ID||c.appId||'',appSecret:process.env.INSTAGRAM_APP_SECRET||c.appSecret||'',publicBase:process.env.PUBLIC_BASE_URL||c.publicBase||'',version:process.env.INSTAGRAM_API_VERSION||c.version||'v27.0'};};
  const instagram=createInstagram(store,getConfig,options.instagram||{});
  const youtube=createYouTube(store,()=>getConfig().publicBase,options.youtube||{});
+ const drive=createDrive(store,()=>getConfig().publicBase,options.drive||{});
  const sanity=createSanity(store,options.sanity||{});
  const blog=createBlog(store,sanity);
  const assistant=createAssistant(store,options.assistant||{});
@@ -87,7 +89,7 @@ export function createApp(options={}) {
  });
  // Callback outcomes are traced by code only (no query values, tokens or secrets) so `docker logs` shows where a connection stopped.
  // Google returns here after the owner approves YouTube access; outcomes are logged by code only.
- app.get('/auth/youtube/callback',async(req,res)=>{const s=auth.session(req);if(!s){console.warn('[youtube callback] LOGIN_REQUIRED');return res.redirect('/?youtube=login_required');}try{if(!['owner','admin'].includes(s.role))throw error('Only a workspace admin can connect YouTube.',403);await youtube.callback(req.query,s.user_id,s.hash);console.info('[youtube callback] CONNECTED');res.redirect('/?youtube=connected#settings');}catch(e){console.warn('[youtube callback]',e.code||e.status||'ERROR');store.event(null,'YouTube connection did not finish',e.message,'connection',s.user_id);res.redirect('/?youtube=failed#settings');}});
+ app.get('/auth/youtube/callback',async(req,res)=>{const s=auth.session(req);if(drive.ownsState(req.query.state)){if(!s)return res.redirect('/?drive=login_required');try{if(!['owner','admin'].includes(s.role))throw error('Only a workspace admin can connect Google Drive.',403);await drive.callback(req.query,s.user_id,s.hash);return res.redirect('/?drive=connected#import');}catch(e){console.warn('[drive callback]',e.code||e.status||'ERROR');store.event(null,'Google Drive connection did not finish',e.message,'connection',s.user_id);return res.redirect('/?drive=failed#import');}}if(!s){console.warn('[youtube callback] LOGIN_REQUIRED');return res.redirect('/?youtube=login_required');}try{if(!['owner','admin'].includes(s.role))throw error('Only a workspace admin can connect YouTube.',403);await youtube.callback(req.query,s.user_id,s.hash);console.info('[youtube callback] CONNECTED');res.redirect('/?youtube=connected#settings');}catch(e){console.warn('[youtube callback]',e.code||e.status||'ERROR');store.event(null,'YouTube connection did not finish',e.message,'connection',s.user_id);res.redirect('/?youtube=failed#settings');}});
  app.get('/auth/instagram/callback',async(req,res)=>{const s=auth.session(req);if(!s){console.warn('[instagram callback] LOGIN_REQUIRED');return res.redirect('/?instagram=login_required');}try{if(!['owner','admin'].includes(s.role))throw error('Only a workspace admin can connect Instagram.',403);await instagram.callback(req.query,s.user_id,s.hash);console.info('[instagram callback] CONNECTED');res.redirect('/?instagram=connected#settings');}catch(e){console.warn('[instagram callback]',e.code||e.status||'ERROR');store.event(null,'Instagram connection not completed',e.message,'connection',s.user_id);res.redirect('/?instagram=failed#settings');}});
  app.use('/api',auth.requireUser);
  app.use('/api',(req,res,next)=>['POST','PUT','PATCH','DELETE'].includes(req.method)?auth.csrf(req,res,next):next());
@@ -186,6 +188,14 @@ export function createApp(options={}) {
  app.post('/api/instagram/token',auth.admin,async(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);const previous=instagram.status().accountId;let result;try{result=await instagram.connectToken(req.body?.token,req.user.id,req.body?.accountId);}catch(e){if(!['TOKEN_REQUIRED','TOKEN_FORMAT'].includes(e.code))store.event(null,'Token connection did not succeed',e.message,'connection',req.user.id);console.warn('[instagram token]',e.code||e.status||'ERROR');throw e;}if(previous&&previous!==result.accountId){store.set('publishingEnabled',false);store.set('paused',true);store.event(null,'Instagram account changed','Publishing was turned off and the queue paused until the owner reviews it.','connection',req.user.id);}res.json(instagram.status());});
  app.post('/api/instagram/check',auth.admin,async(_req,res)=>res.json(await instagram.check()));
  // YouTube Shorts connection (owner only). Saving new credentials turns live publishing off, like the Instagram config.
+ // Google Drive as an import source (admins only, like the Import page itself).
+ app.get('/api/drive/status',auth.admin,(_req,res)=>res.json(drive.status()));
+ app.post('/api/drive/connect',auth.admin,(req,res)=>res.json({url:drive.start(req.user.id,req.session.hash)}));
+ app.post('/api/drive/disconnect',auth.admin,(req,res)=>{drive.disconnect();store.event(null,'Google Drive disconnected','','connection',req.user.id);res.json(drive.status());});
+ app.get('/api/drive/list',auth.admin,async(req,res)=>res.json(await drive.list(req.query.folder,req.query.pageToken)));
+ app.get('/api/drive/walk',auth.admin,async(req,res)=>res.json(await drive.walk(req.query.folder)));
+ app.get('/api/drive/file/:id',auth.admin,async(req,res)=>{const file=await drive.open(req.params.id);if(file.kind!=='text')throw error('Only text files are sent to the browser.',415);res.type(file.mime||'application/octet-stream').set('Cache-Control','no-store').send(file.response.body);});
+ app.post('/api/drive/import',auth.admin,async(req,res)=>res.status(201).json({media:[await drive.importMedia(req.body?.fileId,req.body?.role)]}));
  app.get('/api/youtube/status',(_req,res)=>res.json(youtube.status()));
  app.post('/api/youtube/config',auth.admin,(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);const b=req.body||{};const credentialsChanged=String(b.clientId||'').trim()!==youtube.config().clientId||!!String(b.clientSecret||'').trim();const result=youtube.saveConfig(b);if(credentialsChanged){store.set('publishingEnabled',false);store.set('paused',true);}res.json(result);});
  app.post('/api/youtube/connect',auth.admin,(req,res)=>res.json({url:youtube.start(req.user.id,req.session.hash)}));
