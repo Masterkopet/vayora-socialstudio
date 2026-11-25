@@ -46,5 +46,8 @@ export function bindTabs(root) {
   });
 }
 
+// Remember a tab for one page, so it opens on that tab next time (used by links that point at one tab).
+export function selectTab(key, id) { selected.set(key, id); store.set(key, id); }
+
 // Forget the remembered tab of one page, so it opens on its first tab next time.
 export function resetTab(key) { selected.delete(key); try { sessionStorage.removeItem('vayora.tab.' + key); } catch { /* storage unavailable */ } }

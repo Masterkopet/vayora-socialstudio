@@ -77,7 +77,7 @@ The owner opens **Team account** to see all members (name, email, role, join dat
 
 The **Blog** menu writes, schedules, and publishes articles to a Sanity dataset (`post` schema: title, slug, excerpt, Portable Text body, mainImage + alt, publishedAt, seoTitle, seoDescription, author, categories). The owner enters the Project ID, dataset, and Editor token in **Connections & publishing → Blog · Sanity.io** (the token is encrypted and never shown again), then presses **Check connection** to read the existing article fields, authors, and categories. Article content is written in Markdown and converted to Portable Text (h2/h3 headings, lists, quotes, bold, italic, links; tables are flattened into bullet points). Documents use a fixed _id (`vayora-B01`), so re-sending replaces the document instead of duplicating it. Scheduled articles are published by the same scheduler as Instagram/YouTube and follow the live publishing switch and the queue pause. **Import content** reads `.md` articles with a SEO metadata table (title, slug, meta description, category, publish date, main image file name and alt). Article drafts can be written by Gemini from a topic and keywords. Articles already published in Sanity are also read in: the Blog page syncs them automatically when opened (and through the **Sync from Sanity** button), reading the public dataset without a token. Such articles appear as Published with their content converted to Markdown; their address cannot be changed, and when re-sent the same document is updated in place (author, categories, and other fields stay intact, and the existing image is reused). Articles deleted from the Studio no longer appear in the next sync.
 
-Long pages use **tabs** to reduce scrolling: Connections & publishing (Instagram, YouTube, Blog, Publishing), AI settings (Brand, AI connection), Team account (My account, Team members), and the article editor (Details & image, Article body, Schedule & publish). The save button is always visible below the tabs.
+Long pages use **tabs** to reduce scrolling: Settings (Instagram, YouTube, Blog, Publishing, Brand, AI connection), Team account (My account, Team members), and the article editor (Details & image, Article body, Schedule & publish). The save button is always visible below the tabs.
 
 **Create post.** Blog is the third place to post next to Instagram and YouTube Shorts: choosing it opens the article editor (title, summary, image, Markdown body, schedule) right on the Create post page, with the same live preview, AI draft and scheduling; saving takes you to the Blog list.
 
@@ -91,7 +91,7 @@ Long pages use **tabs** to reduce scrolling: Connections & publishing (Instagram
 
 ## Menu layout
 
-The sidebar is kept compact: **Start** (Home, Create post) → **Content** (Instagram library, YouTube library, Blog, Calendar, Queue, Import content) → **AI help** (Caption assistant, Content design) → **Settings** (Connections & publishing, AI settings, Team account, History). Editors do not see Import content, Connections & publishing, and AI settings. Review is now the **Needs review** filter in the libraries; Brand knowledge is opened from AI settings; Marketing and Content strategy are hidden from the menu. Data and the old addresses (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) still work.
+The sidebar is kept compact: **Start** (Home, Create post) → **Content** (Instagram library, YouTube library, Blog, Calendar, Queue, Import content) → **AI help** (Caption assistant, Content design) → **Settings** (Settings, Team account, History). Editors do not see Import content and Settings. The top header is gone: the account button at the bottom of the sidebar opens a menu with the workspace status, the language, Profile & team and Sign out. Review is now the **Needs review** filter in the libraries; Brand knowledge is opened from Settings → Brand; Marketing and Content strategy are hidden from the menu. Data and the old addresses (`/review`, `/knowledge`, `/marketing`, `/strategy`, `/settings`) still work.
 
 ## Mobile and language
 
@@ -101,7 +101,7 @@ On phones, use the single-row bottom navigation: Home, Library, Create, Calendar
 
 **Caption assistant with Gemini:** AI mode turns on automatically when a Gemini key is stored. Gemini **watches the whole video** (images, on-screen text, and narration); videos up to about 14 MB are sent directly, larger ones go through the Gemini Files API (stored by Google for at most 48 hours). For Shorts, the **YouTube** channel is selected automatically and produces three title + description + hashtag suggestions and a list of **YouTube Tags** (the **Use title** and **Use tags** buttons; tags are saved with the content and sent on upload). The AI imitates the **team style** from at most three of the latest content items that are scheduled, approved, or published on the same platform (structure, closing lines, AI illustration notes), without copying their content. The same applies to the automatic title & caption in **Create post**. In **Import content**, empty captions can be written by AI; that content is submitted for review, not scheduled directly.
 
-The features are available through separate menus: **Caption assistant** to start from content, **Content design** for image posts with the real logo, **Brand knowledge** as the AI reference, **AI settings** for connections/limits/writing direction, and **Content strategy** for campaign guidance. From the editor there are three caption/hashtag options, an editorial check, and three test posting times in WIB. Local assistance and the design builder can be used right away; the mode that actually reads images and creates AI backgrounds requires an OpenAI API key/credit.
+The features are available through separate menus: **Caption assistant** to start from content, **Content design** for image posts with the real logo, **Brand knowledge** as the AI reference, **Settings** for connections, limits and writing direction (`/ai-settings` opens the AI connection tab), and **Content strategy** for campaign guidance. From the editor there are three caption/hashtag options, an editorial check, and three test posting times in WIB. Local assistance and the design builder can be used right away; the mode that actually reads images and creates AI backgrounds requires an OpenAI API key/credit.
 
 Assistant results are compared before being applied, can be undone, and are not saved or published automatically. Saved version history can be restored as a draft. Timing suggestions remain hypotheses until comparable performance observations are sufficient. The guide, the limits of Reel/carousel analysis, key settings, and the next marketing priorities are in [docs/ASISTEN-KONTEN.md](docs/ASISTEN-KONTEN.md).
 
@@ -117,7 +117,7 @@ Measuring the production website requires public HTTPS and installing the tracke
 
 Live publishing is off by default and the queue is paused. You can still use login, the library, checks, and the calendar. No demo Instagram account is shown as a connected account.
 
-The quickest way: open **Settings → Connections & publishing**, then paste the access token from the **Generate token** button in the Meta dashboard (Instagram → API setup; both Unified login `EAA…` and Instagram login `IGAA…` tokens are supported). This does not require an App ID, App Secret, or redirect URI; the Studio stores the token encrypted and renews it automatically. Meta login with an App ID and App Secret is still available as an advanced option. Full steps are in the [Instagram guide](docs/INSTAGRAM.md). Never enter your Instagram password in the Social Studio form.
+The quickest way: open **Settings → Instagram**, then paste the access token from the **Generate token** button in the Meta dashboard (Instagram → API setup; both Unified login `EAA…` and Instagram login `IGAA…` tokens are supported). This does not require an App ID, App Secret, or redirect URI; the Studio stores the token encrypted and renews it automatically. Meta login with an App ID and App Secret is still available as an advanced option. Full steps are in the [Instagram guide](docs/INSTAGRAM.md). Never enter your Instagram password in the Social Studio form.
 
 ## YouTube Shorts
 
@@ -126,6 +126,10 @@ A Short is its own content format: one vertical MP4 video up to 3 minutes, with 
 ## Team invitations
 
 The owner can create editor invitations from Team account. The link is valid for 48 hours and can be used only once; send the link yourself. Editors cannot change Meta secrets or turn on live publishing. Changing the password is available from Team account and signs out other sessions.
+
+**Sessions.** A signed-in member stays signed in (a 400-day cookie that renews while it is used) until they press **Sign out** or the owner/admin presses **Sign out** on their row in Team account (`POST /api/team/:id/sign-out`; admins can do this for editors, the owner for anyone else).
+
+**Import content** asks first what kind of content the files are: Instagram, YouTube Shorts or Blog. Only that type is imported; items of another type found in the files are counted with a hint to switch. When the files name their type (a Word file of articles, codes S01/V01/B01), the choice follows them until you pick one yourself.
 
 ## Data and backup
 
