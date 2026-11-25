@@ -46,7 +46,7 @@ try {
   await page.screenshot({ path: path.join(results, 'channels-settings-tiktok.png'), fullPage: true });
 
   // Create post → TikTok photo post saved as a draft with a T code.
-  await page.goto('http://localhost:3216/create'); await page.locator('[data-create-platform="tiktok"]').click();
+  await page.goto('http://localhost:3216/create'); await page.locator('[data-create-platform="tiktok"]').click(); await page.locator('[data-create-platform="instagram"]').click(); // TikTok only
   await page.locator('#create-files').setInputFiles({ name: 'villa.png', mimeType: 'image/png', buffer: png });
   await page.locator('#create-title').waitFor();
   assert.match(await page.locator('#create-post').innerText(), /TikTok photo post/);
