@@ -1,8 +1,10 @@
 // Blog page (articles published to Sanity.io) and the Sanity connection panel for Settings.
 import { tabbed, resetTab } from './tabs.js';
+import { planSchedule } from './package-parse.js';
 import { markdownToPortableText, portableTextToHtml, slugify, readingMinutes } from './portable-text.js';
 
 const DAY = 86400000;
+const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
 const STATUS = { draft: ['Draft', ''], review: ['Needs review', 'review'], scheduled: ['Scheduled', 'scheduled'], publishing: ['Processing', ''], published: ['Published', 'published'], failed: ['Failed', 'failed'] };
 const wibDate = ms => new Date(ms + 7 * 3600000).toISOString().slice(0, 10);
 const FIELD_LABELS = { title: 'Title', slug: 'Slug', excerpt: 'Summary', body: 'Article body', mainImage: 'Main image', publishedAt: 'Publish date', seoTitle: 'SEO title', seoDescription: 'SEO description', categories: 'Category', author: 'Author' };
@@ -28,12 +30,60 @@ export function createBlogViews(ctx) {
   }
 
   // ---------- list ----------
+  // List state survives opening and closing the editor: filter, search, the selection and the schedule planner.
+  const view = { filter: 'all', query: '', selected: new Set(), plan: null };
+  const FILTERS = [['all', 'All'], ['draft', 'Draft'], ['review', 'In review'], ['scheduled', 'Scheduled'], ['published', 'Published'], ['failed', 'Failed']];
+  const SCHEDULABLE = ['draft', 'review', 'failed', 'scheduled'];
+  const canDelete = x => x.status !== 'published' || owner();
+  const byId = (a, b) => a.localeCompare(b, undefined, { numeric: true });
+  const shownArticles = () => {
+    const q = view.query.trim().toLowerCase();
+    return articles().filter(x => (view.filter === 'all' || x.status === view.filter) && (!q || `${x.title} ${x.slug} ${x.id}`.toLowerCase().includes(q))).slice().reverse();
+  };
+
+  // Free slots for `ids` on the chosen weekdays and times (WIB), skipping times other scheduled articles already use.
+  function planSlots() {
+    const p = view.plan, ids = [...view.selected].filter(id => SCHEDULABLE.includes(articles().find(x => x.id === id)?.status)).sort(byId);
+    const taken = articles().filter(x => x.status === 'scheduled' && x.scheduleAt && !ids.includes(x.id)).map(x => x.scheduleAt);
+    const fixed = ids.map(id => p.override[id] || null);
+    const slots = planSchedule(ids.length, { start: p.start, days: p.days, times: p.times.split(/[,\s]+/), taken, fixed });
+    return ids.map((id, i) => ({ id, slot: slots[i], title: articles().find(x => x.id === id)?.title || id }));
+  }
+
+  function plannerPanel() {
+    const p = view.plan, rows = planSlots(), skipped = view.selected.size - rows.length;
+    const days = WEEKDAYS.map(([d, label]) => `<label class="vs-check vs-day"><input type="checkbox" data-blog-day="${d}" ${p.days.includes(d) ? 'checked' : ''}><span>${label}</span></label>`).join('');
+    const table = rows.map(({ id, slot, title }) => `<tr><td>${esc(id)}</td><td data-user-content>${esc(title)}</td><td class="vs-pkg-when">${slot ? `<input class="vs-input" type="date" data-blog-plan-date="${id}" value="${slot.date}" ${p.busy ? 'disabled' : ''}><input class="vs-input" type="time" data-blog-plan-time="${id}" value="${slot.time}" ${p.busy ? 'disabled' : ''}>` : '—'}</td><td>${p.results?.[id] ? (p.results[id] === 'ok' ? '<span class="vs-status scheduled">Scheduled</span>' : `<small class="vs-inline-error">${esc(p.results[id])}</small>`) : ''}</td></tr>`).join('');
+    return `<section class="vs-panel vs-pad vs-stack" id="blog-planner"><div class="vs-row"><h2>Schedule ${rows.length} article${rows.length === 1 ? '' : 's'}</h2>${button('Close', 'blog-plan-close', 'vs-text-button')}</div>
+<div class="vs-two"><label class="vs-label">Start date<input class="vs-input" type="date" id="blog-plan-start" value="${esc(p.start)}"></label><label class="vs-label">Publish time (WIB)<input class="vs-input" id="blog-plan-times" value="${esc(p.times)}" placeholder="07:00, 12:00"><small>Separate with commas for more than one time per day.</small></label></div>
+<div><span class="vs-label">Publish days</span><div class="vs-day-row">${days}</div></div>
+${skipped > 0 ? `<p class="vs-mini">${skipped} selected article${skipped === 1 ? ' is' : 's are'} already published and cannot be scheduled.</p>` : ''}
+${rows.length ? `<div class="vs-table-wrap"><table class="vs-pkg-table"><thead><tr><th>ID</th><th>Title</th><th>Publish (WIB)</th><th></th></tr></thead><tbody>${table}</tbody></table></div>
+<label class="vs-check"><input type="checkbox" id="blog-plan-approved" ${p.approved ? 'checked' : ''}><span>I have checked these articles (text, image and alt text), and they may go live on schedule.</span></label>
+<div class="vs-actions">${button(p.busy ? 'Scheduling…' : `Schedule ${rows.length}`, 'blog-plan-apply', 'vs-primary', 'calendar-clock', !p.approved || p.busy ? 'disabled' : '')}</div>
+<p class="vs-mini">Each article needs a summary, a main image with alt text and a body. Articles that are not complete are reported here and stay as they are.</p>` : ''}</section>`;
+  }
+
   function listPage() {
-    const a = articles(), count = s => a.filter(x => x.status === s).length, s = sanity();
-    const row = x => `<div class="vs-record"><div class="vs-record-copy"><h3 data-user-content>${esc(x.title)}</h3><span class="vs-mini">${esc(x.id)} · /${esc(x.slug)} · ${x.minutes} min read${x.source === 'sanity' ? ' · from Sanity' : ''}${x.scheduleAt ? ' · ' + esc(ctx.stamp(x.scheduleAt)) : x.publishedAt ? ' · ' + esc(ctx.stamp(x.publishedAt)) : ''}</span>${x.status === 'failed' && x.error ? `<small class="vs-inline-error">${esc(x.error)}</small>` : ''}${x.status === 'published' && x.categoryMissing ? '<small class="vs-mini">The category was not found in Sanity, so it was not attached.</small>' : ''}</div><span class="vs-status ${STATUS[x.status]?.[1] || ''}">${STATUS[x.status]?.[0] || x.status}</span><div class="vs-actions">${x.status === 'published' && x.url && !x.sanityDraft ? `<a class="vs-button" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">View article</a>` : ''}${x.status === 'published' && !owner() ? '' : button('Delete', 'blog-remove:' + x.id, 'vs-text-button vs-danger', 'trash-2')}${button('Open', 'blog-open:' + x.id)}</div></div>`;
+    const a = articles(), s = sanity(), shown = shownArticles();
+    view.selected = new Set([...view.selected].filter(id => a.some(x => x.id === id)));
+    const count = k => k === 'all' ? a.length : a.filter(x => x.status === k).length;
+    const chips = `<div class="vs-quick-filters" role="group" aria-label="Filter articles">${FILTERS.map(([id, label]) => `<button type="button" data-action="blog-filter:${id}" aria-pressed="${view.filter === id}">${label}<span>${count(id)}</span></button>`).join('')}</div>`;
+    const allShown = shown.length > 0 && shown.every(x => view.selected.has(x.id));
+    const toolbar = `<div class="vs-blog-toolbar"><label class="vs-search-field">${icon('search')}<input class="vs-input" id="blog-search" type="search" maxlength="200" placeholder="Search title, slug or ID" value="${esc(view.query)}" aria-label="Search articles"></label><label class="vs-check vs-blog-all"><input type="checkbox" id="blog-select-all" ${allShown ? 'checked' : ''} ${shown.length ? '' : 'disabled'}><span>Select all</span></label></div>`;
+    const bulk = view.selected.size ? `<div class="vs-blog-bulk" role="region" aria-label="Selected articles"><strong>${view.selected.size} selected</strong><div class="vs-actions">${button('Schedule…', 'blog-plan-open', 'vs-primary', 'calendar-clock')}${button('Clear', 'blog-clear', 'vs-text-button')}<span class="vs-blog-danger-zone">${button('', 'blog-remove-selected', 'vs-icon-button vs-danger', 'trash-2', 'aria-label="Delete selected articles" title="Delete selected articles"')}</span></div></div>` : '';
+    const row = x => `<div class="vs-record vs-blog-row"><label class="vs-blog-pick"><input type="checkbox" data-blog-pick="${esc(x.id)}" ${view.selected.has(x.id) ? 'checked' : ''} ${canDelete(x) || SCHEDULABLE.includes(x.status) ? '' : 'disabled'} aria-label="Select ${esc(x.title)}"></label><div class="vs-record-copy"><h3 data-user-content>${esc(x.title)}</h3><span class="vs-mini">${esc(x.id)} · /${esc(x.slug)} · ${x.minutes} min read${x.source === 'sanity' ? ' · from Sanity' : ''}${x.scheduleAt ? ' · ' + esc(ctx.stamp(x.scheduleAt)) : x.publishedAt ? ' · ' + esc(ctx.stamp(x.publishedAt)) : ''}</span>${x.status === 'failed' && x.error ? `<small class="vs-inline-error">${esc(x.error)}</small>` : ''}${x.status === 'published' && x.categoryMissing ? '<small class="vs-mini">The category was not found in Sanity, so it was not attached.</small>' : ''}</div><span class="vs-status ${STATUS[x.status]?.[1] || ''}">${STATUS[x.status]?.[0] || x.status}</span><div class="vs-blog-actions">${x.status === 'published' && x.url && !x.sanityDraft ? `<a class="vs-button" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">View article</a>` : ''}${SCHEDULABLE.includes(x.status) ? button('', 'blog-plan-one:' + x.id, 'vs-icon-button', 'calendar-clock', 'aria-label="Schedule" title="Schedule"') : ''}${button('Open', 'blog-open:' + x.id)}${canDelete(x) ? `<span class="vs-blog-danger-zone">${button('', 'blog-remove:' + x.id, 'vs-icon-button vs-danger', 'trash-2', 'aria-label="Delete article" title="Delete article"')}</span>` : ''}</div></div>`;
     const connect = s.configured ? '' : `<div class="vs-alert warning"><span>${owner() ? 'Sanity is not connected. Articles can still be written and saved, but they only go live once Sanity is connected.' : 'Sanity is not connected. Ask the workspace owner to connect it so articles can go live.'}</span>${owner() ? button('Connect Sanity', 'nav:settings') : ''}</div>`;
-    return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><span class="vs-eyebrow">BLOG</span><h2>Write and schedule articles for vayora.id/blog.</h2></div>${button('New article', 'blog-new', 'vs-primary', 'circle-plus')}</div>${connect}<div class="vs-stats"><span><strong>${count('scheduled')}</strong> scheduled</span><span><strong>${count('draft') + count('review')}</strong> drafts / in review</span><span><strong>${count('published')}</strong> published</span><span><strong>${count('failed')}</strong> failed</span></div></section>
-<section class="vs-panel"><div class="vs-panel-head"><h2>Articles</h2>${button(st.syncing ? 'Syncing…' : 'Sync from Sanity', 'blog-sync', 'vs-text-button', 'refresh-cw', st.syncing ? 'disabled' : '')}${owner() ? button('Import from files', 'nav:import', 'vs-text-button', 'upload') : ''}</div><div class="vs-list">${a.slice().reverse().map(row).join('') || '<div class="vs-empty"><h3>No articles yet.</h3><p>Click New article, or import Markdown articles from Import content.</p></div>'}</div></section>`;
+    return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><span class="vs-eyebrow">BLOG</span><h2>Write and schedule articles for vayora.id/blog.</h2></div>${button('New article', 'blog-new', 'vs-primary', 'circle-plus')}</div>${connect}${chips}</section>
+${view.plan ? plannerPanel() : ''}
+<section class="vs-panel"><div class="vs-panel-head"><h2>Articles</h2>${button(st.syncing ? 'Syncing…' : 'Sync from Sanity', 'blog-sync', 'vs-text-button', 'refresh-cw', st.syncing ? 'disabled' : '')}${owner() ? button('Import from files', 'nav:import', 'vs-text-button', 'upload') : ''}</div>${toolbar}${bulk}<div class="vs-list">${shown.map(row).join('') || `<div class="vs-empty"><h3>${a.length ? 'No articles match this filter.' : 'No articles yet.'}</h3><p>${a.length ? 'Try another filter or clear the search.' : 'Click New article, or import Markdown articles from Import content.'}</p></div>`}</div></section>`;
+  }
+
+  // Articles waiting in the publishing queue, for the Queue page.
+  function queuePanel() {
+    const items = articles().filter(x => ['scheduled', 'publishing', 'failed'].includes(x.status)).sort((a, b) => String(a.scheduleAt || '').localeCompare(String(b.scheduleAt || '')));
+    if (!items.length) return '';
+    return `<section class="vs-panel"><div class="vs-panel-head"><h2>Blog articles</h2></div><div class="vs-list">${items.map(x => `<div class="vs-record"><div class="vs-record-copy"><h3 data-user-content>${esc(x.title)}</h3><span class="vs-mini">Blog · ${esc(x.id)}${x.scheduleAt ? ' · ' + esc(ctx.stamp(x.scheduleAt)) : ''}</span>${x.status === 'failed' && x.error ? `<small class="vs-inline-error">${esc(x.error)}</small>` : ''}</div><span class="vs-status ${STATUS[x.status]?.[1] || ''}">${STATUS[x.status]?.[0] || x.status}</span><div class="vs-actions">${button('Open', 'blog-edit-from-queue:' + x.id)}</div></div>`).join('')}</div></section>`;
   }
 
   // ---------- editor ----------
@@ -46,7 +96,7 @@ export function createBlogViews(ctx) {
     const a = st.a, s = sanity(), published = a.status === 'published', live = workspace().settings?.publishingEnabled;
     const busy = st.busy || st.ai.busy || st.uploading || st.generating, tableNote = /^\s*\|.*\|\s*$/m.test(a.body) ? '<p class="vs-mini">Tables are sent to Sanity as bullet points because the blog only supports text, headings, lists, quotes, and links.</p>' : '';
     const ai = !a.body.trim() ? `<details class="vs-blog-ai" ${st.ai.busy || st.ai.error ? 'open' : ''}><summary>${icon('sparkles')} Write a draft with AI</summary><div class="vs-stack"><label class="vs-label">Article topic<input class="vs-input" id="blog-ai-topic" maxlength="300" value="${esc(st.ai.topic)}" placeholder="Example: how to calculate villa occupancy over the Christmas holidays"></label><div class="vs-two"><label class="vs-label">Main keyword<input class="vs-input" id="blog-ai-keyword" maxlength="120" value="${esc(st.ai.keyword)}"></label><label class="vs-label">Notes <small>optional</small><input class="vs-input" id="blog-ai-notes" maxlength="1200" value="${esc(st.ai.notes)}"></label></div>${st.ai.error ? `<p class="vs-inline-error" role="alert">${esc(st.ai.error)}</p>` : ''}${st.ai.busy ? '<p class="vs-ai-note" role="status">AI is writing the article… usually 20–60 seconds.</p>' : button('Write draft', 'blog-ai', 'vs-primary', 'sparkles', busy ? 'disabled' : '')}</div></details>` : (st.ai.warnings.length ? `<div class="vs-alert warning"><span>Notes from the AI:${esc(st.ai.warnings.join(' · '))}</span></div>` : '');
-    const when = published ? `<p class="vs-sub">The article is already published. New changes are sent to Sanity when you press <b>Update in Sanity</b>.</p>` : `<div class="vs-stack"><label class="vs-check"><input type="radio" name="blog-when" value="review" ${st.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it first</span></label><label class="vs-check"><input type="radio" name="blog-when" value="scheduled" ${st.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule</b> · published to Sanity automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="blog-when" value="draft" ${st.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b></span></label>${st.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" id="blog-date" value="${esc(st.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" id="blog-time" value="${esc(st.time)}"></label></div>` : ''}</div>`;
+    const when = published ? `<p class="vs-sub">The article is already published. New changes are sent to Sanity when you press <b>Update in Sanity</b>.</p>` : `<div class="vs-stack"><label class="vs-check"><input type="radio" name="blog-when" value="review" ${st.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it first</span></label><label class="vs-check"><input type="radio" name="blog-when" value="scheduled" ${st.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule</b> · published to Sanity automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="blog-when" value="draft" ${st.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b></span></label>${st.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" id="blog-date" value="${esc(st.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" id="blog-time" value="${esc(st.time)}"></label></div><div class="vs-actions">${button('Suggest the next free time', 'blog-suggest-time', 'vs-text-button', 'wand-sparkles')}</div><p class="vs-mini">Suggestions use Monday, Wednesday and Friday at 07:00 WIB and skip times other articles already use.</p>` : ''}</div>`;
     const approve = (st.when === 'scheduled' || published || a.status !== 'published') && (st.when === 'scheduled' || published) ? `<label class="vs-check"><input type="checkbox" id="blog-approved" ${st.approved ? 'checked' : ''}><span>I have checked the title, body, and image, and this article may be published.</span></label>` : '';
     const label = published ? 'Save changes' : st.when === 'scheduled' ? 'Save & schedule' : st.when === 'draft' ? 'Save draft' : 'Save & submit';
     const canPublish = s.configured && live && st.approved;
@@ -92,6 +142,7 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
   function bind() {
     const root = ctx.root(), $ = s => root.querySelector(s), a = st.a;
     if (st.mode === 'list' && !autoSynced && $('[data-action="blog-new"]')) { autoSynced = true; void autoSync(); }
+    if (st.mode === 'list') bindList(root);
     const form = $('#sanity-form');
     if (form) form.addEventListener('submit', e => { e.preventDefault(); void ctx.run(saveSanity); });
     if (st.mode !== 'edit' || !a || !$('#blog-editor')) return;
@@ -123,6 +174,45 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
   // Quietly brings in articles published elsewhere (once per page load; the server also rate-limits it).
   async function autoSync() {
     try { const r = await api('/api/blog/sync', 'POST', {}); if (r.added || r.updated) { await ctx.reload(); ctx.render(); } } catch { /* Sanity unreachable: the list simply stays as it is */ }
+  }
+  const tomorrow = () => wibDate(Date.now() + DAY);
+  const openPlanner = () => { view.plan = { start: tomorrow(), days: [1, 3, 5], times: '07:00', approved: false, busy: false, override: {}, results: null }; ctx.render(); setTimeout(() => ctx.root().querySelector('#blog-planner')?.scrollIntoView({ block: 'nearest' }), 0); };
+  function bindList(root) {
+    const on = (sel, ev, fn) => root.querySelectorAll(sel).forEach(el => el.addEventListener(ev, e => fn(el, e)));
+    on('#blog-search', 'input', el => { view.query = el.value; ctx.render(); const box = ctx.root().querySelector('#blog-search'); if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); } });
+    on('[data-blog-pick]', 'change', el => { el.checked ? view.selected.add(el.dataset.blogPick) : view.selected.delete(el.dataset.blogPick); ctx.render(); });
+    on('#blog-select-all', 'change', el => { for (const x of shownArticles()) el.checked ? view.selected.add(x.id) : view.selected.delete(x.id); ctx.render(); });
+    if (!view.plan) return;
+    on('#blog-plan-start', 'change', el => { view.plan.start = el.value; view.plan.override = {}; ctx.render(); });
+    on('#blog-plan-times', 'change', el => { view.plan.times = el.value; view.plan.override = {}; ctx.render(); });
+    on('[data-blog-day]', 'change', el => { const d = Number(el.dataset.blogDay); view.plan.days = el.checked ? [...view.plan.days, d] : view.plan.days.filter(x => x !== d); view.plan.override = {}; ctx.render(); });
+    on('[data-blog-plan-date],[data-blog-plan-time]', 'change', el => { const id = el.dataset.blogPlanDate ?? el.dataset.blogPlanTime, date = root.querySelector(`[data-blog-plan-date="${id}"]`).value, time = root.querySelector(`[data-blog-plan-time="${id}"]`).value; if (date && time) view.plan.override[id] = { date, time }; ctx.render(); });
+    on('#blog-plan-approved', 'change', el => { view.plan.approved = el.checked; const b = root.querySelector('[data-action="blog-plan-apply"]'); if (b) b.disabled = !el.checked; });
+  }
+  // Applies the planned slots one article at a time; incomplete articles are reported and left unchanged.
+  async function applyPlan() {
+    const p = view.plan, rows = planSlots().filter(r => r.slot); p.busy = true; p.results = {}; ctx.render();
+    let done = 0;
+    for (const { id, slot } of rows) {
+      try {
+        const art = await api('/api/blog/' + encodeURIComponent(id));
+        await api('/api/blog/' + encodeURIComponent(id), 'PUT', { ...payload(art), revision: art.revision, intent: 'scheduled', approved: true, date: slot.date, time: slot.time });
+        p.results[id] = 'ok'; done++; view.selected.delete(id);
+      } catch (error) { p.results[id] = error.message; }
+      ctx.render();
+    }
+    p.busy = false; p.approved = false; await ctx.reload(); ctx.render();
+    toast(`${done} of ${rows.length} article${rows.length === 1 ? '' : 's'} scheduled.`, done < rows.length);
+  }
+  // Removing only affects Studio. Two confirmations, because it cannot be undone from here.
+  function confirmRemove(items, after) {
+    const n = items.length, label = n === 1 ? `"${items[0].title}"` : `${n} articles`, kept = items.some(x => x.sanityId) ? ' Documents already in Sanity and the live pages are kept.' : '';
+    ctx.ask(`Remove ${label} from Studio?${kept}`, () => ctx.ask(`Are you sure? ${n === 1 ? 'This article' : `These ${n} articles`} will be removed from the Blog list in Studio and cannot be restored here.`, async () => {
+      let removed = 0, failed = 0;
+      for (const x of items) { try { await api('/api/blog/' + encodeURIComponent(x.id), 'DELETE'); removed++; view.selected.delete(x.id); } catch { failed++; } }
+      await ctx.reload(); after?.(); ctx.render();
+      toast(failed ? `Removed ${removed}, ${failed} could not be removed.` : `${removed} article${removed === 1 ? '' : 's'} removed from Studio.`, !!failed);
+    }, 'Yes, remove'), 'Continue');
   }
   async function saveSanity() {
     const root = ctx.root(), v = s => root.querySelector(s)?.value ?? '';
@@ -167,12 +257,23 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
       catch (error) { st.busy = false; st.error = error.message; try { const cur = await api('/api/blog/' + encodeURIComponent(st.a.id)); st.a = { ...blank(), ...cur }; await ctx.reload(); } catch { /* keep the editor as is */ } ctx.render(); }
       return true;
     }
-    // Removing only affects Studio: the document in Sanity (and the live page) stays, and a synced article is not brought back.
+    if (name === 'blog-suggest-time') {
+      const taken = articles().filter(x => x.status === 'scheduled' && x.scheduleAt && x.id !== st.a.id).map(x => x.scheduleAt);
+      const [slot] = planSchedule(1, { start: tomorrow(), days: [1, 3, 5], times: ['07:00'], taken });
+      if (slot) { st.date = slot.date; st.time = slot.time; ctx.render(); }
+      return true;
+    }
+    if (name === 'blog-filter') { view.filter = id; ctx.render(); return true; }
+    if (name === 'blog-clear') { view.selected.clear(); view.plan = null; ctx.render(); return true; }
+    if (name === 'blog-plan-open') { openPlanner(); return true; }
+    if (name === 'blog-plan-one') { view.selected = new Set([id]); openPlanner(); return true; }
+    if (name === 'blog-plan-close') { view.plan = null; ctx.render(); return true; }
+    if (name === 'blog-plan-apply') { await applyPlan(); return true; }
+    if (name === 'blog-edit-from-queue') { ctx.navigate('blog'); await open(id); return true; }
+    if (name === 'blog-remove-selected') { const items = articles().filter(x => view.selected.has(x.id) && canDelete(x)); if (items.length) confirmRemove(items); return true; }
     if (name === 'blog-delete' || name === 'blog-remove') {
       const x = name === 'blog-remove' ? articles().find(a => a.id === id) : st.a; if (!x?.id) return true;
-      ctx.ask(`Remove "${x.title}" from Studio?${x.sanityId ? ' The document in Sanity and the live page are kept.' : ''}`, async () => {
-        await api('/api/blog/' + encodeURIComponent(x.id), 'DELETE'); if (name === 'blog-delete') st = fresh(); await ctx.reload(); ctx.render(); toast('Article removed from Studio.');
-      }, 'Remove from Studio');
+      confirmRemove([x], () => { if (name === 'blog-delete') st = fresh(); });
       return true;
     }
     if (name === 'blog-hero-ai') {
@@ -202,5 +303,5 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
     if (name === 'blog-remove-token') { await api('/api/sanity/config', 'POST', { removeToken: true }); await ctx.reload(); ctx.render(); toast('Sanity token removed.'); return true; }
     return false;
   }
-  return { page, bind, action, settingsPanel, problemAlerts, reset: () => { st = fresh(); } };
+  return { page, bind, action, settingsPanel, problemAlerts, queuePanel, reset: () => { st = fresh(); } };
 }
