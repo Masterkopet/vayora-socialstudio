@@ -386,3 +386,8 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 #vayora-studio-complete .vs-short-meta .vs-mini{color:#aab4c3}
 #vayora-studio-complete .vs-short-card .vs-preview-caption{color:#d7dde6;padding:0}
 @media(max-width:1000px){#vayora-studio-complete .vs-create-preview{position:static}}
+#vayora-studio-complete .vs-dropzone{display:grid;justify-items:center;gap:4px;text-align:center;padding:22px 16px;border:2px dashed #b8c8da;border-radius:12px;background:#f7f9fc;cursor:pointer;transition:background .15s,border-color .15s;color:#00285C}
+#vayora-studio-complete .vs-dropzone:hover,#vayora-studio-complete .vs-dropzone:focus-within{border-color:#00285C;background:#eef3fb}
+#vayora-studio-complete .vs-dropzone.is-dragging{border-color:#FFB600;background:#fff8e5}
+#vayora-studio-complete .vs-dropzone svg{width:26px;height:26px}
+#vayora-studio-complete .vs-dropzone span{font-size:13px;color:#4a5a70}

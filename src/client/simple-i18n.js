@@ -67,6 +67,10 @@ export const simpleStrings={
   'Judul kosong.':'Title is empty.','Deskripsi atau caption kosong.':'Description or caption is empty.','Deskripsi lebih dari 2.200 karakter.':'Description is longer than 2,200 characters.',
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
   // Buat posting: two columns with a live preview
+  'Tarik & lepas folder atau file di sini':'Drag & drop a folder or files here','Tambah lagi: tarik & lepas folder atau file di sini':'Add more: drag & drop a folder or files here',
+  'atau pilih dari komputer:':'or choose from your computer:','Pilih folder':'Choose folder','Pilih file':'Choose files','Sebagian file tidak dapat dibaca. Coba pilih lewat tombol.':'Some files could not be read. Try choosing them with the buttons.',
+  'Tarik & lepas file di sini':'Drag & drop files here','Ganti file: tarik & lepas di sini':'Replace files: drag & drop here','atau klik untuk memilih dari komputer':'or click to choose from your computer',
+  'YouTube Shorts memerlukan video MP4.':'YouTube Shorts need an MP4 video.','Gunakan JPG, PNG, WebP, atau MP4.':'Use JPG, PNG, WebP, or MP4.',
   'BUAT POSTING':'CREATE POST','Unggah, tulis, lalu pilih kapan terbit.':'Upload, write, then choose when it goes live.',
   'Pratinjau ikut berubah saat kamu mengetik. Konten baru tersimpan setelah kamu menekan Simpan.':'The preview on the right updates as you type. Content is only saved when you press Save.',
   'Aktif setelah foto atau video diunggah.':'Available after a photo or video is uploaded.','Pratinjau postinganmu di sini.':'Your post preview appears here.',
@@ -108,6 +112,7 @@ export const simplePatterns=[
   [/^Siap · (.+)$/,(_,f)=>`Ready · ${f}`],[/^(\d+) dari (\d+) konten diproses\.$/,(_,a,b)=>`${a} of ${b} items processed.`],
   [/^(\d+) tags disiapkan\. Simpan draft untuk menyimpannya\.$/,(_,n)=>`${n} tags prepared. Save the draft to keep them.`],[/^Tags YouTube: (.+)$/,(_,t)=>`YouTube tags: ${t}`],
   [/^(\d+) konten belum punya caption\. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis\.$/,(_,n)=>`${n} item(s) have no caption. Connect Gemini in AI settings so empty captions can be written automatically.`],
+  [/^(\d+) file dilewati karena formatnya tidak didukung\.$/,(_,n)=>`${n} file(s) skipped because the format is not supported.`],
   [/^Unggah foto atau video untuk melihat tampilannya di (.+)\.$/,(_,p)=>`Upload a photo or video to see how it looks on ${p}.`],
   [/^Cover: (.+)$/,(_,a)=>`Cover: ${a}`],[/^(\S+) sudah ada di pustaka, tidak diimpor ulang\.$/,(_,a)=>`${a} is already in the library and is not imported again.`],
   [/^Kode (\S+) tidak cocok dengan jenis (\S+); kode baru dibuat otomatis\.$/,(_,a,b)=>`Code ${a} does not match type ${b}; a new code is created automatically.`],
