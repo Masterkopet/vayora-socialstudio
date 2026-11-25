@@ -8,7 +8,7 @@ const fail = (message, status = 400, code = '') => Object.assign(new Error(messa
 const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 
 export const SANITY_DEFAULTS = {
-  projectId: '', dataset: 'production', apiVersion: '2025-02-19', docType: 'post', publishMode: 'published',
+  projectId: '5ugtuy3w', dataset: 'production', apiVersion: '2025-02-19', docType: 'post', publishMode: 'published',
   siteUrl: 'https://vayora.id', blogPath: '/blog/', categoryType: 'category', authorId: '', extraFields: {},
   fields: { title: 'title', slug: 'slug', excerpt: 'excerpt', body: 'body', mainImage: 'mainImage', publishedAt: 'publishedAt', seoTitle: 'seoTitle', seoDescription: 'seoDescription', categories: 'categories', author: 'author' },
 };
@@ -56,10 +56,11 @@ export function createSanity(store, options = {}) {
   }
 
   function url(c, path, query = '') { return `https://${c.projectId}.api.sanity.io/v${c.apiVersion}${path}${query}`; }
-  async function call(c, path, { method = 'GET', query = '', headers = {}, body, timeout = 30000 } = {}) {
-    if (!c.projectId || !c.token) throw fail('Hubungkan Sanity di Pengaturan AI & koneksi terlebih dahulu.', 422, 'NOT_CONNECTED');
+  // Reads of a public dataset work without a token (anonymous: true); writes always need one.
+  async function call(c, path, { method = 'GET', query = '', headers = {}, body, timeout = 30000, anonymous = false } = {}) {
+    if (!c.projectId || (!c.token && !anonymous)) throw fail('Hubungkan Sanity di Pengaturan AI & koneksi terlebih dahulu.', 422, 'NOT_CONNECTED');
     let response;
-    try { response = await transport(url(c, path, query), { method, headers: { Authorization: 'Bearer ' + c.token, ...headers }, body, signal: AbortSignal.timeout(timeout) }); }
+    try { response = await transport(url(c, path, query), { method, headers: { ...(c.token ? { Authorization: 'Bearer ' + c.token } : {}), ...headers }, body, signal: AbortSignal.timeout(timeout) }); }
     catch { throw fail('Tidak dapat menghubungi Sanity. Periksa koneksi internet lalu coba lagi.', 502, 'NETWORK'); }
     if (response.ok) return response.json();
     let detail = ''; try { const j = await response.json(); detail = String(j.error?.description || j.message || j.error || '').slice(0, 200); } catch { /* no body */ }
@@ -69,7 +70,7 @@ export function createSanity(store, options = {}) {
     if (response.status === 429) throw fail('Sanity membatasi permintaan. Coba lagi beberapa saat lagi.', 502, 'RATE');
     throw fail('Sanity menolak permintaan' + (detail ? ': ' + detail : '.'), 502, 'REJECTED');
   }
-  const query = (c, groq, params = {}) => call(c, `/data/query/${c.dataset}`, { query: '?' + new URLSearchParams({ query: groq, ...Object.fromEntries(Object.entries(params).map(([k, v]) => ['$' + k, JSON.stringify(v)])) }) });
+  const query = (c, groq, params = {}, extra = {}) => call(c, `/data/query/${c.dataset}`, { ...extra, query: '?' + new URLSearchParams({ query: groq, ...Object.fromEntries(Object.entries(params).map(([k, v]) => ['$' + k, JSON.stringify(v)])) }) });
 
   // Reads the dataset: how many articles, the field names of a real article, authors and categories to choose from.
   async function check() {
@@ -88,6 +89,22 @@ export function createSanity(store, options = {}) {
       store.set('sanity.check', { ok: false, checkedAt: new Date().toISOString(), error: error.message });
       throw error;
     }
+  }
+
+  // Reads the articles already published in Sanity (without drafts), using the configured field names.
+  async function listPosts() {
+    const c = config(), f = c.fields, pick = key => f[key] ? `"${key}": ${f[key]}` : '';
+    const projection = ['"_id": _id', pick('title'), f.slug ? `"slug": ${f.slug}.current` : '', pick('excerpt'), pick('body'), pick('publishedAt'), pick('seoTitle'), pick('seoDescription'), f.mainImage ? `"imageRef": ${f.mainImage}.asset._ref, "imageAlt": ${f.mainImage}.alt` : '', f.categories ? `"categoryTitles": ${f.categories}[]->title` : ''].filter(Boolean).join(', ');
+    const data = await query(c, `*[_type==$t && !(_id in path("drafts.**"))] | order(${f.publishedAt || '_createdAt'} desc)[0...200]{ ${projection} }`, { t: c.docType }, { anonymous: true });
+    return (Array.isArray(data.result) ? data.result : []).map(p => ({
+      id: String(p._id), title: str(p.title, 200), slug: str(p.slug, 96), excerpt: str(p.excerpt, 400), body: Array.isArray(p.body) ? p.body : [], publishedAt: p.publishedAt || null,
+      seoTitle: str(p.seoTitle, 140), seoDescription: str(p.seoDescription, 300), imageRef: typeof p.imageRef === 'string' ? p.imageRef : '', imageAlt: str(p.imageAlt, 400), category: str((p.categoryTitles || [])[0], 80),
+    })).filter(p => p.title && p.slug);
+  }
+  // image-<hash>-<w>x<h>-<ext> → public CDN URL.
+  function imageUrl(ref) {
+    const c = config(), m = /^image-([a-f0-9]+)-(\d+x\d+)-([a-z0-9]+)$/i.exec(ref || '');
+    return m ? `https://cdn.sanity.io/images/${c.projectId}/${c.dataset}/${m[1]}-${m[2]}.${m[3]}` : '';
   }
 
   async function uploadImage(row) {
@@ -115,10 +132,13 @@ export function createSanity(store, options = {}) {
     const refs = await categoryRefs(c, article.category); if (refs.length) put('categories', refs);
     if (c.authorId) put('author', { _type: 'reference', _ref: c.authorId });
     Object.assign(doc, c.extraFields || {});
-    const result = await call(c, `/data/mutate/${c.dataset}`, { method: 'POST', query: '?returnIds=true', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mutations: [{ createOrReplace: doc }] }) });
+    const inPlace = article.source === 'sanity' && article.sanityId;
+    let mutation;
+    if (inPlace) { const { _id, _type, ...fields } = doc; mutation = { patch: { id: article.sanityId, set: fields } }; } else mutation = { createOrReplace: doc };
+    const result = await call(c, `/data/mutate/${c.dataset}`, { method: 'POST', query: '?returnIds=true', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mutations: [mutation] }) });
     const id = result.results?.[0]?.id || doc._id;
     return { sanityId: id, url: c.siteUrl + c.blogPath + article.slug, draft: c.publishMode === 'draft', categoryMissing: !!article.category && !refs.length && !!c.categoryType && !!f.categories, blocks: blocks.length };
   }
 
-  return { status, configure, check, uploadImage, publish, config };
+  return { status, configure, check, uploadImage, publish, config, listPosts, imageUrl };
 }

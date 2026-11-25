@@ -1,4 +1,4 @@
-import { slugify, readingMinutes } from './client/portable-text.js';
+import { slugify, readingMinutes, portableTextToMarkdown } from './client/portable-text.js';
 
 // Blog articles for Sanity. Kept apart from Instagram/YouTube content (own page, own editor) but published by the
 // same scheduler tick. Stored as settings rows "blog.article.<ID>"; Sanity documents use a stable id derived from
@@ -18,7 +18,7 @@ export function createBlog(store, sanity) {
   const list = () => all().map(light);
   const get = id => { const a = read(id); if (!a) throw fail('Artikel tidak ditemukan.', 404); return a; };
   const media = id => id ? store.get('SELECT * FROM media WHERE id=?', id) : null;
-  const view = a => ({ ...a, hero: a.heroMediaId ? (() => { const m = media(a.heroMediaId); return m ? { id: m.id, name: m.name, url: `/media/${m.id}`, width: m.width, height: m.height } : null; })() : null, minutes: readingMinutes(a.body) });
+  const view = a => ({ ...a, hero: a.heroMediaId ? (() => { const m = media(a.heroMediaId); return m ? { id: m.id, name: m.name, url: `/media/${m.id}`, width: m.width, height: m.height } : null; })() : a.heroUrl ? { id: '', name: 'Gambar dari Sanity', url: a.heroUrl } : null, minutes: readingMinutes(a.body) });
 
   function nextId() { let n = 1; const taken = new Set(all().map(a => a.id)); while (taken.has('B' + String(n).padStart(2, '0'))) n++; return 'B' + String(n).padStart(2, '0'); }
   function uniqueSlug(slug, exceptId) { const other = all().find(a => a.slug === slug && a.id !== exceptId); if (other) throw fail(`Slug "${slug}" sudah dipakai artikel ${other.id}. Ubah slug agar alamatnya unik.`, 409); }
@@ -27,7 +27,7 @@ export function createBlog(store, sanity) {
   function clean(b, current = {}) {
     const title = str(b.title ?? current.title, 200);
     if (!title) throw fail('Judul artikel perlu diisi.');
-    const slug = str(b.slug ?? current.slug, 96).toLowerCase() || slugify(title);
+    const slug = current.source === 'sanity' ? current.slug : str(b.slug ?? current.slug, 96).toLowerCase() || slugify(title);
     if (!SLUG.test(slug)) throw fail('Slug hanya boleh huruf kecil, angka, dan tanda hubung, contoh: cara-menghitung-okupansi-villa.');
     const body = String(b.body ?? current.body ?? '').replace(/\r\n?/g, '\n');
     if (body.length > 120000) throw fail('Isi artikel maksimal 120.000 karakter.');
@@ -40,13 +40,40 @@ export function createBlog(store, sanity) {
       category: str(b.category ?? current.category, 80), heroAlt: str(b.heroAlt ?? current.heroAlt, 400),
     };
   }
+  let lastSync = 0;
+  // Brings the articles already published in Sanity into the studio (once each, matched by Sanity id or slug). They
+  // arrive as published articles with their body converted to Markdown, and are updated in place when sent again.
+  async function sync({ force = false } = {}) {
+    if (!force && Date.now() - lastSync < 60000) return { added: 0, updated: 0, total: all().length, skipped: 0, throttled: true };
+    const posts = await sanity.listPosts(), have = all(), c = sanity.config(); let added = 0, updated = 0, skipped = 0;
+    const ignored = new Set(store.setting('blog.ignoredSanity', []) || []);
+    for (const p of posts) {
+      if (ignored.has(p.id)) { skipped++; continue; }
+      const existing = have.find(a => a.sanityId === p.id) || have.find(a => a.slug === p.slug && !a.sanityId && a.status !== 'published');
+      const { markdown, notes } = portableTextToMarkdown(p.body);
+      if (existing && existing.source !== 'sanity') { skipped++; continue; }
+      if (existing) {
+        // A synced article that was not edited here follows Sanity; one edited here is left alone.
+        if (existing.updatedAt === existing.syncedAt && (existing.body !== markdown || existing.title !== p.title)) { write({ ...existing, title: p.title, excerpt: p.excerpt, body: markdown, seoTitle: p.seoTitle, seoDescription: p.seoDescription, category: p.category, heroAlt: p.imageAlt, imageAsset: p.imageRef ? { id: p.imageRef, mediaId: null } : null, heroUrl: sanity.imageUrl(p.imageRef), publishedAt: p.publishedAt, syncedAt: existing.updatedAt }); updated++; } else skipped++;
+        continue;
+      }
+      const now = new Date().toISOString(), id = nextId();
+      write({ id, title: p.title, slug: p.slug, excerpt: p.excerpt, body: markdown, seoTitle: p.seoTitle, seoDescription: p.seoDescription, category: p.category, heroMediaId: null, heroAlt: p.imageAlt, heroUrl: sanity.imageUrl(p.imageRef), imageAsset: p.imageRef ? { id: p.imageRef, mediaId: null } : null, status: 'published', approved: true, scheduleAt: null, date: '', time: '07:00', error: '', errorCode: '', sanityId: p.id, url: c.siteUrl + c.blogPath + p.slug, publishedAt: p.publishedAt, source: 'sanity', unsupportedBlocks: notes.skipped, revision: 1, createdAt: now, updatedAt: now, syncedAt: now, createdBy: null });
+      added++;
+    }
+    lastSync = Date.now();
+    if (added || updated) store.event(null, 'Artikel blog disinkronkan dari Sanity', `${added} baru, ${updated} diperbarui`, 'change');
+    return { added, updated, skipped, total: all().length };
+  }
+
   // Everything a published article needs; used before scheduling or publishing.
   function problems(a) {
     const list = [], c = sanity.config();
     if (!a.excerpt) list.push('Ringkasan (excerpt) belum diisi.');
     if (!a.body.trim()) list.push('Isi artikel masih kosong.');
-    if (c.fields.mainImage && !a.heroMediaId) list.push('Gambar utama belum dipilih.');
-    if (c.fields.mainImage && a.heroMediaId && !a.heroAlt) list.push('Teks alternatif gambar utama belum diisi.');
+    const hasImage = !!(a.heroMediaId || a.imageAsset?.id);
+    if (c.fields.mainImage && !hasImage) list.push('Gambar utama belum dipilih.');
+    if (c.fields.mainImage && hasImage && !a.heroAlt) list.push('Teks alternatif gambar utama belum diisi.');
     return list;
   }
 
@@ -86,6 +113,7 @@ export function createBlog(store, sanity) {
     const a = get(id);
     if (BUSY.includes(a.status)) throw fail('Artikel sedang diterbitkan. Tunggu sampai selesai.', 409);
     store.run('DELETE FROM settings WHERE key=?', PREFIX + id);
+    if (a.source === 'sanity' && a.sanityId) store.set('blog.ignoredSanity', [...new Set([...(store.setting('blog.ignoredSanity', []) || []), a.sanityId])].slice(-500));
     store.event(null, 'Artikel blog dihapus dari Studio', `${a.id} · ${a.title}${a.sanityId ? ' (dokumen di Sanity tetap ada)' : ''}`, 'change', user);
   }
 
@@ -130,5 +158,5 @@ export function createBlog(store, sanity) {
   // Recently published articles, trimmed, used as house-style examples for AI drafts.
   const examples = () => all().filter(a => a.status === 'published').slice(-2).map(a => ({ title: a.title, excerpt: a.excerpt, body: a.body.slice(0, 1800) }));
 
-  return { list, examples, get: id => view(get(id)), create, update, remove, run, tickDue, problems: id => problems(get(id)) };
+  return { list, sync, examples, get: id => view(get(id)), create, update, remove, run, tickDue, problems: id => problems(get(id)) };
 }

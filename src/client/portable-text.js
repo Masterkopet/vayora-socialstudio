@@ -96,6 +96,36 @@ export function portableTextToHtml(blocks) {
   return out.join('');
 }
 
+// Portable Text → Markdown, the inverse of markdownToPortableText for blocks-only content. Block types other than
+// "block" (images, embeds…) are skipped and counted in `skipped`.
+export function portableTextToMarkdown(blocks) {
+  const out = [], notes = { skipped: 0 };
+  let number = 0, previousList = null;
+  const run = b => b.children.map(c => {
+    let text = c.text.replace(/([*_`\\])/g, '\\$1');
+    const marks = c.marks || [], defs = b.markDefs || [];
+    for (const mark of marks) { const def = defs.find(d => d._key === mark); if (def && def._type === 'link' && def.href) text = `[${text}](${def.href})`; }
+    if (marks.includes('code')) text = '`' + c.text + '`';
+    if (marks.includes('strong')) text = '**' + text + '**';
+    if (marks.includes('em')) text = '*' + text + '*';
+    return text;
+  }).join('');
+  for (const b of blocks || []) {
+    if (b._type !== 'block') { notes.skipped++; continue; }
+    const text = run(b).trim();
+    if (b.listItem) {
+      const level = Math.max(1, Math.min(3, b.level || 1));
+      number = b.listItem === 'number' ? (previousList === 'number' ? number + 1 : 1) : 0;
+      out.push((previousList === b.listItem ? '\n' : '\n\n') + '  '.repeat(level - 1) + (b.listItem === 'number' ? number + '. ' : '- ') + text);
+      previousList = b.listItem; continue;
+    }
+    previousList = null; number = 0;
+    const prefix = { h1: '### ', h2: '### ', h3: '#### ', h4: '#### ', h5: '#### ', h6: '#### ', blockquote: '> ' }[b.style] || '';
+    if (text) out.push('\n\n' + prefix + text);
+  }
+  return { markdown: out.join('').trim(), notes };
+}
+
 export function plainText(blocks) { return blocks.map(b => b.children.map(c => c.text).join('')).join('\n'); }
 export function readingMinutes(markdown) { return Math.max(1, Math.round((String(markdown).match(/\S+/g) || []).length / 200)); }
 export function slugify(text) {
