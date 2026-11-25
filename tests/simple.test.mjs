@@ -102,3 +102,15 @@ test('breadcrumb trails: Home › group › page, details hang under their page,
   assert.deepEqual(crumbs('settings', 'Facebook').map(c => c.label), ['Home', 'Settings', 'Facebook'], 'the Settings group is not repeated before the Settings page');
   assert.deepEqual([parentOf('delivery'), parentOf('knowledge'), parentOf('calendar')], ['queue', 'settings', 'home']);
 });
+
+test('status dots: only the libraries named in `health` get one, with text for screen readers, in both menus', async () => {
+  const health = { 'facebook-library': 'bad', 'tiktok-library': 'idle' };
+  const side = navigationHTML({ view: 'home', icon, role: 'owner', health });
+  assert.match(side, /data-action="nav:facebook-library"[^>]*title="Facebook library, not connected"[\s\S]*?vs-health-dot bad" role="img" aria-label="Not connected"/);
+  assert.match(side, /data-action="nav:tiktok-library"[^>]*title="TikTok library, not set up"[\s\S]*?vs-health-dot idle" role="img" aria-label="Not set up"/);
+  assert.equal((side.match(/vs-health-dot/g) || []).length, 2, 'no dot on the libraries that are connected');
+  assert.ok(!/vs-health-dot/.test(navigationHTML({ view: 'home', icon, role: 'owner' })), 'no dots without health');
+  const tiles = menuGridHTML({ view: 'home', icon, role: 'owner', health });
+  assert.match(tiles, /aria-label="Facebook library, not connected"[\s\S]*?vs-health-dot bad/);
+  assert.equal((tiles.match(/vs-health-dot/g) || []).length, 2);
+});
