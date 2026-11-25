@@ -2,8 +2,8 @@
 // article package can be dropped without unpacking it first. Supports stored and deflate entries (what every common
 // zip tool writes); ZIP64 and encrypted archives are rejected with a readable error.
 const LIMITS = { entries: 5000, entryBytes: 100 * 1024 * 1024, totalBytes: 500 * 1024 * 1024 };
-const WANTED = /\.(json|csv|txt|md|mp4|mov|jpe?g|png|webp)$/i;
-const TYPES = { json: 'application/json', csv: 'text/csv', txt: 'text/plain', md: 'text/markdown', mp4: 'video/mp4', mov: 'video/quicktime', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+const WANTED = /\.(json|csv|txt|md|docx|mp4|mov|jpe?g|png|webp)$/i;
+const TYPES = { json: 'application/json', csv: 'text/csv', txt: 'text/plain', md: 'text/markdown', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', mp4: 'video/mp4', mov: 'video/quicktime', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
 const fail = message => Object.assign(new Error(message), { code: 'ZIP' });
 

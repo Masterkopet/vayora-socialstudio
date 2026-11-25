@@ -2,6 +2,7 @@
 // packages, per-episode .txt, Markdown caption lists) are read together, paired, previewed with an automatic
 // schedule, then uploaded and saved/scheduled row by row.
 import { expandZip } from './zip.js';
+import { docxToMarkdown } from './docx.js';
 import { readSources, matchFiles, mediaOnlyRows, checkRow, planSchedule, mediaInfo, titleFromFile, MEDIA_FILE, TEXT_FILE } from './package-parse.js';
 
 const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
@@ -60,7 +61,7 @@ export function createPackageImport(ctx) {
     const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} videos/photos ·${usedSources.length ? 'text from ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'no title/description text file yet'}${otherSources ? ` · ${otherSources} other text files only fill in what is empty` : ''} · ${rows.length} posts found.</p>` : '';
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
 <ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
-<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
+<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,.docx,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
 <label class="vs-label">Default platform<select class="vs-input" id="pkg-platform"><option value="youtube" ${st.platform === 'youtube' ? 'selected' : ''}>YouTube Shorts</option><option value="instagram" ${st.platform === 'instagram' ? 'selected' : ''}>Instagram</option></select><small>Used when the text names no platform. Code S01 is always YouTube; V01, I01, C01 are always Instagram.</small></label>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
     if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">No content can be made from these files yet. Add videos/photos and their title/description text.</p>' : ''}</div>`;
@@ -142,11 +143,14 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
     st.reading = true; ctx.render();
     const expanded = [];
     for (const f of list) { if (/\.zip$/i.test(f.name)) { try { expanded.push(...await expandZip(f)); } catch (error) { toast(error.message, true); } } else expanded.push(f); }
-    const usable = expanded.filter(f => !mediaInfo(f).ignored);
+    // A Word file next to a Markdown file of the same name is the same article: keep one.
+    const stem = f => String(f.name).replace(/\.[^.]+$/, '').toLowerCase(), markdown = new Set([...expanded, ...st.texts.map(t => ({ name: t.name }))].filter(f => /\.md$/i.test(f.name)).map(stem));
+    const usable = expanded.filter(f => !mediaInfo(f).ignored && !(/\.docx$/i.test(f.name) && markdown.has(stem(f))));
     const seen = new Set([...st.texts.map(t => t.path), ...st.media.map(pathOf)]);
     for (const f of usable) {
       const path = pathOf(f); if (seen.has(path)) continue; seen.add(path);
       if (MEDIA_FILE.test(f.name)) st.media.push(f);
+      else if (/\.docx$/i.test(f.name) && f.size < 20 * 1024 * 1024) { try { st.texts.push({ name: f.name.replace(/\.docx$/i, '.md'), path: path.replace(/\.docx$/i, '.md'), text: await docxToMarkdown(f) }); } catch (error) { toast(error.message, true); } }
       else if (TEXT_FILE.test(f.name) && f.size < 2 * 1024 * 1024) { try { st.texts.push({ name: f.name, path, text: await f.text() }); } catch { /* unreadable file: skip */ } }
     }
     st.reading = false; st.done = false; rebuild(); ctx.render();
