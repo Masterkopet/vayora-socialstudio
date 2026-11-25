@@ -29,9 +29,9 @@ test('reads stored and deflated entries, skips folders and unwanted files, and k
   const listed = await listZip(file);
   assert.deepEqual(listed.map(e => e.path), ['md/03-sop.md', 'md/00-plan.md', 'docx/03-sop.docx', 'img/hero.webp']);
   const files = await expandZip(file);
-  assert.deepEqual(files.map(f => f.webkitRelativePath), ['Articles/md/03-sop.md', 'Articles/md/00-plan.md', 'Articles/img/hero.webp'], '.docx is not an import format');
+  assert.deepEqual(files.map(f => f.webkitRelativePath), ['Articles/md/03-sop.md', 'Articles/md/00-plan.md', 'Articles/docx/03-sop.docx', 'Articles/img/hero.webp'], 'Word files are kept (the import page drops one when a Markdown twin exists)');
   assert.equal(await files[0].text(), '# Judul — é\n' + long, 'deflate and UTF-8 survive');
-  assert.equal(await files[1].text(), 'stored text'); assert.equal(files[2].type, 'image/webp');
+  assert.equal(await files[1].text(), 'stored text'); assert.equal(files[3].type, 'image/webp');
 });
 
 test('rejects broken, encrypted and non-zip files with readable errors; entry names cannot escape the archive', async () => {

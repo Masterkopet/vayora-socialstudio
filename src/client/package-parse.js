@@ -159,7 +159,7 @@ export function readSources(textFiles) {
 // ---------- media ----------
 const IGNORED = /(^|\/)(node_modules|\.git|\.next|dist|build|out|cache|tmp)(\/|$)/i;
 export const MEDIA_FILE = /\.(mp4|mov|jpe?g|png|webp)$/i;
-export const TEXT_FILE = /\.(json|csv|txt|md)$/i;
+export const TEXT_FILE = /\.(json|csv|txt|md|docx)$/i;
 const base = p => String(p).split(/[\\/]/).pop();
 export const isVideo = f => /\.(mp4|mov)$/i.test(f.name) || /^video\//.test(f.type || '');
 const isCover = f => /^(cover|thumb|thumbnail|sampul)\b/i.test(base(f.name));
