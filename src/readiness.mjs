@@ -7,9 +7,9 @@ export function postReadiness(store,item,instagram,youtube) {
   const filesReady=media.length>0&&media.every(m=>m&&existsSync(mediaPath(store,m)));
   const locked=['published','processing','uncertain'].includes(item.status)||!!item.mediaId||!!item.job?.publishRequested;
   const liveOn=store.setting('publishingEnabled',false);
-  const live={id:'live',label:'Publikasi aktif',ok:liveOn,required:true,action:'settings',detail:liveOn?'Publikasi nyata diaktifkan.':'Pemilik perlu mengaktifkan publikasi nyata.'};
-  const approval={id:'approval',label:'Persetujuan materi',ok:item.approved===true,required:true,action:'edit',detail:item.approved?'Media dan caption telah disetujui.':'Tinjau materi dan berikan persetujuan di editor.'};
-  const note=locked?'Konten sedang diproses, telah terbit, atau hasilnya perlu dipastikan.':'Pemeriksaan ini memvalidasi kelengkapan. Persetujuan manusia tetap diperlukan untuk isi penawaran dan hak penggunaan media.';
+  const live={id:'live',label:'Publishing enabled',ok:liveOn,required:true,action:'settings',detail:liveOn?'Live publishing is enabled.':'The owner needs to enable live publishing.'};
+  const approval={id:'approval',label:'Content approval',ok:item.approved===true,required:true,action:'edit',detail:item.approved?'Media and caption are approved.':'Review and approve the content in the editor.'};
+  const note=locked?'This post is processing, published, or awaiting outcome verification.':'This checks completeness. A person still needs to review offers and media usage rights.';
   if(item.format==='Short'){
     // YouTube Short: one vertical/square MP4 of at most 3 minutes, a YouTube-safe title, a description and a connected channel.
     const formatReady=filesReady&&media.length===1&&shortMediaReady(media[0]);
@@ -17,11 +17,11 @@ export function postReadiness(store,item,instagram,youtube) {
     const descriptionReady=typeof item.caption==='string'&&!!item.caption.trim()&&item.caption.length<=2200;
     const channel=youtube?youtube.status():{connected:false};
     const checks=[
-      {id:'media',label:'Video Short',ok:!!formatReady,required:true,action:'edit',detail:!filesReady?'Media perlu diunggah ulang.':!formatReady?'Gunakan satu video MP4 vertikal atau persegi, maksimal 3 menit.':'Video sesuai format Shorts.'},
-      {id:'title',label:'Judul YouTube',ok:titleReady,required:true,action:'edit',detail:titleReady?'Judul siap dipakai di YouTube.':`Isi judul maksimal ${YOUTUBE_TITLE_MAX} karakter.`},
-      {id:'caption',label:'Deskripsi',ok:descriptionReady,required:true,action:'edit',detail:descriptionReady?'Deskripsi terisi.':'Isi deskripsi (caption) dengan maksimal 2.200 karakter.'},
+      {id:'media',label:'Short video',ok:!!formatReady,required:true,action:'edit',detail:!filesReady?'Upload the media again.':!formatReady?'Use one vertical or square MP4 video, up to 3 minutes.':'The video fits the Shorts format.'},
+      {id:'title',label:'YouTube title',ok:titleReady,required:true,action:'edit',detail:titleReady?'The title is ready for YouTube.':`Isi judul maksimal ${YOUTUBE_TITLE_MAX} karakter.`},
+      {id:'caption',label:'Description',ok:descriptionReady,required:true,action:'edit',detail:descriptionReady?'Description filled in.':'Fill in the description (caption), up to 2,200 characters.'},
       approval,
-      {id:'youtube',label:'Koneksi YouTube',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} terhubung.`.replace(/\s+\./,'.'):'Hubungkan channel YouTube melalui Koneksi & publikasi.'},
+      {id:'youtube',label:'YouTube connection',ok:!!channel.connected,required:true,action:'settings',detail:channel.connected?`Channel ${channel.channelTitle||''} terhubung.`.replace(/\s+\./,'.'):'Connect a YouTube channel in Connections & publishing.'},
       live,
     ];
     const contentReady=!!formatReady&&titleReady&&descriptionReady&&item.approved===true;
@@ -32,12 +32,12 @@ export function postReadiness(store,item,instagram,youtube) {
   const coverReady=item.format!=='Reel'||!item.coverId||(()=>{const cover=store.get('SELECT * FROM media WHERE id=?',item.coverId);return cover?.mime==='image/jpeg'&&existsSync(mediaPath(store,cover));})();
   const ig=instagram.status();
   const checks=[
-    {id:'media',label:'Media dan format',ok:!!formatReady&&!!coverReady,required:true,action:'edit',detail:!filesReady?'Media perlu diunggah ulang.':!formatReady?'Periksa jumlah, tipe, rasio, atau durasi media.':!coverReady?'Cover Reel tidak ditemukan.':'Media tersedia dan format sesuai.'},
-    {id:'caption',label:'Caption',ok:captionReady,required:true,action:'edit',detail:captionReady?'Caption terisi dan dalam batas karakter.':'Isi caption dengan maksimal 2.200 karakter.'},
-    {id:'alt',label:'Deskripsi aksesibilitas',ok:item.format==='Reel'||!!String(item.alt||'').trim(),required:false,action:'edit',detail:item.format==='Reel'?'Tidak diterapkan untuk Reel.':String(item.alt||'').trim()?'Deskripsi sudah terisi.':'Tambahkan deskripsi gambar untuk pembaca layar.'},
+    {id:'media',label:'Media and format',ok:!!formatReady&&!!coverReady,required:true,action:'edit',detail:!filesReady?'Upload the media again.':!formatReady?'Check media count, type, aspect ratio, or duration.':!coverReady?'Reel cover not found.':'Media is available and the format is valid.'},
+    {id:'caption',label:'Caption',ok:captionReady,required:true,action:'edit',detail:captionReady?'Caption is present and within the character limit.':'Enter a caption of up to 2,200 characters.'},
+    {id:'alt',label:'Accessibility description',ok:item.format==='Reel'||!!String(item.alt||'').trim(),required:false,action:'edit',detail:item.format==='Reel'?'Not applicable to Reels.':String(item.alt||'').trim()?'A description has been added.':'Add an image description for screen readers.'},
     approval,
-    {id:'instagram',label:'Koneksi Instagram',ok:ig.connected,required:true,action:'settings',detail:ig.connected?'Instagram terhubung.':'Hubungkan akun profesional melalui Koneksi & publikasi.'},
-    {id:'https',label:'HTTPS publik',ok:ig.publicUrlReady,required:true,action:'settings',detail:ig.publicUrlReady?'Alamat media publik siap.':'Siapkan HTTPS publik agar Meta dapat mengambil media.'},
+    {id:'instagram',label:'Instagram connection',ok:ig.connected,required:true,action:'settings',detail:ig.connected?'Instagram connected.':'Connect a professional account in Connections & publishing.'},
+    {id:'https',label:'Public HTTPS',ok:ig.publicUrlReady,required:true,action:'settings',detail:ig.publicUrlReady?'The public media address is ready.':'Set up public HTTPS so Meta can retrieve the media.'},
     live,
   ];
   const contentReady=!!formatReady&&!!coverReady&&captionReady&&item.approved===true;

@@ -102,7 +102,7 @@ export function createBlog(store, sanity) {
       Object.assign(next, { status: 'scheduled', approved: true, approvedBy: user, scheduleAt: at.toISOString(), date: str(b.date, 10), time: str(b.time, 5) });
     } else if (intent === 'published') {
       if (current.status !== 'published') throw fail('Status penyimpanan tidak valid.');
-      next.status = 'published'; // edits to a published article are sent with "Perbarui di Sanity"
+      next.status = 'published'; // edits to a published article are sent with "Update in Sanity"
     } else { Object.assign(next, { status: intent, approved: false, scheduleAt: null }); }
     write(next);
     store.event(null, intent === 'scheduled' ? 'Artikel blog dijadwalkan' : 'Artikel blog diperbarui', `${next.id} · ${next.title}`, 'change', user);

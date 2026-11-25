@@ -106,7 +106,7 @@ export function createYouTube(store, getPublicBase, options = {}) {
     const channel = channels.items?.[0];
     if (!channel?.id) throw fail('Akun Google ini belum punya channel YouTube. Buat channel dulu lalu sambungkan ulang.', 'NO_CHANNEL');
     store.setSecret('youtube.connection', { refreshToken, accessToken: grant.access_token, expiresAt: Date.now() + Number(grant.expires_in || 3600) * 1000, channelId: channel.id, channelTitle: channel.snippet?.title || channel.id, invalid: false, connectedAt: Date.now() });
-    store.event(null, 'YouTube terhubung', `Channel ${channel.snippet?.title || channel.id} dihubungkan.`, 'connection', userId);
+    store.event(null, 'YouTube connected', `Channel ${channel.snippet?.title || channel.id} dihubungkan.`, 'connection', userId);
     return status();
   }
 
@@ -165,13 +165,13 @@ export function createYouTube(store, getPublicBase, options = {}) {
       item = store.post(id);
       Object.assign(item, { mediaId: String(video.id), status: 'published', publishedAt: new Date().toISOString(), error: '', permalink: `https://www.youtube.com/shorts/${video.id}`, youtubePrivacy: video.status?.privacyStatus || privacy, youtubeLocked: locked });
       item = store.savePost(item);
-      store.event(id, 'Short berhasil diunggah', locked ? `${item.title} · terkunci privat oleh YouTube sampai audit API project disetujui` : item.title, 'published');
+      store.event(id, 'Short uploaded', locked ? `${item.title} · terkunci privat oleh YouTube sampai audit API project disetujui` : item.title, 'published');
       return item;
     } catch (error) {
       item = store.post(id);
       item.status = uploadSent || item.job?.publishRequested ? 'uncertain' : error.code === 'PAUSED' ? 'scheduled' : 'failed';
       item.error = error.message; item.errorCode = error.code || 'UPLOAD_FAILED'; item = store.savePost(item);
-      store.event(id, item.status === 'uncertain' ? 'Hasil unggah perlu diperiksa' : 'Unggah YouTube tertahan', error.message, 'failed');
+      store.event(id, item.status === 'uncertain' ? 'Upload result needs checking' : 'YouTube upload on hold', error.message, 'failed');
       return item;
     }
   }
@@ -193,7 +193,7 @@ export function createYouTube(store, getPublicBase, options = {}) {
       const videoId = String(match.snippet.resourceId.videoId);
       Object.assign(item, { mediaId: videoId, status: 'published', publishedAt: item.publishedAt || match.snippet.publishedAt, error: '', permalink: `https://www.youtube.com/shorts/${videoId}` });
       item = store.savePost(item);
-      store.event(id, 'Unggahan dikonfirmasi', 'Video ditemukan di channel. Unggah ulang diblokir.', 'published');
+      store.event(id, 'Upload confirmed', 'Video ditemukan di channel. Unggah ulang diblokir.', 'published');
     } else {
       item.status = 'uncertain'; item.error = 'Video belum ditemukan di 25 unggahan terbaru channel. Periksa YouTube Studio sebelum mencoba ulang.'; item = store.savePost(item);
     }

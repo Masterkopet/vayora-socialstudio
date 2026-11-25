@@ -36,20 +36,20 @@ export function inspectContent(item,posts=[]) {
   const duplicate=normalized.length>40?posts.find(x=>x.id!==item.id&&(x.caption||'').replace(/#[\p{L}\p{N}_]+/gu,'').replace(/\s+/g,' ').trim().toLowerCase()===normalized):null;
   if(duplicate)warnings.push(`Caption sama dengan ${duplicate.id}. Uji pembuka atau sudut bahasan yang berbeda.`);
   return {keyword:topic.keyword,warnings,checks:[
-    {label:'Konteks produk jelas',ok:/vayora|villa|guesthouse|properti|kost/i.test(caption)},
-    {label:'Ada ajakan bertindak',ok:/lihat|simpan|bagikan|demo|ceritakan|hubungi|pilih|cek/i.test(caption)},
-    {label:'Hashtag ringkas dan relevan',ok:tags.length>0&&tags.length<=5},
-    {label:'Caption dalam batas 2.200 karakter',ok:caption.length>0&&caption.length<=2200},
-    {label:'Deskripsi aksesibilitas terisi',ok:item.format==='Reel'?null:!!str(item.alt,1000)},
-  ],note:'Pemeriksaan editorial berbasis aturan, bukan skor ranking atau prediksi jangkauan.'};
+    {label:'Clear product context',ok:/vayora|villa|guesthouse|properti|kost/i.test(caption)},
+    {label:'Includes a call to action',ok:/lihat|simpan|bagikan|demo|ceritakan|hubungi|pilih|cek/i.test(caption)},
+    {label:'Focused, relevant hashtags',ok:tags.length>0&&tags.length<=5},
+    {label:'Caption within the 2,200-character limit',ok:caption.length>0&&caption.length<=2200},
+    {label:'Accessibility description provided',ok:item.format==='Reel'?null:!!str(item.alt,1000)},
+  ],note:'Rule-based editorial checks, not a ranking score or reach prediction.'};
 }
 export function localCaption(item,brand=BRAND,platform='Instagram') {
   let t=topics[item.category]||topics['Demo produk'];
   if(item.category==='Operasional'&&/linen|laundry/i.test(item.title))t={keyword:'linen dan laundry villa',tags:['#OperasionalVilla','#ManajemenLinen'],hooks:['Linen keluar-masuk, sudah tercatat?','Pantau perputaran linen tiap villa.','Operasional rapi juga dimulai dari linen.'],benefit:'Pantau perputaran linen dan laundry melalui Vayora, agar tim memiliki catatan operasional yang lebih jelas.'};
   else if(/tagihan|invoice/i.test(item.title))t={keyword:'tagihan tamu villa',tags:['#OperasionalVilla','#InvoiceVilla'],hooks:['Tagihan tamu perlu jelas sampai rinciannya.','Biaya kamar dan tambahan, tercatat di mana?','Check-out lebih tertata dengan rincian tagihan.'],benefit:'Susun biaya kamar, pajak, dan biaya tambahan dalam tagihan tamu Vayora. Periksa data contoh sebelum dipakai sebagai ilustrasi.'};
   t=knowledgeCreative(item)||t;
-  const cta=item.goal==='Permintaan demo'?'Minta demo Vayora melalui tautan di bio.':item.goal==='Edukasi fitur'?'Simpan untuk evaluasi operasional villa kamu. Lihat cara kerja Vayora melalui tautan di bio.':'Lihat cara kerja Vayora melalui tautan di bio.';
-  return {mode:'local',source:'Judul, kategori, tujuan, dan pengetahuan brand terkurasi. Piksel gambar belum dianalisis.',summary:`${item.title} · ${item.category}`,keywords:[t.keyword,'Vayora'],variants:t.hooks.map((hook,i)=>({label:['Masalah → solusi','Manfaat langsung','Sudut edukasi'][i],caption:platform==='TikTok'?`${hook}\n\n${t.benefit}\n\n${cta}`:`${hook}\n\n${t.benefit}\n\n${cta}`,hashtags:['#Vayora',...t.tags]})),altText:item.alt||'',warnings:[`Periksa kesesuaian dengan media “${item.title}”. Mode lokal tidak membaca gambar.`,...knowledgeWarnings(item),...BRAND.restrictions.slice(2,4)],brandTone:brand.tone};
+  const cta=item.goal==='Demo requests'?'Minta demo Vayora melalui tautan di bio.':item.goal==='Feature education'?'Simpan untuk evaluasi operasional villa kamu. Lihat cara kerja Vayora melalui tautan di bio.':'Lihat cara kerja Vayora melalui tautan di bio.';
+  return {mode:'local',source:'Based on the title, category, goal, and curated brand knowledge. Image pixels have not been analyzed.',summary:`${item.title} · ${item.category}`,keywords:[t.keyword,'Vayora'],variants:t.hooks.map((hook,i)=>({label:['Problem → solution','Direct benefit','Educational angle'][i],caption:platform==='TikTok'?`${hook}\n\n${t.benefit}\n\n${cta}`:`${hook}\n\n${t.benefit}\n\n${cta}`,hashtags:['#Vayora',...t.tags]})),altText:item.alt||'',warnings:[`Periksa kesesuaian dengan media “${item.title}”. Mode lokal tidak membaca gambar.`,...knowledgeWarnings(item),...BRAND.restrictions.slice(2,4)],brandTone:brand.tone};
 }
 export function postingSuggestions(posts,{now=Date.now(),postId='',preferredDate='',trialSlots=null}={}) {
   const existing=posts.filter(p=>p.id!==postId&&['scheduled','processing','published'].includes(p.status)).map(p=>Date.parse(p.scheduleAt||p.publishedAt)).filter(Number.isFinite);
@@ -65,7 +65,7 @@ export function postingSuggestions(posts,{now=Date.now(),postId='',preferredDate
       suggestions.push({date,time,at:new Date(at).toISOString(),reason:(trialSlots?.[index]?.reason||reasons[index])+' Jarak minimal dua jam dari konten terjadwal/terbit yang tercatat.'});break;
     }
   }
-  return {basis:'experiment',timezone:'Asia/Jakarta',confidence:'Belum ada data performa akun',note:'Ini tiga waktu uji untuk audiens pemilik/operator properti, bukan jam terbaik yang telah terbukti. Bandingkan format dan topik serupa, lalu nilai jangkauan, simpan, dan permintaan demo setelah 48–72 jam. Jadwal ini tidak mengatur penayangan iklan berbayar.',suggestions};
+  return {basis:'experiment',timezone:'Asia/Jakarta',confidence:'No account performance data yet',note:'These are three test times for property owners/operators, not proven best times. Compare similar formats and topics, then evaluate reach, saves, and demo requests after 48–72 hours. These schedules do not control paid ad delivery.',suggestions};
 }
 const string={type:'string'}, strings={type:'array',items:string};
 const schema={type:'object',additionalProperties:false,properties:{summary:string,keywords:strings,variants:{type:'array',items:{type:'object',additionalProperties:false,properties:{label:string,caption:string,hashtags:strings},required:['label','caption','hashtags']}},altText:string,warnings:strings},required:['summary','keywords','variants','altText','warnings']};
@@ -88,7 +88,7 @@ export function createAssistant(store,options={}) {
   function status(){const c=config(),provider=textProvider(c),geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;return {configured:!!c.apiKey,environmentKey:!!process.env.OPENAI_API_KEY,textConfigured:!!provider,textProvider:provider,gemini:{configured:!!c.geminiKey,environmentKey:!!process.env.GEMINI_API_KEY,model:geminiModel,check:store.setting('assistant.geminiCheck',null)},model:provider==='openai'?OPENAI_TEXT_MODEL:geminiModel,imageModel:'gpt-image-2.5-flare',dailyCaptionLimit:c.dailyCaptionLimit||20,dailyImageLimit:c.dailyImageLimit||3,usage:usage()};}
   function configure(body){
     const c=store.secret('assistant.config',{});let key=c.apiKey||'',geminiKey=c.geminiKey||'',geminiModel=c.geminiModel||GEMINI_DEFAULT_MODEL;
-    if(body.removeKey)key='';else if(body.apiKey){key=str(body.apiKey,1000);if(!/^sk-[A-Za-z0-9_-]{10,}$/.test(key))throw fail('API key tidak valid. Masukkan key dari dashboard OpenAI, bukan password.');}
+    if(body.removeKey)key='';else if(body.apiKey){key=str(body.apiKey,1000);if(!/^sk-[A-Za-z0-9_-]{10,}$/.test(key))throw fail('Invalid API key. Enter a key from the OpenAI dashboard, not an account password.');}
     if(body.removeGeminiKey)geminiKey='';else if(body.geminiKey){geminiKey=str(body.geminiKey,200);if(!/^[A-Za-z0-9._~-]{20,200}$/.test(geminiKey)||/\s/.test(geminiKey))throw fail('API key Gemini tidak valid. Salin key dari Google AI Studio (tanpa spasi), bukan password.');}
     if(body.geminiModel!==undefined){geminiModel=str(body.geminiModel,80)||GEMINI_DEFAULT_MODEL;if(!/^gemini-[a-z0-9.-]{1,70}$/.test(geminiModel))throw fail('Nama model Gemini tidak valid, contoh: gemini-flash-latest.');}
     const dailyCaptionLimit=Number(body.dailyCaptionLimit??c.dailyCaptionLimit??20),dailyImageLimit=Number(body.dailyImageLimit??c.dailyImageLimit??3);if(!Number.isInteger(dailyCaptionLimit)||dailyCaptionLimit<1||dailyCaptionLimit>100||!Number.isInteger(dailyImageLimit)||dailyImageLimit<1||dailyImageLimit>20)throw fail('Batas caption 1–100 dan gambar 1–20 permintaan per hari.');
@@ -187,7 +187,7 @@ export function createAssistant(store,options={}) {
     const variants=data.variants.map(v=>({label:str(v.label,80),...(youtube?{title:str(v.title,100).replace(/[<>]/g,'')}:{}),caption:v.caption.trim(),hashtags:[...new Set((Array.isArray(v.hashtags)?v.hashtags:[]).filter(x=>typeof x==='string'&&/^#[\p{L}\p{N}_]{1,60}$/u.test(x)))].slice(0,5)}));
     const warnings=(Array.isArray(data.warnings)?data.warnings:[]).slice(0,8).map(x=>str(x,300));
     for(const v of variants)warnings.push(...inspectContent({...item,caption:v.caption},[]).warnings);
-    return {mode:'vision',provider:textProvider(config()),platform,...(youtube?{tags:cleanTags(data.tags)}:{}),source:watched?'AI menonton video utuh, termasuk narasi dan teks di layar.':video?'AI membaca satu cover/poster video; gerakan dan audio tidak dianalisis.':`AI membaca ${ids.length} gambar. Alt text untuk gambar pertama.`,summary:str(data.summary,1200),keywords:(Array.isArray(data.keywords)?data.keywords:[]).slice(0,5).map(x=>str(x,80)),variants,altText:str(data.altText,1000),warnings:[...new Set(warnings)],audit:inspectContent(item,store.posts()),knowledgeUsed:{...used,catalogCount:context.catalog.length}};
+    return {mode:'vision',provider:textProvider(config()),platform,...(youtube?{tags:cleanTags(data.tags)}:{}),source:watched?'AI watched the whole video, including narration and on-screen text.':video?'AI membaca satu cover/poster video; gerakan dan audio tidak dianalisis.':`AI membaca ${ids.length} gambar. Alt text untuk gambar pertama.`,summary:str(data.summary,1200),keywords:(Array.isArray(data.keywords)?data.keywords:[]).slice(0,5).map(x=>str(x,80)),variants,altText:str(data.altText,1000),warnings:[...new Set(warnings)],audit:inspectContent(item,store.posts()),knowledgeUsed:{...used,catalogCount:context.catalog.length}};
   }
   async function background(body) {
     const brief=str(body.brief,1200);if(brief.length<12)throw fail('Jelaskan latar yang ingin dibuat, minimal 12 karakter.');
@@ -195,7 +195,7 @@ export function createAssistant(store,options={}) {
     const encoded=data.data?.[0]?.b64_json;if(typeof encoded!=='string'||encoded.length>35*1024*1024)throw fail('Gambar AI tidak tersedia atau terlalu besar.',502);
     return sharp(Buffer.from(encoded,'base64'),{limitInputPixels:12000000}).resize(1080,1350,{fit:'cover'}).png().toBuffer();
   }
-  // "Buat posting": a first title and caption from freshly uploaded media, before the content exists. The team edits it.
+  // "Create post": a first title and caption from freshly uploaded media, before the content exists. The team edits it.
   async function draft(body) {
     const platform=body.platform==='youtube'?'youtube':'instagram',ids=Array.isArray(body.mediaIds)?[...new Set(body.mediaIds.map(String))].slice(0,10):[];
     if(!ids.length)throw fail('Unggah foto atau video terlebih dahulu.');
@@ -217,7 +217,7 @@ export function createAssistant(store,options={}) {
   }
   // Blog: a first article draft (Markdown) from a topic and keyword. The team edits it before anything is published.
   async function article(body) {
-    const topic=str(body.topic,300);if(topic.length<8)throw fail('Tulis topik artikel, minimal 8 karakter.');
+    const topic=str(body.topic,300);if(topic.length<8)throw fail('Write the article topic, at least 8 characters.');
     if(!textProvider(config()))throw fail('Hubungkan API Gemini di Pengaturan AI agar draf artikel bisa ditulis otomatis.',422);
     const keyword=str(body.keyword,120),notes=str(body.notes,1200),brand=brandProfile(store),item={title:topic,caption:'',category:'Demo produk',goal:''},context=knowledgeContext(item,brand);
     const examples=(Array.isArray(body.examples)?body.examples:[]).slice(0,2).map(e=>({title:str(e.title,200),excerpt:str(e.excerpt,300),body:str(e.body,1800)}));

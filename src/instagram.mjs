@@ -47,8 +47,8 @@ export function createInstagram(store, getConfig, options = {}) {
   // (Instagram > API setup with Instagram login > Generate token). No App ID, secret or redirect URI is needed.
   async function connectToken(rawToken, userId, rawAccountId) {
     const token=typeof rawToken==='string'?rawToken.trim():'';
-    if(!token)throw fail('Tempel access token dari Meta terlebih dahulu.','TOKEN_REQUIRED');
-    if(token.length<20||token.length>2048||!/^[A-Za-z0-9_.|-]+$/.test(token))throw fail('Format token tidak dikenali. Salin ulang seluruh token dari tombol Generate token di Meta.','TOKEN_FORMAT');
+    if(!token)throw fail('Paste the access token from Meta first.','TOKEN_REQUIRED');
+    if(token.length<20||token.length>2048||!/^[A-Za-z0-9_.|-]+$/.test(token))throw fail('Token format not recognized. Copy the whole token again from Generate token in Meta.','TOKEN_FORMAT');
     // Optional: a system-user token with no assigned assets cannot reveal its Instagram account, so the owner may give its id.
     const manualId=rawAccountId==null?'':String(rawAccountId).trim();
     if(manualId&&!/^\d{5,25}$/.test(manualId))throw fail('ID akun Instagram harus berupa angka (5–25 digit).','ACCOUNT_ID_FORMAT');
@@ -61,8 +61,8 @@ export function createInstagram(store, getConfig, options = {}) {
     } else {
     let profile;
     try{profile=await graph('me',{fields:'user_id,username,account_type'},'GET',token,'instagram');}
-    catch(error){if(error.code==='META_AUTH')throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');throw error;}
-    const id=String(profile.user_id||profile.id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('Akun profesional Instagram tidak ditemukan untuk token ini.','PROFILE_INVALID');
+    catch(error){if(error.code==='META_AUTH')throw fail('Meta rejected the token as invalid or expired. Generate a new token and paste it again.','TOKEN_REJECTED');throw error;}
+    const id=String(profile.user_id||profile.id||'');if(!/^\d+$/.test(id)||!profile.username)throw fail('No Instagram professional account was found for this token.','PROFILE_INVALID');
     // Dashboard tokens last 60 days from generation; the exact expiry is learned on the first refresh (allowed after 24 hours).
     store.setSecret('instagram.connection',{token,accountId:id,username:profile.username,method:'token',api:'instagram',expiresKnown:false,expiresAt:now+60*86400000,refreshedAt:now,invalid:false});
     }
@@ -76,7 +76,7 @@ export function createInstagram(store, getConfig, options = {}) {
     if(manualId){
       // Use the owner's id only if this token can actually read that Instagram account on graph.facebook.com.
       let ig;try{ig=await graph(manualId,{fields:'id,username'},'GET',token,'facebook');}
-      catch(error){if(error.code==='META_AUTH')throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');throw fail(`ID akun Instagram ${manualId} tidak dapat diakses dengan token ini. ${String(error.message).replace(/\. Periksa izin dan spesifikasi media\.$/,'.')} Pastikan akun itu ditetapkan ke system user aplikasi di Business settings.`,'ACCOUNT_NOT_ACCESSIBLE');}
+      catch(error){if(error.code==='META_AUTH')throw fail('Meta rejected the token as invalid or expired. Generate a new token and paste it again.','TOKEN_REJECTED');throw fail(`ID akun Instagram ${manualId} tidak dapat diakses dengan token ini. ${String(error.message).replace(/\. Periksa izin dan spesifikasi media\.$/,'.')} Pastikan akun itu ditetapkan ke system user aplikasi di Business settings.`,'ACCOUNT_NOT_ACCESSIBLE');}
       if(String(ig.id||'')!==manualId||!ig.username)throw fail(`ID ${manualId} bukan akun profesional Instagram yang dapat diakses token ini.`,'ACCOUNT_NOT_ACCESSIBLE');
       return {id:manualId,username:ig.username};
     }
@@ -100,13 +100,13 @@ export function createInstagram(store, getConfig, options = {}) {
     for(const id of candidates){if(found.some(x=>x.id===id))continue;try{const ig=await graph(id,{fields:'id,username'},'GET',token,'facebook');add(ig.id,ig.username);}catch{}}
     if(found.length===1)return found[0];
     if(found.length>1)throw fail(`Token ini dapat mengakses ${found.length} akun Instagram (${found.map(x=>'@'+x.username).join(', ')}). Buat token yang hanya untuk akun Vayora.`,'ACCOUNT_AMBIGUOUS');
-    if(rejected&&!answered)throw fail('Token ditolak Meta karena tidak valid atau kedaluwarsa. Buat token baru lalu tempel kembali.','TOKEN_REJECTED');
+    if(rejected&&!answered)throw fail('Meta rejected the token as invalid or expired. Generate a new token and paste it again.','TOKEN_REJECTED');
     const hint=(appToken?'':' Isi App ID dan App Secret di "Cara lanjutan" (App settings → Basic di dashboard Meta) agar Studio dapat membaca aset yang diizinkan token.')+' Bila token tidak menyebut aset, isi juga kolom ID akun Instagram.';
     throw fail(`Akun Instagram tidak ditemukan untuk token ini.${hint} Rincian: ${[...notes,...reasons].join(' · ').slice(0,800)}`,'PROFILE_INVALID');
   }
   function start(userId, sessionHash) {
-    const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Isi App ID dan App Secret dari Meta Developer terlebih dahulu.','META_NOT_CONFIGURED');
-    if(!publicHTTPS(config.publicBase))throw fail('Koneksi Instagram memerlukan alamat HTTPS publik. Login tim lokal tetap dapat digunakan.','PUBLIC_URL_REQUIRED');
+    const config=getConfig();if(!config.appId||!config.appSecret)throw fail('Enter the App ID and App Secret from Meta Developer first.','META_NOT_CONFIGURED');
+    if(!publicHTTPS(config.publicBase))throw fail('Instagram connection requires a public HTTPS address. Local team login still works.','PUBLIC_URL_REQUIRED');
     const state=randomBytes(32).toString('hex');store.run('DELETE FROM oauth_states WHERE expires<?',Date.now());store.run('INSERT INTO oauth_states(hash,user_id,session_hash,expires) VALUES(?,?,?,?)',hash(state),userId,sessionHash,Date.now()+600000);
     const url=new URL('https://www.instagram.com/oauth/authorize');Object.entries({client_id:config.appId,redirect_uri:`${config.publicBase.replace(/\/$/,'')}/auth/instagram/callback`,response_type:'code',scope:'instagram_business_basic,instagram_business_content_publish',state,enable_fb_login:'0',force_authentication:'1'}).forEach(([k,v])=>url.searchParams.set(k,v));return url.href;
   }
@@ -137,7 +137,7 @@ export function createInstagram(store, getConfig, options = {}) {
     for(let i=0;i<5;i++) {const result=await graph(containerId,{fields:'status_code'});if(result.status_code==='FINISHED')return;if(result.status_code==='PUBLISHED')throw fail('Container ini sudah terbit. Periksa hasil publikasi.','ALREADY_PUBLISHED');if(['ERROR','EXPIRED'].includes(result.status_code))throw fail('Media tidak dapat diproses Meta. Periksa media atau jadwalkan ulang.','CONTAINER_FAILED');await wait(options.pollMs??60000);}
     throw fail('Pemrosesan media melebihi waktu pemeriksaan. Belum ada permintaan publikasi dikirim.','PROCESSING_TIMEOUT');
   }
-  function ensureLive(manual=false) {if((!manual&&store.setting('paused',true))||!store.setting('publishingEnabled',false))throw fail('Publikasi sedang dijeda atau belum diaktifkan.','PAUSED');if(!status().connected)throw fail('Instagram belum terhubung atau izin kedaluwarsa.','NOT_CONNECTED');if(!status().publicUrlReady)throw fail('Alamat HTTPS publik belum siap.','PUBLIC_URL_REQUIRED');}
+  function ensureLive(manual=false) {if((!manual&&store.setting('paused',true))||!store.setting('publishingEnabled',false))throw fail('Publikasi sedang dijeda atau belum diaktifkan.','PAUSED');if(!status().connected)throw fail('Instagram is not connected or permission has expired.','NOT_CONNECTED');if(!status().publicUrlReady)throw fail('Alamat HTTPS publik belum siap.','PUBLIC_URL_REQUIRED');}
   async function run(id, signMedia, {manual=false}={}) {
     ensureLive(manual);let item=store.post(id);if(!item||item.status!=='scheduled'||!item.approved||item.mediaId||item.job?.publishRequested)throw fail('Konten ini tidak memenuhi syarat untuk dipublikasikan.','NOT_ELIGIBLE');
     item.status='processing';item.error='';item.job=item.job||{};item=store.savePost(item);let publishSent=false;
@@ -158,7 +158,7 @@ export function createInstagram(store, getConfig, options = {}) {
       if(!published.id)throw fail('Hasil publikasi belum dapat dipastikan.','MISSING_MEDIA_ID');
       item.mediaId=String(published.id);item.status='published';item.publishedAt=new Date().toISOString();item.error='';item=store.savePost(item);
       try {const link=await graph(item.mediaId,{fields:'permalink'});if(link.permalink?.startsWith('https://www.instagram.com/')){item.permalink=link.permalink;item=store.savePost(item);}}catch{}
-      store.event(id,'Publikasi berhasil',item.title,'published');return item;
+      store.event(id,'Published successfully',item.title,'published');return item;
     } catch(error) {
       item=store.post(id);item.status=publishSent||item.job?.publishRequested?'uncertain':error.code==='PAUSED'?'scheduled':'failed';item.error=error.message;item.errorCode=error.code||'PUBLISH_FAILED';item=store.savePost(item);store.event(id,item.status==='uncertain'?'Hasil perlu diperiksa':'Publikasi tertahan',error.message,'failed');return item;
     }

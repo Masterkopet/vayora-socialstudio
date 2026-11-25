@@ -1,4 +1,4 @@
-// Everyday views for non-technical team members: the "Hari ini" home page, the step-by-step "Buat posting" flow
+// Everyday views for non-technical team members: the "Today" home page, the step-by-step "Create post" flow
 // and the list of problems that need attention. They reuse the studio's helpers through `ctx`.
 
 const DAY = 86400000;
@@ -17,25 +17,25 @@ export function createSimpleViews(ctx) {
     const scheduled = posts.filter(p => p.status === 'scheduled');
     if (s.notifyFailure !== false) {
       const failed = posts.filter(p => p.status === 'failed').length, uncertain = posts.filter(p => p.status === 'uncertain').length;
-      if (failed) list.push({ level: 'danger', text: `${failed} konten gagal terbit. Buka Antrean untuk melihat alasannya dan menjadwalkan ulang.`, action: ['Buka Antrean', 'nav:queue'] });
-      if (uncertain) list.push({ level: 'danger', text: `${uncertain} konten belum pasti terbit. Periksa hasilnya sebelum mencoba lagi agar tidak terunggah dua kali.`, action: ['Buka Antrean', 'nav:queue'] });
+      if (failed) list.push({ level: 'danger', text: `${failed} konten gagal terbit. Buka Antrean untuk melihat alasannya dan menjadwalkan ulang.`, action: ['Open queue', 'nav:queue'] });
+      if (uncertain) list.push({ level: 'danger', text: `${uncertain} konten belum pasti terbit. Periksa hasilnya sebelum mencoba lagi agar tidak terunggah dua kali.`, action: ['Open queue', 'nav:queue'] });
     }
     if (s.notifyReconnect !== false) {
-      const fix = owner ? ['Buka Koneksi', 'nav:settings'] : null;
-      if (ig.error || (ig.expiresAt && !ig.connected && !ig.noExpiry)) list.push({ level: 'danger', text: owner ? 'Koneksi Instagram terputus. Sambungkan ulang agar posting tetap jalan.' : 'Koneksi Instagram terputus. Minta pemilik workspace menyambungkan ulang.', action: fix });
-      else if (ig.connected && !ig.noExpiry && ig.expiresAt && Date.parse(ig.expiresAt) - Date.now() < 7 * DAY) list.push({ level: 'warning', text: 'Izin Instagram akan habis dalam 7 hari. Studio mencoba memperpanjang otomatis; bila gagal, sambungkan ulang.', action: fix });
-      if (yt.error) list.push({ level: 'danger', text: owner ? 'Koneksi YouTube terputus. Sambungkan ulang channel agar Short tetap terunggah.' : 'Koneksi YouTube terputus. Minta pemilik workspace menyambungkan ulang.', action: fix });
-      if (scheduled.some(p => platformOf(p) === 'instagram') && !ig.connected) list.push({ level: 'danger', text: 'Ada konten Instagram terjadwal, tetapi Instagram belum terhubung.', action: fix });
-      if (scheduled.some(p => platformOf(p) === 'youtube') && !yt.connected) list.push({ level: 'danger', text: 'Ada Short terjadwal, tetapi channel YouTube belum terhubung.', action: fix });
+      const fix = owner ? ['Open connections', 'nav:settings'] : null;
+      if (ig.error || (ig.expiresAt && !ig.connected && !ig.noExpiry)) list.push({ level: 'danger', text: owner ? 'Instagram is disconnected. Reconnect it so posts keep going out.' : 'Instagram is disconnected. Ask the workspace owner to reconnect it.', action: fix });
+      else if (ig.connected && !ig.noExpiry && ig.expiresAt && Date.parse(ig.expiresAt) - Date.now() < 7 * DAY) list.push({ level: 'warning', text: 'Instagram access expires within 7 days. The studio tries to renew it automatically; if that fails, reconnect.', action: fix });
+      if (yt.error) list.push({ level: 'danger', text: owner ? 'YouTube is disconnected. Reconnect the channel so Shorts keep uploading.' : 'YouTube is disconnected. Ask the workspace owner to reconnect it.', action: fix });
+      if (scheduled.some(p => platformOf(p) === 'instagram') && !ig.connected) list.push({ level: 'danger', text: 'Instagram content is scheduled, but Instagram is not connected.', action: fix });
+      if (scheduled.some(p => platformOf(p) === 'youtube') && !yt.connected) list.push({ level: 'danger', text: 'A Short is scheduled, but the YouTube channel is not connected.', action: fix });
     }
-    if (scheduled.length && (!s.publishingEnabled || s.paused)) list.push({ level: 'warning', text: !s.publishingEnabled ? `${scheduled.length} konten terjadwal tidak akan terbit karena publikasi nyata belum diaktifkan.` : `${scheduled.length} konten terjadwal menunggu karena antrean sedang dijeda.`, action: owner ? (!s.publishingEnabled ? ['Aktifkan publikasi', 'nav:settings'] : ['Buka Antrean', 'nav:queue']) : null });
+    if (scheduled.length && (!s.publishingEnabled || s.paused)) list.push({ level: 'warning', text: !s.publishingEnabled ? `${scheduled.length} konten terjadwal tidak akan terbit karena publikasi nyata belum diaktifkan.` : `${scheduled.length} konten terjadwal menunggu karena antrean sedang dijeda.`, action: owner ? (!s.publishingEnabled ? ['Enable publishing', 'nav:settings'] : ['Open queue', 'nav:queue']) : null });
     return [...list, ...(ctx.extraAlerts?.() || [])];
   }
   const alertsHTML = alerts => alerts.map(a => `<div class="vs-alert ${a.level}" role="${a.level === 'danger' ? 'alert' : 'status'}"><span>${esc(a.text)}</span>${a.action ? button(a.action[0], a.action[1]) : ''}</div>`).join('');
 
-  // ---------- Home: "Hari ini" ----------
+  // ---------- Home: "Today" ----------
   function record(item) {
-    return `<div class="vs-record">${previewImage(item)}<div class="vs-record-copy"><h3>${esc(item.title)}</h3><span class="vs-mini">${PLATFORM[platformOf(item)]} · ${esc(names[item.status] || item.status)}${item.scheduleAt ? ' · ' + esc(stamp(item.scheduleAt)) : ''}</span></div><div class="vs-actions">${button('Buka', 'edit:' + item.id)}</div></div>`;
+    return `<div class="vs-record">${previewImage(item)}<div class="vs-record-copy"><h3>${esc(item.title)}</h3><span class="vs-mini">${PLATFORM[platformOf(item)]} · ${esc(names[item.status] || item.status)}${item.scheduleAt ? ' · ' + esc(stamp(item.scheduleAt)) : ''}</span></div><div class="vs-actions">${button('Open', 'edit:' + item.id)}</div></div>`;
   }
   function homePage() {
     const w = workspace(), posts = w.posts || [], now = Date.now(), today = wibDate(new Date().toISOString());
@@ -46,15 +46,15 @@ export function createSimpleViews(ctx) {
     const drafts = posts.filter(p => p.status === 'draft').length;
     const published = posts.filter(p => p.status === 'published' && p.publishedAt && now - Date.parse(p.publishedAt) < 30 * DAY).length;
     const ig = w.instagram || {}, yt = w.youtube || {}, s = w.settings || {};
-    const connection = (label, ok, detail) => `<div class="vs-setting"><div><h3>${label}</h3><p class="vs-sub">${detail}</p></div><span class="vs-status ${ok ? 'scheduled' : 'review'}">${ok ? 'Terhubung' : 'Belum terhubung'}</span></div>`;
-    return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><h2>Halo, ${esc(user().name)}</h2><p class="vs-sub">${alerts.length ? 'Ada yang perlu kamu perhatikan.' : 'Semua berjalan baik. Tidak ada yang perlu ditangani.'}</p></div>${button('Buat posting', 'nav:create', 'vs-primary', 'circle-plus')}</div>${alerts.length ? `<div class="vs-stack">${alertsHTML(alerts)}</div>` : ''}</section>
-<div class="vs-stats"><span><strong>${todayCount}</strong> terbit hari ini</span><span><strong>${upcoming.length}</strong> terjadwal 7 hari</span><span><strong>${review.length}</strong> perlu ditinjau</span><span><strong>${drafts}</strong> draft</span><span><strong>${published}</strong> terbit 30 hari</span></div>
-<section class="vs-panel"><div class="vs-panel-head"><h2>Jadwal 7 hari ke depan</h2>${button('Kalender', 'nav:calendar', 'vs-text-button')}</div><div class="vs-list">${upcoming.map(record).join('') || '<div class="vs-empty"><h3>Belum ada jadwal minggu ini.</h3><p>Buat posting baru lalu pilih tanggal dan jam terbit.</p></div>'}</div></section>
-<section class="vs-panel"><div class="vs-panel-head"><h2>Perlu ditinjau</h2></div><div class="vs-list">${review.map(record).join('') || '<div class="vs-empty"><h3>Tidak ada yang menunggu tinjauan.</h3><p>Konten yang diajukan untuk ditinjau muncul di sini.</p></div>'}</div></section>
-<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'Belum ada akun yang terhubung.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'Belum ada channel yang terhubung.')}<div class="vs-setting"><div><h3>Publikasi nyata</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'Aktif, tetapi antrean sedang dijeda.' : 'Aktif. Konten terjadwal terbit otomatis.') : 'Belum aktif. Konten hanya disimpan sebagai rencana.'}</p></div>${user().role === 'owner' ? button('Atur', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
+    const connection = (label, ok, detail) => `<div class="vs-setting"><div><h3>${label}</h3><p class="vs-sub">${detail}</p></div><span class="vs-status ${ok ? 'scheduled' : 'review'}">${ok ? 'Connected' : 'Not connected'}</span></div>`;
+    return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><h2>Halo, ${esc(user().name)}</h2><p class="vs-sub">${alerts.length ? 'Something needs your attention.' : 'Everything is running fine. Nothing needs handling.'}</p></div>${button('Create post', 'nav:create', 'vs-primary', 'circle-plus')}</div>${alerts.length ? `<div class="vs-stack">${alertsHTML(alerts)}</div>` : ''}</section>
+<div class="vs-stats"><span><strong>${todayCount}</strong> going live today</span><span><strong>${upcoming.length}</strong> scheduled in 7 days</span><span><strong>${review.length}</strong> need review</span><span><strong>${drafts}</strong> draft</span><span><strong>${published}</strong> published in 30 days</span></div>
+<section class="vs-panel"><div class="vs-panel-head"><h2>Next 7 days</h2>${button('Calendar', 'nav:calendar', 'vs-text-button')}</div><div class="vs-list">${upcoming.map(record).join('') || '<div class="vs-empty"><h3>Nothing scheduled this week.</h3><p>Create a new post, then pick a date and time.</p></div>'}</div></section>
+<section class="vs-panel"><div class="vs-panel-head"><h2>Needs review</h2></div><div class="vs-list">${review.map(record).join('') || '<div class="vs-empty"><h3>Nothing is waiting for review.</h3><p>Content submitted for review appears here.</p></div>'}</div></section>
+<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'No account connected yet.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'No channel connected yet.')}<div class="vs-setting"><div><h3>Live publishing</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'On, but the queue is paused.' : 'On. Scheduled content goes live automatically.') : 'Off. Content is only saved as a plan.'}</p></div>${user().role === 'owner' ? button('Set up', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
   }
 
-  // ---------- "Buat posting": form on the left (platform → upload → words → when), live preview on the right ----------
+  // ---------- "Create post": form on the left (platform → upload → words → when), live preview on the right ----------
   let flow = null, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
   const reset = () => { ai = null; flow = { platform: 'instagram', media: [], title: '', caption: '', when: 'review', date: '', time: '09:00', approved: false, busy: false, error: '', writing: false, written: false, aiError: '', aiWarnings: [], tags: [], slide: 0, more: false }; };
   // Scheduling publishes automatically, so it needs the same explicit approval as the editor.
@@ -67,55 +67,55 @@ export function createSimpleViews(ctx) {
     if (media.length === 1) return videos.length ? 'Reel' : 'Gambar';
     return images.length === media.length && media.length <= 20 ? 'Carousel' : '';
   }
-  const formatLabel = { Gambar: 'Foto (1 gambar)', Carousel: 'Carousel (beberapa gambar)', Reel: 'Reel (video)', Short: 'YouTube Short (video vertikal)' };
+  const formatLabel = { Gambar: 'Photo (1 image)', Carousel: 'Carousel (several images)', Reel: 'Reel (video)', Short: 'YouTube Short (vertical video)' };
   const icon = name => (ctx.icon ? ctx.icon(name) : '');
 
   function createPage() {
     const f = flow, format = formatFor(f.platform, f.media), yt = f.platform === 'youtube', ready = canSubmit(f);
     const group = (n, title, body, disabled = false, hint = '') => `<fieldset class="vs-create-group" ${disabled ? 'disabled' : ''}><legend><span class="vs-step-number">${n}</span>${title}</legend>${disabled && hint ? `<p class="vs-mini">${hint}</p>` : body}</fieldset>`;
     const choice = (id, title, hint) => `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${f.platform === id}"><b>${title}</b><span>${hint}</span></button>`;
-    const mediaHint = yt ? 'Pilih 1 video MP4 vertikal, maksimal 3 menit.' : 'Pilih 1 foto, 2–20 foto untuk carousel, atau 1 video untuk Reel.';
+    const mediaHint = yt ? 'Choose 1 vertical MP4 video, up to 3 minutes.' : 'Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.';
     const files = f.media.length ? `<ul class="vs-create-files">${f.media.map(m => `<li>${esc(m.name)}${m.duration ? ' · ' + Math.round(m.duration) + ' dtk' : ''}</li>`).join('')}</ul>` : '';
-    const g1 = group(1, 'Mau posting ke mana?', `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Foto, carousel, atau Reel')}${choice('youtube', 'YouTube Shorts', 'Video vertikal maksimal 3 menit')}</div>`);
-    const g2 = group(2, 'Pilih foto atau video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Ganti file: tarik & lepas di sini' : 'Tarik & lepas file di sini'}</b><span>atau klik untuk memilih dari komputer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Pilih foto atau video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Mengunggah…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Jenis konten: <b>' + formatLabel[format] + '</b>' : 'Kombinasi file ini tidak didukung. ' + mediaHint}</p>` : ''}`);
-    const g3 = group(3, 'Tulis judul dan caption', `${aiLine(f)}<label class="vs-label">Judul${yt ? ' <small>tampil sebagai judul video YouTube, maksimal 100 karakter</small>' : ' <small>hanya untuk tim, tidak tampil di Instagram</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Deskripsi' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2.200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Butuh ide? Setelah disimpan, buka konten lalu gunakan Asisten caption.</p>'}${yt && f.tags.length ? `<p class="vs-mini">Tags YouTube: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Aktif setelah foto atau video diunggah.');
-    const g4 = group(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Ajukan untuk ditinjau</b> · pemilik memeriksa dulu sebelum dijadwalkan</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Jadwalkan sekarang</b> · terbit otomatis pada waktu yang dipilih</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Simpan sebagai draft</b> · lanjutkan nanti</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Tanggal<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Jam (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>Saya sudah memeriksa foto/video dan caption, dan konten ini boleh terbit.</span></label>` : ''}</div>`, !format, 'Aktif setelah foto atau video diunggah.');
-    const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Simpan & jadwalkan' : f.when === 'draft' ? 'Simpan draft' : 'Simpan & ajukan', 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Mulai ulang', 'create-reset', 'vs-text-button')}</div>`;
-    const spec = format ? formatLabel[format] : yt ? 'YouTube Shorts · 9:16' : 'Instagram · 4:5 sampai 1,91:1';
-    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">BUAT POSTING</span><h2>Unggah, tulis, lalu pilih kapan terbit.</h2></div><span class="vs-status">${esc(spec)}</span></div><p class="vs-sub">Pratinjau ikut berubah saat kamu mengetik. Konten baru tersimpan setelah kamu menekan Simpan.</p><div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${g1}${g2}${g3}${g4}${actions}</div><div id="create-preview" class="smart-design-result vs-create-preview" aria-label="Pratinjau">${preview(f)}</div></div></section>`;
+    const g1 = group(1, 'Where do you want to post?', `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}</div>`);
+    const g2 = group(2, 'Choose a photo or video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Replace files: drag & drop here' : 'Drag & drop files here'}</b><span>or click to choose from your computer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Choose a photo or video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Uploading…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Jenis konten: <b>' + formatLabel[format] + '</b>' : 'Kombinasi file ini tidak didukung. ' + mediaHint}</p>` : ''}`);
+    const g3 = group(3, 'Write a title and caption', `${aiLine(f)}<label class="vs-label">Judul${yt ? ' <small>shown as the YouTube video title, up to 100 characters</small>' : ' <small>for the team only, not shown on Instagram</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Description' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2.200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Need ideas? After saving, open the content and use the Caption assistant.</p>'}${yt && f.tags.length ? `<p class="vs-mini">Tags YouTube: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Available after a photo or video is uploaded.');
+    const g4 = group(4, 'When should it go live?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it before it is scheduled</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule now</b> · goes live automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b> · continue later</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>I have checked the photo/video and caption, and this content may go live.</span></label>` : ''}</div>`, !format, 'Available after a photo or video is uploaded.');
+    const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Save & schedule' : f.when === 'draft' ? 'Save draft' : 'Save & submit', 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Start over', 'create-reset', 'vs-text-button')}</div>`;
+    const spec = format ? formatLabel[format] : yt ? 'YouTube Shorts · 9:16' : 'Instagram · 4:5 to 1.91:1';
+    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Upload, write, then choose when it goes live.</h2></div><span class="vs-status">${esc(spec)}</span></div><p class="vs-sub">The preview on the right updates as you type. Content is only saved when you press Save.</p><div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${g1}${g2}${g3}${g4}${actions}</div><div id="create-preview" class="smart-design-result vs-create-preview" aria-label="Preview">${preview(f)}</div></div></section>`;
   }
 
   // ---------- live preview ----------
   const CUT = 125; // Instagram shows about this many characters before "… lainnya"
   function captionPreview(f) {
     const text = f.caption.trim();
-    if (!text) return '<span class="vs-mini">Caption tampil di sini.</span>';
+    if (!text) return '<span class="vs-mini">The caption appears here.</span>';
     if (f.more || text.length <= CUT) return esc(text);
     return `${esc(text.slice(0, CUT).trimEnd())}… <button type="button" class="vs-text-button vs-preview-more" data-action="create-more">lainnya</button>`;
   }
   function mediaPreview(f, frameClass) {
     const list = f.media, i = Math.min(f.slide, Math.max(0, list.length - 1)), m = list[i];
-    if (!m) return `<div class="${frameClass} vs-preview-blank">${f.busy ? 'Mengunggah…' : ''}</div>`;
+    if (!m) return `<div class="${frameClass} vs-preview-blank">${f.busy ? 'Uploading…' : ''}</div>`;
     const ratio = m.width && m.height ? `${m.width} / ${m.height}` : '4 / 5';
     const body = m.mime === 'video/mp4' ? `<video src="${esc(m.url)}" poster="${esc(m.posterUrl || '')}" controls muted playsinline preload="metadata"></video>` : `<img src="${esc(m.url)}" alt="">`;
-    const nav = list.length > 1 ? `<div class="vs-preview-nav"><button type="button" data-action="create-slide-prev" aria-label="Slide sebelumnya" ${i === 0 ? 'disabled' : ''}>${icon('chevron-left')}</button><span>${i + 1} / ${list.length}</span><button type="button" data-action="create-slide-next" aria-label="Slide berikutnya" ${i === list.length - 1 ? 'disabled' : ''}>${icon('chevron-right')}</button></div>` : '';
+    const nav = list.length > 1 ? `<div class="vs-preview-nav"><button type="button" data-action="create-slide-prev" aria-label="Previous slide" ${i === 0 ? 'disabled' : ''}>${icon('chevron-left')}</button><span>${i + 1} / ${list.length}</span><button type="button" data-action="create-slide-next" aria-label="Next slide" ${i === list.length - 1 ? 'disabled' : ''}>${icon('chevron-right')}</button></div>` : '';
     return `<div class="${frameClass}" style="aspect-ratio:${frameClass.includes('short') ? '9 / 16' : ratio}">${body}${nav}</div>`;
   }
   function preview(f) {
-    if (!f.media.length && !f.busy) return `<img class="smart-design-placeholder" src="/brand/icon.svg" alt=""><h3>Pratinjau postinganmu di sini.</h3><p class="vs-mini">Unggah foto atau video untuk melihat tampilannya di ${f.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram'}.</p>`;
+    if (!f.media.length && !f.busy) return `<img class="smart-design-placeholder" src="/brand/icon.svg" alt=""><h3>Your post preview appears here.</h3><p class="vs-mini">Unggah foto atau video untuk melihat tampilannya di ${f.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram'}.</p>`;
     const w = workspace();
     if (f.platform === 'youtube') {
-      const channel = w.youtube?.channelTitle || 'Channel YouTube';
-      const long = f.title.length > 100 ? '<p class="vs-inline-error">Judul YouTube maksimal 100 karakter.</p>' : '';
-      return `<div class="vs-preview-label">Pratinjau YouTube Shorts</div><div class="vs-short-card">${mediaPreview(f, 'vs-preview-media vs-preview-short')}<div class="vs-short-meta"><b id="create-pv-title">${esc(f.title) || '<span class="vs-mini">Judul video tampil di sini.</span>'}</b><span class="vs-mini">${esc(channel)}</span><p id="create-pv-caption" class="vs-preview-caption">${captionPreview(f)}</p></div></div>${long}`;
+      const channel = w.youtube?.channelTitle || 'YouTube channel';
+      const long = f.title.length > 100 ? '<p class="vs-inline-error">YouTube titles are limited to 100 characters.</p>' : '';
+      return `<div class="vs-preview-label">YouTube Shorts preview</div><div class="vs-short-card">${mediaPreview(f, 'vs-preview-media vs-preview-short')}<div class="vs-short-meta"><b id="create-pv-title">${esc(f.title) || '<span class="vs-mini">The video title appears here.</span>'}</b><span class="vs-mini">${esc(channel)}</span><p id="create-pv-caption" class="vs-preview-caption">${captionPreview(f)}</p></div></div>${long}`;
     }
     const user = w.instagram?.username || 'vayora.id';
-    return `<div class="vs-preview-label">Pratinjau Instagram</div><article class="vs-ig-card"><header><img src="/brand/icon.svg" alt=""><b>${esc(user)}</b></header>${mediaPreview(f, 'vs-preview-media')}<div class="vs-ig-icons">${icon('heart')}${icon('message-circle')}${icon('send')}<span></span>${icon('bookmark')}</div><p id="create-pv-caption" class="vs-preview-caption"><b>${esc(user)}</b> ${captionPreview(f)}</p></article>`;
+    return `<div class="vs-preview-label">Instagram preview</div><article class="vs-ig-card"><header><img src="/brand/icon.svg" alt=""><b>${esc(user)}</b></header>${mediaPreview(f, 'vs-preview-media')}<div class="vs-ig-icons">${icon('heart')}${icon('message-circle')}${icon('send')}<span></span>${icon('bookmark')}</div><p id="create-pv-caption" class="vs-preview-caption"><b>${esc(user)}</b> ${captionPreview(f)}</p></article>`;
   }
   // Typing only refreshes the preview text, so focus and video playback are not disturbed.
   function refreshPreviewText() {
     const root = ctx.root(), title = root.querySelector('#create-pv-title'), caption = root.querySelector('#create-pv-caption');
-    if (title) title.innerHTML = esc(flow.title) || '<span class="vs-mini">Judul video tampil di sini.</span>';
+    if (title) title.innerHTML = esc(flow.title) || '<span class="vs-mini">The video title appears here.</span>';
     if (caption) caption.innerHTML = flow.platform === 'youtube' ? captionPreview(flow) : `<b>${esc(workspace().instagram?.username || 'vayora.id')}</b> ${captionPreview(flow)}`;
   }
 
@@ -142,13 +142,13 @@ export function createSimpleViews(ctx) {
     finally { if (flow === f) { f.writing = false; ctx.render(); } }
   }
   function aiLine(f) {
-    if (ai && !ai.textConfigured) return user().role === 'owner' ? `<div class="vs-alert warning"><span>Hubungkan Gemini agar judul dan caption terisi otomatis setelah foto diunggah.</span>${button('Atur Gemini', 'nav:ai-settings')}</div>` : '';
+    if (ai && !ai.textConfigured) return user().role === 'owner' ? `<div class="vs-alert warning"><span>Connect Gemini so the title and caption fill in automatically after upload.</span>${button('Set up Gemini', 'nav:ai-settings')}</div>` : '';
     if (!ai) return '';
-    if (f.writing) return '<p class="vs-ai-note" role="status">AI sedang melihat media dan menulis judul serta caption…</p>';
-    const again = button(f.written ? 'Tulis ulang dengan AI' : 'Tulis dengan AI', 'create-ai', 'vs-text-button', 'sparkles');
+    if (f.writing) return '<p class="vs-ai-note" role="status">AI is looking at the media and writing a title and caption…</p>';
+    const again = button(f.written ? 'Rewrite with AI' : 'Write with AI', 'create-ai', 'vs-text-button', 'sparkles');
     if (f.aiError) return `<div class="vs-alert warning" role="alert"><span>${esc(f.aiError)}</span>${again}</div>`;
-    if (f.written) return `<div class="vs-ai-note"><span>Ditulis otomatis oleh AI. Periksa dan ubah sesuai kebutuhan sebelum menyimpan.</span>${again}</div>${f.aiWarnings.length ? `<ul class="vs-help-list">${f.aiWarnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
-    return `<div class="vs-ai-note"><span>AI bisa menuliskan judul dan caption dari media ini.</span>${again}</div>`;
+    if (f.written) return `<div class="vs-ai-note"><span>Written automatically by AI. Check and edit it as needed before saving.</span>${again}</div>${f.aiWarnings.length ? `<ul class="vs-help-list">${f.aiWarnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
+    return `<div class="vs-ai-note"><span>AI can write a title and caption from this media.</span>${again}</div>`;
   }
   async function submit() {
     const f = flow, format = formatFor(f.platform, f.media);
@@ -161,7 +161,7 @@ export function createSimpleViews(ctx) {
       }
       const target = f.platform === 'youtube' ? 'youtube-library' : 'library';
       reset(); await ctx.reload();
-      toast(f.when === 'scheduled' ? 'Posting dijadwalkan.' : f.when === 'draft' ? 'Draft tersimpan.' : 'Posting diajukan untuk ditinjau.');
+      toast(f.when === 'scheduled' ? 'Post scheduled.' : f.when === 'draft' ? 'Draft saved.' : 'Post submitted for review.');
       ctx.navigate(target);
     } catch (error) { f.error = error.message; f.busy = false; ctx.render(); }
   }
@@ -191,7 +191,7 @@ export function createSimpleViews(ctx) {
   function dropped(list) {
     const yt = flow.platform === 'youtube';
     const ok = list.filter(f => yt ? /\.mp4$/i.test(f.name) || f.type === 'video/mp4' : /\.(jpe?g|png|webp|mp4)$/i.test(f.name) || /^(image\/(jpeg|png|webp)|video\/mp4)$/.test(f.type));
-    if (!ok.length) { toast(yt ? 'YouTube Shorts memerlukan video MP4.' : 'Gunakan JPG, PNG, WebP, atau MP4.', true); return; }
+    if (!ok.length) { toast(yt ? 'YouTube Shorts need an MP4 video.' : 'Use JPG, PNG, WebP, or MP4.', true); return; }
     if (ok.length < list.length) toast(`${list.length - ok.length} file dilewati karena formatnya tidak didukung.`);
     void upload(yt ? ok.slice(0, 1) : ok);
   }
