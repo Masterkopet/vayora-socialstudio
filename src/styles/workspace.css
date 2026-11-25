@@ -25,6 +25,17 @@
 #vayora-studio-complete .vs-account{display:flex;align-items:center;gap:9px}
 #vayora-studio-complete .vs-avatar{display:grid;place-items:center;width:29px;height:29px;flex:none;background:var(--vs-cream);border-radius:50%;color:var(--vs-navy);font-weight:650}
 #vayora-studio-complete .vs-work{min-width:0}
+#vayora-studio-complete .vs-trail{display:flex;align-items:center;gap:8px;min-width:0}
+#vayora-studio-complete .vs-trail:empty{display:none}
+#vayora-studio-complete .vs-back{display:none;flex:none;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid var(--vs-line);border-radius:12px;background:#fff;color:var(--vs-navy);cursor:pointer}
+#vayora-studio-complete .vs-crumbs{min-width:0}
+#vayora-studio-complete .vs-crumbs ol{display:flex;flex-wrap:wrap;align-items:center;list-style:none;margin:0;padding:0;font-size:12px;color:var(--vs-muted)}
+#vayora-studio-complete .vs-crumbs li{display:inline-flex;align-items:center}
+#vayora-studio-complete .vs-crumbs li+li::before{content:'›';margin:0 7px;opacity:.55}
+#vayora-studio-complete .vs-crumbs button{border:0;background:none;padding:6px 2px;color:var(--vs-navy);font:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+#vayora-studio-complete .vs-crumbs button:hover,#vayora-studio-complete .vs-crumbs button:focus-visible{text-decoration-color:currentColor}
+#vayora-studio-complete .vs-crumbs li[aria-current]{color:var(--vs-navy);font-weight:600}
+@media(max-width:800px){#vayora-studio-complete .vs-back{display:inline-flex}#vayora-studio-complete .vs-crumbs{overflow-x:auto;scrollbar-width:none}#vayora-studio-complete .vs-crumbs ol{flex-wrap:nowrap;white-space:nowrap}#vayora-studio-complete .vs-crumbs button{padding:12px 2px}}
 #vayora-studio-complete .vs-account{position:relative}
 #vayora-studio-complete .vs-account-menu{width:100%}
 #vayora-studio-complete .vs-account-caret{margin-left:auto;display:inline-flex;opacity:.7}
