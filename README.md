@@ -42,6 +42,10 @@ Lalu atur jadwal (tanggal mulai, hari, dan jam WIB; slot yang sudah dipakai dile
 
 Tags dikirim ke kolom Tags YouTube. Bila deskripsi menyebut visual buatan AI, pilihan "konten sintetis" tercentang otomatis dan YouTube menerima `containsSyntheticMedia`. Komentar sematan tetap disematkan di YouTube Studio. Selama proyek Google belum lolos audit, video tetap privat. Gambar dikonversi menjadi JPEG sRGB; video disiapkan dengan faststart dan audio AAC 128 kbps; file produksi asli tidak diubah. Alamat lama `/import` dan `/package` membuka halaman yang sama.
 
+## Akun tim
+
+Pemilik membuka **Akun tim** untuk melihat semua anggota (nama, email, peran, tanggal bergabung) dan undangan yang belum dipakai. **Hapus** mengakhiri sesi anggota itu seketika dan mencabut aksesnya; konten yang pernah dibuatnya tetap ada dan tercatat di Riwayat. Pemilik tidak dapat menghapus akunnya sendiri atau pemilik terakhir. **Batalkan** mencabut tautan undangan sebelum dipakai. API (khusus pemilik): `GET /api/team`, `DELETE /api/team/:id`, `DELETE /api/team/invites/:id`.
+
 ## Blog ke Sanity.io
 
 Menu **Blog** menulis, menjadwalkan, dan menerbitkan artikel ke dataset Sanity (skema `post`: title, slug, excerpt, body Portable Text, mainImage + alt, publishedAt, seoTitle, seoDescription, author, categories). Pemilik mengisi Project ID, dataset, dan token Editor di **Koneksi & publikasi → Blog · Sanity.io** (token terenkripsi, tidak ditampilkan lagi), lalu menekan **Cek koneksi** untuk membaca field artikel yang ada, penulis, dan kategori. Isi artikel ditulis dalam Markdown dan diubah ke Portable Text (judul h2/h3, daftar, kutipan, tebal, miring, tautan; tabel diratakan menjadi poin). Dokumen memakai _id tetap (`vayora-B01`), sehingga mengirim ulang menggantikan dokumen, bukan menggandakannya. Artikel yang dijadwalkan diterbitkan oleh penjadwal yang sama dengan Instagram/YouTube dan mengikuti saklar publikasi nyata dan jeda antrean. **Impor konten** membaca artikel `.md` dengan tabel Metadata SEO (judul, slug, meta description, kategori, tanggal terbit, nama file dan alt gambar utama). Draf artikel bisa ditulis Gemini dari topik dan kata kunci.

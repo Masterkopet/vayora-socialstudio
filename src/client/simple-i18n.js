@@ -66,6 +66,10 @@ export const simpleStrings={
   'Video atau foto belum dipilih.':'No video or photo chosen yet.','YouTube Shorts memerlukan tepat satu video MP4.':'YouTube Shorts need exactly one MP4 video.','Gabungan file ini tidak didukung Instagram.':'Instagram does not support this combination of files.',
   'Judul kosong.':'Title is empty.','Deskripsi atau caption kosong.':'Description or caption is empty.','Deskripsi lebih dari 2.200 karakter.':'Description is longer than 2,200 characters.',
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
+  // Team management
+  'Anggota tim':'Team members','Menghapus anggota mengakhiri akses akunnya seketika. Konten yang pernah dibuatnya tetap ada.':'Removing a member ends their account access immediately. Content they created stays.',
+  'Memuat anggota tim…':'Loading team members…','(kamu)':'(you)','Pemilik':'Owner','Editor':'Editor','Undangan tertunda':'Pending invitations','Batalkan':'Cancel','Hapus anggota':'Remove member','Batalkan undangan':'Cancel invitation',
+  'Anggota dihapus dari tim.':'Member removed from the team.','Undangan dibatalkan.':'Invitation cancelled.',
   // Blog (Sanity)
   'karakter · ideal 130–160':'characters · ideal 130–160','kata ·':'words ·','menit baca':'min read',
   'Blog':'Blog','BLOG':'BLOG','ARTIKEL BARU':'NEW ARTICLE','Tulis dan jadwalkan artikel ke vayora.id/blog.':'Write and schedule articles for vayora.id/blog.','Tulis, jadwalkan, dan terbitkan artikel ke Sanity untuk vayora.id/blog.':'Write, schedule, and publish articles to Sanity for vayora.id/blog.',
@@ -137,6 +141,9 @@ export const simplePatterns=[
   [/^(\d+) tags disiapkan\. Simpan draft untuk menyimpannya\.$/,(_,n)=>`${n} tags prepared. Save the draft to keep them.`],[/^Tags YouTube: (.+)$/,(_,t)=>`YouTube tags: ${t}`],
   [/^(\d+) konten belum punya caption\. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis\.$/,(_,n)=>`${n} item(s) have no caption. Connect Gemini in AI settings so empty captions can be written automatically.`],
   [/^(\d+) file dilewati karena formatnya tidak didukung\.$/,(_,n)=>`${n} file(s) skipped because the format is not supported.`],
+  [/^Hapus (.+) \((.+)\) dari tim\? Akses akunnya berakhir seketika\. Konten yang dibuatnya tetap ada\.$/,(_,n,e)=>`Remove ${n} (${e}) from the team? Their account access ends immediately. Content they created stays.`],
+  [/^Batalkan undangan untuk (.+)\? Tautannya tidak berlaku lagi\.$/,(_,e)=>`Cancel the invitation for ${e}? The link will no longer work.`],
+  [/^(.+) · (Pemilik|Editor) · bergabung (.+)$/,(_,e,r,d)=>`${e} · ${r==='Pemilik'?'Owner':'Editor'} · joined ${d}`],[/^Berlaku hingga (.+)$/,(_,d)=>`Valid until ${d}`],
   [/^(\d+) artikel blog gagal terbit\. Buka Blog untuk melihat alasannya\.$/,(_,n)=>`${n} blog article(s) failed to publish. Open Blog to see why.`],
   [/^(.* · )?(\d+) menit baca( · .*)?$/,(_,a,n,b)=>`${a||''}${n} min read${b||''}`],[/^(\d+) karakter · ideal 130–160$/,(_,n)=>`${n} characters · ideal 130–160`],[/^(\d+) kata · (\d+) menit baca$/,(_,a,b)=>`${a} words · ${b} min read`],
   [/^Artikel dijadwalkan: (.+)\.$/,(_,t)=>`Article scheduled: ${t}.`],[/^Project (\S+) · dataset (\S+)$/,(_,a,b)=>`Project ${a} · dataset ${b}`],
