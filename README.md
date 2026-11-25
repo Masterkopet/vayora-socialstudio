@@ -81,7 +81,9 @@ Long pages use **tabs** to reduce scrolling: Connections & publishing (Instagram
 
 **Main image.** Upload an image (drag & drop), or write/keep an image prompt and press **Generate with AI**: Gemini (`gemini-2.5-flash-image`, 16:9) creates it and it is stored like an uploaded image. On import, articles with a prompt but no image can get their image generated automatically (one request each, daily limit set in AI settings, default 30); such articles are submitted for review instead of being scheduled so a person sees the picture first.
 
-**Deleting.** Delete in the list or the editor removes the article from Studio only; the Sanity document and the live page stay, and a synced article is not brought back by the next sync. Images inside the article body are not supported yet (the blog schema only holds text blocks).
+**Article list.** Filter by All, Draft, In review, Scheduled, Published or Failed (with counts) and search by title, slug or ID. Tick articles (or Select all) to act on several at once. **Schedule** (calendar icon on a row, or Schedule… for a selection) opens a planner like the Instagram/YouTube one: start date, publish days, times (WIB), a free slot for each article that skips times other articles use, editable per row, one approval, applied article by article with a result per row. In the editor, **Suggest the next free time** fills the next Monday/Wednesday/Friday 07:00 slot. Scheduled and failed articles also appear in **Queue**.
+
+**Deleting.** The trash icon (kept apart from Open) or the one in the selection bar asks twice before it removes the article from Studio only; the Sanity document and the live page stay, and a synced article is not brought back by the next sync. Images inside the article body are not supported yet (the blog schema only holds text blocks).
 
 ## Menu layout
 
