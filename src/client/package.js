@@ -1,6 +1,7 @@
 // "Import content": one page for every bulk import. Choose a folder or files; videos, photos and text (JSON/CSV
 // packages, per-episode .txt, Markdown caption lists) are read together, paired, previewed with an automatic
 // schedule, then uploaded and saved/scheduled row by row.
+import { expandZip } from './zip.js';
 import { readSources, matchFiles, mediaOnlyRows, checkRow, planSchedule, mediaInfo, titleFromFile, MEDIA_FILE, TEXT_FILE } from './package-parse.js';
 
 const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
@@ -13,7 +14,7 @@ const pathOf = f => f.webkitRelativePath || f.name;
 export function createPackageImport(ctx) {
   const { api, esc, button, toast } = ctx;
   let st, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
-  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, platform: 'youtube', mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true }; };
+  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, platform: 'youtube', mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true, genHero: true }; };
   reset();
 
   // ---------- derived state ----------
@@ -34,9 +35,11 @@ export function createPackageImport(ctx) {
     st.synthetic = st.synthetic || st.rows.some(r => AI_NOTE.test(r.row.caption));
   }
   const existingIds = () => (ctx.getWorkspace().posts || []).map(p => p.id);
+  // A blog article without an image but with an image prompt can get its main image generated (Gemini).
+  const willGen = r => platformOf(r) === 'blog' && !r.files.length && !!r.row.blog?.heroPrompt && st.genHero && !!ai?.textConfigured;
   const aiFill = () => st.aiFill && !!ai?.textConfigured && st.mode !== 'draft';
   const needsAI = r => !r.row.caption && aiFill();
-  const checked = r => { const c = checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: needsAI(r) ? 'draft' : st.mode, existingIds: existingIds() }); if (needsAI(r)) c.warnings.unshift('Title & caption are written by AI, then submitted for review.'); return c; };
+  const checked = r => { const c = checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: needsAI(r) ? 'draft' : st.mode, existingIds: existingIds(), willGenerate: willGen(r) }); if (needsAI(r)) c.warnings.unshift('Title & caption are written by AI, then submitted for review.'); return c; };
   const active = r => edit(r).include && !r.result?.ok && !checked(r).errors.length;
   const ready = () => st.rows.filter(active);
   function plan() {
@@ -57,7 +60,7 @@ export function createPackageImport(ctx) {
     const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} videos/photos ·${usedSources.length ? 'text from ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'no title/description text file yet'}${otherSources ? ` · ${otherSources} other text files only fill in what is empty` : ''} · ${rows.length} posts found.</p>` : '';
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
 <ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
-<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
+<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
 <label class="vs-label">Default platform<select class="vs-input" id="pkg-platform"><option value="youtube" ${st.platform === 'youtube' ? 'selected' : ''}>YouTube Shorts</option><option value="instagram" ${st.platform === 'instagram' ? 'selected' : ''}>Instagram</option></select><small>Used when the text names no platform. Code S01 is always YouTube; V01, I01, C01 are always Instagram.</small></label>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
     if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">No content can be made from these files yet. Add videos/photos and their title/description text.</p>' : ''}</div>`;
@@ -67,6 +70,7 @@ ${st.mode === 'draft' ? '' : `<div class="vs-two"><label class="vs-label">Start 
 <div><span class="vs-label">Publish days</span><div class="vs-day-row">${dayBoxes}</div></div>
 ${rows.some(r => r.row.date) ? `<label class="vs-check"><input type="checkbox" id="pkg-file-dates" ${st.useFileDates ? 'checked' : ''}><span>Use the date and time from the file when present</span></label>` : ''}`}
 ${rows.some(r => !r.row.caption) && st.mode !== 'draft' ? (ai?.textConfigured ? `<label class="vs-check"><input type="checkbox" id="pkg-ai-fill" ${st.aiFill ? 'checked' : ''}><span><b>Write empty captions with AI</b> · Gemini watches the video or looks at the photo. These items are submitted for review (not scheduled right away) so someone reads them first.</span></label>` : `<p class="vs-mini">${rows.filter(r => !r.row.caption).length} posts have no caption yet. Connect Gemini in AI settings so empty captions can be written automatically.</p>`) : ''}
+${rows.some(r => platformOf(r) === 'blog' && !r.files.length && r.row.blog?.heroPrompt) ? (ai?.textConfigured ? `<label class="vs-check"><input type="checkbox" id="pkg-gen-hero" ${st.genHero ? 'checked' : ''}><span><b>Generate missing main images with AI</b> · one Gemini request per article, from the image prompt in the file. Articles with a generated image are submitted for review instead of being scheduled.</span></label>` : '<p class="vs-mini">Some articles have an image prompt but no image. Connect Gemini in AI settings to generate them, or drop the image files next to the articles.</p>') : ''}
 ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input type="checkbox" id="pkg-synthetic" ${st.synthetic ? 'checked' : ''}><span>Videos contain realistic AI-generated visuals. Disclose this to YouTube ("altered or synthetic content").</span></label>` : ''}`);
     const table = rows.map((r, i) => {
       const c = checked(r), slot = slotOf(r), p = platformOf(r), res = r.result, e = edit(r), locked = res?.ok || st.running;
@@ -100,8 +104,13 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
         const media = r.files.length ? (await api('/api/media', 'POST', form)).media || [] : [];
         if (p === 'blog') {
           set('Saving article…', { busy: true });
-          const b = r.row.blog, intent = st.mode === 'draft' ? 'draft' : st.mode;
-          let art = await api('/api/blog', 'POST', { title: r.row.title, slug: b.slug, excerpt: b.excerpt, seoTitle: b.seoTitle, seoDescription: b.excerpt, category: b.category, body: b.body, heroMediaId: media[0]?.id || null, heroAlt: b.heroAlt });
+          const b = r.row.blog; let intent = st.mode === 'draft' ? 'draft' : st.mode, heroId = media[0]?.id || null;
+          if (!heroId && willGen(r)) {
+            set('Generating image…', { busy: true });
+            heroId = (await withRetry(() => api('/api/blog/image', 'POST', { prompt: b.heroPrompt }))).media.id;
+            if (intent === 'scheduled') intent = 'review'; // a generated image should be seen by a person before it goes live
+          }
+          let art = await api('/api/blog', 'POST', { title: r.row.title, slug: b.slug, excerpt: b.excerpt, seoTitle: b.seoTitle, seoDescription: b.excerpt, category: b.category, body: b.body, heroMediaId: heroId, heroAlt: b.heroAlt, heroPrompt: b.heroPrompt });
           if (intent !== 'draft') art = await api('/api/blog/' + encodeURIComponent(art.id), 'PUT', { title: art.title, slug: art.slug, excerpt: art.excerpt, seoTitle: art.seoTitle, seoDescription: art.seoDescription, category: art.category, body: art.body, heroMediaId: art.heroMediaId, heroAlt: art.heroAlt, revision: art.revision, intent, approved: intent === 'scheduled', date: slot?.date, time: slot?.time });
           ok++; set(intent === 'scheduled' ? `${art.id} · scheduled` : intent === 'review' ? `${art.id} · in review` : `${art.id} · draft`, { ok: true }); continue;
         }
@@ -130,9 +139,11 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
 
   // ---------- events ----------
   async function addFiles(list) {
-    const usable = list.filter(f => !mediaInfo(f).ignored);
-    const seen = new Set([...st.texts.map(t => t.path), ...st.media.map(pathOf)]);
     st.reading = true; ctx.render();
+    const expanded = [];
+    for (const f of list) { if (/\.zip$/i.test(f.name)) { try { expanded.push(...await expandZip(f)); } catch (error) { toast(error.message, true); } } else expanded.push(f); }
+    const usable = expanded.filter(f => !mediaInfo(f).ignored);
+    const seen = new Set([...st.texts.map(t => t.path), ...st.media.map(pathOf)]);
     for (const f of usable) {
       const path = pathOf(f); if (seen.has(path)) continue; seen.add(path);
       if (MEDIA_FILE.test(f.name)) st.media.push(f);
@@ -159,6 +170,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
     on('#pkg-times', 'change', el => { st.times = el.value; clearOverrides(); ctx.render(); });
     on('[data-pkg-day]', 'change', el => { const d = Number(el.dataset.pkgDay); st.days = el.checked ? [...st.days, d] : st.days.filter(x => x !== d); clearOverrides(); ctx.render(); });
     on('#pkg-file-dates', 'change', el => { st.useFileDates = el.checked; ctx.render(); });
+    on('#pkg-gen-hero', 'change', el => { st.genHero = el.checked; ctx.render(); });
     on('#pkg-synthetic', 'change', el => { st.synthetic = el.checked; });
     on('#pkg-ai-fill', 'change', el => { st.aiFill = el.checked; ctx.render(); });
     if (ai === null) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }

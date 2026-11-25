@@ -152,6 +152,7 @@ test('blog articles: the Metadata SEO table gives title, slug, category, schedul
   assert.equal(a.blog.slug, 'sop-check-in-check-out-villa-guesthouse'); assert.equal(a.blog.seoTitle, 'SOP Check-in & Check-out Villa (Lengkap)');
   assert.equal(a.blog.excerpt, 'SOP check-in dan check-out villa langkah demi langkah.'); assert.equal(a.blog.category, 'Operasional');
   assert.equal(a.date, '2026-11-27'); assert.equal(a.time, '07:00'); assert.deepEqual(a.files, ['sop-check-in-villa.webp']); assert.equal(a.blog.heroAlt, 'Penjaga villa menyambut tamu');
+  assert.equal(a.blog.heroPrompt, 'Photo of a welcome', 'the English image prompt of the main image row is kept for AI generation');
   assert.equal(a.blog.body, 'Paragraf pembuka.\n\n### 1. Aturan Dasar\n\nIsi bagian.', 'date line, byline and the Instagram caption are not in the body');
   // Blog rows keep their own key (episode 03 of a YouTube package is a different item) and never take a video by number.
   const yt = JSON.stringify([{ episode: '03', judul: 'Episode', deskripsi_lengkap: 'D' }]);
@@ -162,6 +163,8 @@ test('blog articles: the Metadata SEO table gives title, slug, category, schedul
   assert.deepEqual(checkRow({ row: a, files: [], platform: 'blog', mode: 'draft' }).errors, []);
   assert.match(checkRow({ row: a, files: [], platform: 'blog', mode: 'scheduled' }).errors.join(), /no main image/i);
   assert.equal(formatOf('blog', []), 'Blog');
+  const generated = checkRow({ row: a, files: [], platform: 'blog', mode: 'scheduled', willGenerate: true });
+  assert.deepEqual(generated.errors, [], 'an article whose image will be generated can be imported'); assert.match(generated.warnings.join(), /generated from its prompt/);
 });
 
 test('English column aliases import the same as the Indonesian names', () => {
