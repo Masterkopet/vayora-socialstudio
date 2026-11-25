@@ -158,6 +158,16 @@ export function createAssistant(store,options={}) {
     const {text,image}=classifyGeminiModels(await geminiModelList(c));
     return {text,image,current:{text:c.geminiModel||GEMINI_DEFAULT_MODEL,image:c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL},defaults:{text:GEMINI_DEFAULT_MODEL,image:GEMINI_IMAGE_DEFAULT_MODEL}};
   }
+  // What a Google 429 says: which quota (per minute or per day, per model), whether the model has no allowance at all, and how
+  // long Google asks to wait. Only short identifiers are kept, so the log and messages carry no secrets.
+  async function explain(response){
+    let body={};try{body=await response.clone().json();}catch{}
+    const details=Array.isArray(body?.error?.details)?body.error.details:[];
+    const violations=details.filter(d=>/QuotaFailure/.test(String(d['@type']||''))).flatMap(d=>d.violations||[]);
+    const ids=violations.map(v=>String(v.quotaId||v.quotaMetric||'').replace(/[^A-Za-z0-9_.-]/g,'').slice(0,90));
+    const delay=details.find(d=>/RetryInfo/.test(String(d['@type']||'')))?.retryDelay,seconds=typeof delay==='string'?Number(delay.replace(/s$/,'')):0;
+    return {perDay:ids.some(x=>/PerDay/i.test(x)),perMinute:ids.some(x=>/PerMinute/i.test(x)),zero:violations.some(v=>String(v.quotaValue)==='0'),retryAfter:Number.isFinite(seconds)?seconds:0,scope:ids.filter(Boolean).join(',')};
+  }
   async function paid(kind,provider,request,{alternates=null}={}) {
     const c=config();
     if(provider==='openai'&&!c.apiKey)throw fail('Connect the OpenAI API in Settings to create AI images. The local brand design can be used now.',422);
@@ -171,15 +181,20 @@ export function createAssistant(store,options={}) {
     try {
       let response=await request(c);
       // Google's 500/503/504 answers ("overloaded", "unavailable") are usually gone a moment later: retry twice before giving up.
-      const busy=r=>[500,502,503,504].includes(r.status);
+      const busy=r=>[500,502,503,504].includes(r.status),quota=r=>r.status===429;
       for(const wait of [2500,6000]){if(!busy(response))break;await new Promise(r=>setTimeout(r,options.retryMs??wait));response=await request(c);}
-      // Still busy: try the other models once each (the same request, so it counts once against the daily limit).
+      // A per-minute quota (HTTP 429) clears when Google's own retry delay has passed; a per-day quota does not, so it is not waited out.
+      let info=quota(response)?await explain(response):null;
+      if(info&&!info.perDay&&!info.zero&&info.retryAfter>0&&info.retryAfter<=20){await new Promise(r=>setTimeout(r,options.retryMs??(info.retryAfter*1000+500)));response=await request(c);info=quota(response)?await explain(response):null;}
+      // Still busy or over quota: other models have their own capacity and their own quota, so try them once each (the same
+      // request, so it counts once against the daily limit).
       const tried=[];
-      if(busy(response)&&alternates){for(const next of await alternates(c)){tried.push(next.label);await new Promise(r=>setTimeout(r,options.retryMs??1500));const answer=await next.request(c);console.warn('[assistant]',provider,'busy; tried',next.label,'HTTP',answer.status);if(!busy(answer)){response=answer;break;}}}
+      if((busy(response)||quota(response))&&alternates){for(const next of await alternates(c)){tried.push(next.label);await new Promise(r=>setTimeout(r,options.retryMs??1500));const answer=await next.request(c);const answerInfo=quota(answer)?await explain(answer):null;console.warn('[assistant]',provider,'tried',next.label,'HTTP',answer.status,answerInfo?.scope||'');if(!busy(answer)&&!quota(answer)){response=answer;info=null;break;}if(quota(answer))info=answerInfo;}}
       if(!response.ok){let reason='',detail='';try{const body=await response.json();reason=JSON.stringify(body);detail=safeReason(body?.error?.message||body?.error?.status||'');}catch{}
-        console.warn('[assistant]',provider,'HTTP',response.status,detail||'(no detail)');
+        console.warn('[assistant]',provider,'HTTP',response.status,detail||'(no detail)',info?.scope?'| '+info.scope:'');
         const badKey=response.status===401||response.status===403||/API_KEY_INVALID|API key not valid/i.test(reason);
-        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:tried.length&&busy(response)?`All Gemini models tried are busy right now (HTTP ${response.status}, also tried ${tried.join(', ')}). This is Google's capacity, not your quota. Try again in a few minutes.`:`${name} could not complete the request yet (HTTP ${response.status}${detail?': '+detail:''}). Try again later.`,502);}
+        const quotaMessage=provider==='gemini'&&quota(response)&&info&&(info.scope||info.retryAfter)?(info?.perDay||info?.zero?`Gemini's daily quota is used up${info.zero?' (this model has no free allowance on this key)':''}${tried.length?'; also tried '+tried.join(', '):''}. Daily limits reset at midnight Pacific time (about 15:00 WIB). Choose another model in Settings, turn on billing in Google AI Studio, or try again after the reset.`:`Gemini's per-minute quota is reached${tried.length?' (also tried '+tried.join(', ')+')':''}. Wait a minute and try again; Create post asks for one text per platform, so choosing fewer platforms uses less of it.`):'';
+        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:quotaMessage||(response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:tried.length&&busy(response)?`All Gemini models tried are busy right now (HTTP ${response.status}, also tried ${tried.join(', ')}). This is Google's capacity, not your quota. Try again in a few minutes.`:`${name} could not complete the request yet (HTTP ${response.status}${detail?': '+detail:''}). Try again later.`),502);}
       return await response.json();
     }catch(e){if(e.status)throw e;throw fail('The AI connection was lost or timed out. No result is available yet; the request still counts and may incur charges. It is not retried automatically.',502);}finally{running=false;}
   }

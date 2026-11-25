@@ -152,3 +152,57 @@ test('when every flash model is full (as seen in production), Flash-Lite writes 
     assert.deepEqual(seen, ['gemini-3.7-flash', 'gemini-3.7-flash', 'gemini-3.7-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'], 'one other flash model, then Flash-Lite; never a preview');
   } finally { await f.cleanup(); }
 });
+
+// Google's real 429 body: which quota ran out, and how long to wait.
+const quotaError = ({ quotaId, retryDelay = '', value = '20' }) => Response.json({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'You exceeded your current quota, please check your plan and billing details.', details: [
+  { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests', quotaId, quotaValue: value }] },
+  ...(retryDelay ? [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay }] : []),
+] } }, { status: 429 });
+
+test('a per-minute quota is waited out once, then other models are tried; the message says it is per minute', async () => {
+  const f = await fixture();
+  try {
+    const seen = [];
+    const ai = createAssistant(f.store, { retryMs: 0, fetch: async url => {
+      const u = new URL(url); if (u.pathname === '/v1beta/models') return failure(500, 'no list', 'INTERNAL');
+      seen.push(decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0]));
+      return seen.length === 2 ? ok() : quotaError({ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', retryDelay: '12s' });
+    } });
+    ai.configure({ geminiKey: KEY });
+    f.store.set('assistant.lastRequest', 0);
+    assert.equal((await ai.draft({ platform: 'instagram', mediaIds: [f.media.id] })).title, 'Judul');
+    assert.deepEqual(seen, ['gemini-flash-latest', 'gemini-flash-latest'], 'the short per-minute wait was enough');
+
+    seen.length = 0; f.store.set('assistant.lastRequest', 0);
+    const stuck = createAssistant(f.store, { retryMs: 0, fetch: async url => { const u = new URL(url); if (u.pathname === '/v1beta/models') return failure(500, 'no list', 'INTERNAL'); seen.push(decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0])); return quotaError({ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', retryDelay: '30s' }); } });
+    await assert.rejects(() => stuck.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /Gemini's per-minute quota is reached \(also tried gemini-flash-lite-latest\)\. Wait a minute/);
+    assert.deepEqual(seen, ['gemini-flash-latest', 'gemini-flash-lite-latest'], 'a 30 s delay is not waited out; the other model is tried instead');
+  } finally { await f.cleanup(); }
+});
+
+test('a per-day quota is never waited out, falls back to other models, and says when it resets', async () => {
+  const f = await fixture();
+  try {
+    const seen = [];
+    const ai = createAssistant(f.store, { retryMs: 0, fetch: async url => {
+      const u = new URL(url); if (u.pathname === '/v1beta/models') return failure(500, 'no list', 'INTERNAL');
+      const model = decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0]); seen.push(model);
+      return model === 'gemini-flash-lite-latest' ? ok() : quotaError({ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', retryDelay: '5s' });
+    } });
+    ai.configure({ geminiKey: KEY });
+    f.store.set('assistant.lastRequest', 0);
+    assert.equal((await ai.draft({ platform: 'instagram', mediaIds: [f.media.id] })).title, 'Judul', 'Flash-Lite has its own daily quota');
+    assert.deepEqual(seen, ['gemini-flash-latest', 'gemini-flash-lite-latest']);
+
+    const dead = createAssistant(f.store, { retryMs: 0, fetch: async url => { const u = new URL(url); if (u.pathname === '/v1beta/models') return failure(500, 'no list', 'INTERNAL'); return quotaError({ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', value: '0' }); } });
+    f.store.set('assistant.lastRequest', 0);
+    await assert.rejects(() => dead.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /Gemini's daily quota is used up \(this model has no free allowance on this key\); also tried gemini-flash-lite-latest\. Daily limits reset at midnight Pacific time \(about 15:00 WIB\)\. Choose another model in Settings, turn on billing/);
+  } finally { await f.cleanup(); }
+});
+
+test('the quota messages have Indonesian translations', async () => {
+  const { simplePatterns } = await import('../src/client/simple-i18n.js');
+  const translate = text => { for (const [re, fn] of simplePatterns) { const m = re.exec(text); if (m) return fn(...m); } return null; };
+  assert.match(translate("Gemini's daily quota is used up; also tried gemini-flash-lite-latest. Daily limits reset at midnight Pacific time (about 15:00 WIB). Choose another model in Settings, turn on billing in Google AI Studio, or try again after the reset."), /^Kuota harian Gemini habis; juga dicoba gemini-flash-lite-latest\. Batas harian direset tengah malam waktu Pasifik/);
+  assert.match(translate("Gemini's per-minute quota is reached. Wait a minute and try again; Create post asks for one text per platform, so choosing fewer platforms uses less of it."), /^Kuota per menit Gemini tercapai\. Tunggu semenit/);
+});
