@@ -106,7 +106,29 @@ export function createAssistant(store,options={}) {
     const dailyHeroLimit=Number(body.dailyHeroLimit??c.dailyHeroLimit??30);if(!Number.isInteger(dailyHeroLimit)||dailyHeroLimit<1||dailyHeroLimit>100)throw fail('The blog image limit is 1–100 requests per day.');
     store.setSecret('assistant.config',{...c,imageProvider,geminiImageModel,openaiImageModel,apiKey:key,geminiKey,geminiModel,dailyCaptionLimit,dailyImageLimit,dailyHeroLimit});return status();
   }
-  async function paid(kind,provider,request) {
+  // When Google says a model is busy (HTTP 500/502/503/504) even after retries, other Gemini flash models on the same key are
+  // usually fine. They are read from the key's own model list (so only models it can use are tried) and kept for six hours;
+  // without that list, the stable flash models are tried.
+  const GEMINI_FALLBACK_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite'];
+  let alternateCache={at:0,list:null};
+  async function geminiAlternates(c,current){
+    let list=Date.now()-alternateCache.at<6*3600000?alternateCache.list:null;
+    if(!list){
+      try{
+        const response=await transport('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':c.geminiKey},signal:AbortSignal.timeout(15000)});
+        if(!response.ok)throw Error('list');
+        const usable=((await response.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>String(m.name||'').replace(/^models\//,''));
+        const version=n=>Number((n.match(/^gemini-(\d+(?:\.\d+)?)-/)||[])[1]||0);
+        const flash=usable.filter(n=>/^gemini-\d+(?:\.\d+)?-flash$/.test(n)).sort((a,b)=>version(b)-version(a));
+        const lite=usable.filter(n=>/^gemini-\d+(?:\.\d+)?-flash-lite$/.test(n)).sort((a,b)=>version(b)-version(a));
+        list=[...flash,...usable.filter(n=>n==='gemini-flash-latest'),...lite,...usable.filter(n=>n==='gemini-flash-lite-latest')];
+        if(!list.length)throw Error('none');
+        alternateCache={at:Date.now(),list};
+      }catch{list=GEMINI_FALLBACK_MODELS;}
+    }
+    return list.filter(n=>n!==current).slice(0,2);
+  }
+  async function paid(kind,provider,request,{alternates=null}={}) {
     const c=config();
     if(provider==='openai'&&!c.apiKey)throw fail('Connect the OpenAI API in Settings to create AI images. The local brand design can be used now.',422);
     if(!provider)throw fail('Connect the Gemini API in Settings to write with AI. Local assistance is still available.',422);
@@ -119,7 +141,10 @@ export function createAssistant(store,options={}) {
     try {
       let response=await request(c);
       // Google's 500/503/504 answers ("overloaded", "unavailable") are usually gone a moment later: retry twice before giving up.
-      for(const wait of [2500,6000]){if(![500,502,503,504].includes(response.status))break;await new Promise(r=>setTimeout(r,options.retryMs??wait));response=await request(c);}
+      const busy=r=>[500,502,503,504].includes(r.status);
+      for(const wait of [2500,6000]){if(!busy(response))break;await new Promise(r=>setTimeout(r,options.retryMs??wait));response=await request(c);}
+      // Still busy: try the other models once each (the same request, so it counts once against the daily limit).
+      if(busy(response)&&alternates){for(const next of await alternates(c)){await new Promise(r=>setTimeout(r,options.retryMs??1500));const answer=await next.request(c);console.warn('[assistant]',provider,'busy; tried',next.label,'HTTP',answer.status);if(!busy(answer)){response=answer;break;}}}
       if(!response.ok){let reason='',detail='';try{const body=await response.json();reason=JSON.stringify(body);detail=safeReason(body?.error?.message||body?.error?.status||'');}catch{}
         console.warn('[assistant]',provider,'HTTP',response.status,detail||'(no detail)');
         const badKey=response.status===401||response.status===403||/API_KEY_INVALID|API key not valid/i.test(reason);
@@ -134,7 +159,8 @@ export function createAssistant(store,options={}) {
       const model=c.geminiModel||GEMINI_DEFAULT_MODEL;
       const media=geminiParts||images.map(b=>({inline_data:{mime_type:'image/jpeg',data:b.toString('base64')}}));
       const body={systemInstruction:{parts:[{text:instructions}]},contents:[{role:'user',parts:[{text},...media]}],generationConfig:{responseMimeType:'application/json',responseSchema:geminiSchema(shape),maxOutputTokens:8192,temperature:0.8}};
-      const result=await paid('caption','gemini',k=>transport(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':k.geminiKey,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)}));
+      const send=m=>k=>transport(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':k.geminiKey,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
+      const result=await paid('caption','gemini',send(model),{alternates:async k=>(await geminiAlternates(k,model)).map(m=>({label:m,request:send(m)}))});
       const candidate=result.candidates?.[0];
       if(!candidate||(candidate.finishReason&&candidate.finishReason!=='STOP'))throw fail(candidate?.finishReason==='SAFETY'?'Gemini declined to write text for this media. Write it manually or try other media.':'The AI response is incomplete. No text was applied.',502);
       const raw=(candidate.content?.parts||[]).map(p=>p.text||'').join('');

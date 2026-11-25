@@ -61,3 +61,48 @@ test('the Indonesian translation still matches the message with and without the 
   assert.equal(translate('Gemini could not complete the request yet (HTTP 503: The model is overloaded.). Try again later.'), 'Gemini belum dapat menyelesaikan permintaan (HTTP 503: The model is overloaded.). Coba lagi nanti.');
   assert.equal(translate('Gemini could not complete the request yet (HTTP 500). Try again later.'), 'Gemini belum dapat menyelesaikan permintaan (HTTP 500). Coba lagi nanti.');
 });
+
+test('when the chosen model stays busy, another flash model from the key\'s own list writes the draft (counted once)', async () => {
+  const f = await fixture();
+  try {
+    const seen = [];
+    const fetch = async url => {
+      const u = new URL(url);
+      if (u.pathname === '/v1beta/models') return Response.json({ models: [
+        { name: 'models/gemini-flash-latest', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-3.0-flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-lite', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-image', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+      ] });
+      const model = decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0]); seen.push(model);
+      return model === 'gemini-3.0-flash' ? ok() : failure(503, 'This model is currently experiencing high demand.');
+    };
+    const ai = createAssistant(f.store, { retryMs: 0, fetch });
+    ai.configure({ geminiKey: KEY });
+    f.store.set('assistant.lastRequest', 0);
+    const draft = await ai.draft({ platform: 'instagram', mediaIds: [f.media.id] });
+    assert.equal(draft.title, 'Judul');
+    assert.deepEqual(seen, ['gemini-flash-latest', 'gemini-flash-latest', 'gemini-flash-latest', 'gemini-3.0-flash'], 'retries first, then the newest other flash model');
+    assert.equal(ai.status().usage.caption, 1);
+  } finally { await f.cleanup(); }
+});
+
+test('if every model is busy, at most two others are tried and the message stays clear; without a model list the stable ones are used', async () => {
+  const f = await fixture();
+  try {
+    const seen = [];
+    const ai = createAssistant(f.store, { retryMs: 0, fetch: async url => {
+      const u = new URL(url);
+      if (u.pathname === '/v1beta/models') return failure(500, 'list failed', 'INTERNAL');
+      seen.push(decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0]));
+      return failure(503, 'This model is currently experiencing high demand.');
+    } });
+    ai.configure({ geminiKey: KEY });
+    f.store.set('assistant.lastRequest', 0);
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /HTTP 503: This model is currently experiencing high demand\./);
+    assert.deepEqual(seen.slice(3), ['gemini-2.5-flash', 'gemini-2.5-flash-lite'], 'the stable flash models as the fallback');
+    assert.equal(seen.length, 5, 'three tries on the chosen model, one on each fallback');
+  } finally { await f.cleanup(); }
+});
