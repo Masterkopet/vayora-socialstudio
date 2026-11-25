@@ -73,9 +73,9 @@ test('marketing HTTP validates tracking origins, owner configuration, atomic imp
 function publisherFixture(){const store=openStore(':memory-placeholder-'+randomBytes(8).toString('hex'));return store;}
 async function publishingStore(){const directory=await mkdtemp(path.join(os.tmpdir(),'vayora-publisher-'));const store=openStore(directory);store.set('paused',false);store.set('publishingEnabled',true);store.setSecret('instagram.connection',{token:'private-token-fixture',accountId:'12345',username:'fixture',expiresAt:Date.now()+86400000,refreshedAt:Date.now()});store.insertPost({id:'I01',title:'Fixture',format:'Gambar',caption:'Fixture',mediaIds:['fixture-media'],approved:true,status:'scheduled',scheduleAt:new Date().toISOString()});return{store,async cleanup(){store.close();await safeRemove(directory);}};}
 function metaTransport({ambiguous=false}={}){const tracker={publishes:0,published:false};return{tracker,fetch:async(url,init={})=>{const target=new URL(url),pathname=target.pathname;if(pathname.endsWith('content_publishing_limit'))return Response.json({data:[{quota_usage:0,config:{quota_total:100}}]});if(pathname.endsWith('/media_publish')){tracker.publishes++;if(ambiguous)throw new Error('Simulated dropped response');tracker.published=true;return Response.json({id:'published-1'});}if(pathname.endsWith('/media'))return Response.json({id:'container-1'});if(pathname.endsWith('/container-1'))return Response.json({status_code:tracker.published?'PUBLISHED':'FINISHED'});if(pathname.endsWith('/published-1'))return Response.json({permalink:'https://www.instagram.com/p/fixture/'});throw new Error('Unexpected test request');}};}
-test('publishing records result and cannot publish an already-published post twice',async()=>{const f=await publishingStore();try{const transport=metaTransport();const ig=createInstagram(f.store,()=>({publicBase:'https://example.test',version:'v27.0'}),{fetch:transport.fetch,wait:async()=>{}});const item=await ig.run('I01',()=> 'https://example.test/media.jpg');assert.equal(item.status,'published');assert.equal(item.mediaId,'published-1');await assert.rejects(()=>ig.run('I01',()=>''),/tidak memenuhi/);assert.equal(transport.tracker.publishes,1);assert.ok(!JSON.stringify(ig.status()).includes('private-token-fixture'));}finally{await f.cleanup();}});
+test('publishing records result and cannot publish an already-published post twice',async()=>{const f=await publishingStore();try{const transport=metaTransport();const ig=createInstagram(f.store,()=>({publicBase:'https://example.test',version:'v27.0'}),{fetch:transport.fetch,wait:async()=>{}});const item=await ig.run('I01',()=> 'https://example.test/media.jpg');assert.equal(item.status,'published');assert.equal(item.mediaId,'published-1');await assert.rejects(()=>ig.run('I01',()=>''),/does not meet the requirements/);assert.equal(transport.tracker.publishes,1);assert.ok(!JSON.stringify(ig.status()).includes('private-token-fixture'));}finally{await f.cleanup();}});
 test('ambiguous publish response stays locked until Meta confirms the result',async()=>{const f=await publishingStore();try{const transport=metaTransport({ambiguous:true});const ig=createInstagram(f.store,()=>({publicBase:'https://example.test',version:'v27.0'}),{fetch:transport.fetch,wait:async()=>{}});let item=await ig.run('I01',()=> 'https://example.test/media.jpg');assert.equal(item.status,'uncertain');await assert.rejects(()=>ig.run('I01',()=>''));item=await ig.reconcile('I01');assert.equal(item.status,'uncertain');transport.tracker.published=true;item=await ig.reconcile('I01');assert.equal(item.status,'published');assert.equal(transport.tracker.publishes,1);}finally{await f.cleanup();}});
-test('OAuth state is session-bound, single use and access token remains encrypted',async()=>{const f=await publishingStore();try{const transport=async url=>{const u=new URL(url);if(u.hostname==='api.instagram.com')return Response.json({access_token:'short-fixture-token',user_id:'12345'});if(u.pathname==='/access_token')return Response.json({access_token:'long-fixture-token',expires_in:5184000});if(u.pathname.endsWith('/me'))return Response.json({user_id:'12345',username:'fixture'});throw new Error('Unexpected request');};const ig=createInstagram(f.store,()=>({appId:'123456',appSecret:'secret-fixture',publicBase:'https://example.test',version:'v27.0'}),{fetch:transport});const url=new URL(ig.start('owner','session-one'));const state=url.searchParams.get('state');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','wrong-session'),/sesi berbeda/);await ig.callback({state,code:'one'},'owner','session-one');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','session-one'),/kedaluwarsa/);assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('long-fixture-token'));assert.equal(ig.status().connected,true);}finally{await f.cleanup();}});
+test('OAuth state is session-bound, single use and access token remains encrypted',async()=>{const f=await publishingStore();try{const transport=async url=>{const u=new URL(url);if(u.hostname==='api.instagram.com')return Response.json({access_token:'short-fixture-token',user_id:'12345'});if(u.pathname==='/access_token')return Response.json({access_token:'long-fixture-token',expires_in:5184000});if(u.pathname.endsWith('/me'))return Response.json({user_id:'12345',username:'fixture'});throw new Error('Unexpected request');};const ig=createInstagram(f.store,()=>({appId:'123456',appSecret:'secret-fixture',publicBase:'https://example.test',version:'v27.0'}),{fetch:transport});const url=new URL(ig.start('owner','session-one'));const state=url.searchParams.get('state');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','wrong-session'),/different session/);await ig.callback({state,code:'one'},'owner','session-one');await assert.rejects(()=>ig.callback({state,code:'one'},'owner','session-one'),/expired/);assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('long-fixture-token'));assert.equal(ig.status().connected,true);}finally{await f.cleanup();}});
 test('OAuth accepts the documented data-wrapped token response and traces Meta rejections without secrets',async()=>{
   const f=await publishingStore();
   try{
@@ -95,7 +95,7 @@ test('OAuth accepts the documented data-wrapped token response and traces Meta r
     const failing=createInstagram(f.store,config,{fetch:rejecting});
     const second=new URL(failing.start('owner','session-one')).searchParams.get('state');
     await assert.rejects(()=>failing.callback({state:second,code:'one'},'owner','session-one'),error=>{
-      assert.equal(error.code,'META_REJECTED');assert.match(error.message,/kode 400/);assert.match(error.message,/Invalid redirect_uri/);
+      assert.equal(error.code,'META_REJECTED');assert.match(error.message,/code 400/);assert.match(error.message,/Invalid redirect_uri/);
       assert.ok(!error.message.includes('evil.test')&&!error.message.includes('IGAAabcdef')&&!error.message.includes('secret-fixture'));return true;});
   }finally{await f.cleanup();}
 });
@@ -112,7 +112,7 @@ test('pasted dashboard token connects without an app secret, refreshes without o
     await assert.rejects(()=>ig.connectToken('',  'owner'),error=>error.code==='TOKEN_REQUIRED');
     await assert.rejects(()=>ig.connectToken('IGAA token with spaces 123456','owner'),error=>error.code==='TOKEN_FORMAT');
     assert.equal(calls.length,0,'format errors never reach Meta');
-    await assert.rejects(()=>ig.connectToken('IGAArejectedtoken000000000','owner'),error=>error.code==='TOKEN_REJECTED'&&/Buat token baru/.test(error.message));
+    await assert.rejects(()=>ig.connectToken('IGAArejectedtoken000000000','owner'),error=>error.code==='TOKEN_REJECTED'&&/Generate a new token/.test(error.message));
     assert.equal(ig.status().connected,true,'a rejected paste must not invalidate the working connection');assert.equal(ig.status().username,'fixture');
     const result=await ig.connectToken('  IGAAgoodtoken1234567890abc  ','owner');
     assert.equal(result.connected,true);assert.equal(result.configured,false);assert.equal(result.method,'token');assert.equal(result.expiresKnown,false);
@@ -134,15 +134,15 @@ test('token endpoint is owner-only, needs no Meta app config, and switching acco
     const first=await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'},owner);
     assert.equal(first.response.status,200);assert.equal(first.data.connected,true);assert.equal(first.data.configured,false);assert.equal(first.data.username,'first');
     const blocked=await f.request('/api/workspace/publishing','POST',{enabled:true,confirmation:'AKTIFKAN'},owner);
-    assert.equal(blocked.response.status,400);assert.match(blocked.data.error,/HTTPS publik/);
+    assert.equal(blocked.response.status,400);assert.match(blocked.data.error,/public HTTPS/);
     f.store.set('publishingEnabled',true);f.store.set('paused',false);
     const same=await f.request('/api/instagram/token','POST',{token:'IGAAfirstaccount0000000000'},owner);
     assert.equal(same.response.status,200);assert.equal(f.store.setting('publishingEnabled',false),true,'renewing the same account keeps publishing on');
     const second=await f.request('/api/instagram/token','POST',{token:'IGAAsecondaccount000000000'},owner);
     assert.equal(second.data.username,'second');assert.equal(f.store.setting('publishingEnabled',true),false);assert.equal(f.store.setting('paused',false),true);
-    assert.ok(f.store.get("SELECT id FROM events WHERE title='Akun Instagram diganti'"));
+    assert.ok(f.store.get("SELECT id FROM events WHERE title='Instagram account changed'"));
     const wrong=await f.request('/api/instagram/token','POST',{token:'IGAArejectedtoken000000000'},owner);
-    assert.equal(wrong.response.status,422);assert.match(wrong.data.error,/Token ditolak Meta/);
+    assert.equal(wrong.response.status,422);assert.match(wrong.data.error,/Meta rejected the token/);
     assert.equal((await f.request('/api/instagram/status','GET',null,owner)).data.username,'second');
     const invite=await f.request('/api/team/invites','POST',{email:'editor@example.test'},owner);const inviteToken=new URL(invite.data.url).searchParams.get('invite');
     const join=await f.request('/api/auth/accept-invite','POST',{token:inviteToken,name:'Editor Uji',password:'Editor-'+randomBytes(12).toString('hex')});
@@ -232,21 +232,21 @@ test('Unified login token errors are specific: expired, no account, several acco
     const config=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
     const connect=mode=>createInstagram(f.store,config,{fetch:facebookTransport(mode)}).connectToken('EAAfunifiedtoken0000000000','owner');
     await assert.rejects(()=>connect('expired'),error=>error.code==='TOKEN_REJECTED');
-    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/tidak ditemukan/.test(error.message)&&/me\/accounts: ditolak \(kode 10\)/.test(error.message)&&/me\/businesses: ditolak \(kode 200\)/.test(error.message)&&/me=999/.test(error.message)&&/izin=instagram_basic,instagram_content_publish/.test(error.message)&&/izin=instagram_basic,instagram_content_publish( ·|$)/.test(error.message)&&/aset=instagram_basic:0/.test(error.message)&&/Isi App ID dan App Secret/.test(error.message));
+    await assert.rejects(()=>connect('none'),error=>error.code==='PROFILE_INVALID'&&/not found/.test(error.message)&&/me\/accounts: rejected \(code 10\)/.test(error.message)&&/me\/businesses: rejected \(code 200\)/.test(error.message)&&/me=999/.test(error.message)&&/permissions=instagram_basic,instagram_content_publish/.test(error.message)&&/permissions=instagram_basic,instagram_content_publish( ·|$)/.test(error.message)&&/assets=instagram_basic:0/.test(error.message)&&/Enter the App ID and App Secret/.test(error.message));
     await assert.rejects(()=>connect('many'),error=>error.code==='ACCOUNT_AMBIGUOUS'&&/@one, @two/.test(error.message));
     assert.equal(createInstagram(f.store,config,{fetch:facebookTransport('debug')}).status().username,'fixture','failed pastes keep the saved connection');
   }finally{await f.cleanup();}
 });
-test('failed token connections are recorded in Riwayat without the token',async()=>{
+test('failed token connections are recorded in History without the token',async()=>{
   const f=await fixture({instagram:{fetch:facebookTransport('none')}});
   try{
     const owner=await f.setup();
     const bad=await f.request('/api/instagram/token','POST',{token:'EAAsecretfailedtoken000000'},owner);
-    assert.equal(bad.response.status,422);assert.match(bad.data.error,/tidak ditemukan/);
-    const event=f.store.get("SELECT detail FROM events WHERE title='Koneksi dengan token belum berhasil'");
+    assert.equal(bad.response.status,422);assert.match(bad.data.error,/not found/);
+    const event=f.store.get("SELECT detail FROM events WHERE title='Token connection did not succeed'");
     assert.ok(event);assert.match(event.detail,/me\/accounts/);assert.ok(!event.detail.includes('EAAsecretfailedtoken'));
     const format=await f.request('/api/instagram/token','POST',{token:'salah format'},owner);assert.equal(format.response.status,422);
-    assert.equal(f.store.all("SELECT id FROM events WHERE title='Koneksi dengan token belum berhasil'").length,1,'format typos are not logged');
+    assert.equal(f.store.all("SELECT id FROM events WHERE title='Token connection did not succeed'").length,1,'format typos are not logged');
   }finally{await f.cleanup();}
 });
 test('an app token (App ID|Secret) lets debug_token reveal the granted Instagram account; without it the error says how',async()=>{
@@ -259,7 +259,7 @@ test('an app token (App ID|Secret) lets debug_token reveal the granted Instagram
     assert.ok(!f.store.get("SELECT value FROM settings WHERE key='instagram.connection'").value.includes('app-secret-fixture'),'the app token is never stored with the connection');
     const withoutApp=()=>({appId:'',appSecret:'',publicBase:'https://example.test',version:'v27.0'});
     await assert.rejects(()=>createInstagram(f.store,withoutApp,{fetch:facebookTransport('appdebug')}).connectToken('EAAfunifiedtoken0000000000','owner'),
-      error=>error.code==='PROFILE_INVALID'&&/Isi App ID dan App Secret/.test(error.message)&&/debug_token: ditolak \(kode 100\)/.test(error.message));
+      error=>error.code==='PROFILE_INVALID'&&/Enter the App ID and App Secret/.test(error.message)&&/debug_token: rejected \(code 100\)/.test(error.message));
   }finally{await f.cleanup();}
 });
 test('a system-user token with no listed assets connects with the owner-given account id, verified against Meta',async()=>{
@@ -269,7 +269,7 @@ test('a system-user token with no listed assets connects with the owner-given ac
     const calls=[];const ig=createInstagram(f.store,config,{fetch:facebookTransport('none',calls)});
     await assert.rejects(()=>ig.connectToken('EAAfunifiedtoken0000000000','owner','12ab'),error=>error.code==='ACCOUNT_ID_FORMAT');
     assert.equal(calls.length,0,'a malformed id never reaches Meta');
-    await assert.rejects(()=>ig.connectToken('EAAfunifiedtoken0000000000','owner','55555'),error=>error.code==='ACCOUNT_NOT_ACCESSIBLE'&&/kode 100/.test(error.message)&&/system user/.test(error.message));
+    await assert.rejects(()=>ig.connectToken('EAAfunifiedtoken0000000000','owner','55555'),error=>error.code==='ACCOUNT_NOT_ACCESSIBLE'&&/code 100/.test(error.message)&&/system user/.test(error.message));
     assert.equal(ig.status().username,'fixture','a refused id keeps the saved connection');
     const result=await ig.connectToken('EAAfunifiedtoken0000000000','owner',` ${FB_IG} `);
     assert.equal(result.connected,true);assert.equal(result.username,'vayora');assert.equal(result.accountId,FB_IG);assert.equal(result.api,'facebook');
@@ -290,7 +290,7 @@ test('delete hides content everywhere, keeps its id reserved and history, and re
     assert.ok(!workspace.data.posts.some(p=>p.id==='I01'),'deleted content leaves the library');
     assert.equal((await f.request('/api/posts/I01?revision='+(item.revision+1),'DELETE',null,owner)).response.status,404,'deleted content is not found again');
     assert.equal(f.store.post('I01').status,'deleted','row is kept so the id stays reserved');
-    assert.ok(f.store.get("SELECT id FROM events WHERE post_id='I01' AND title='Konten dihapus'"),'deletion is recorded in history');
+    assert.ok(f.store.get("SELECT id FROM events WHERE post_id='I01' AND title='Content deleted'"),'deletion is recorded in history');
     const copy=await f.request('/api/posts','POST',{id:'I02',format:'Gambar',title:'Sumber',caption:'C',mediaIds:[mediaId]},owner);
     const dup=await f.request('/api/posts/I02/duplicate','POST',{},owner);assert.notEqual(dup.data.id,'I01','a new copy never reuses a deleted id');
     for(const status of ['processing','uncertain']){
@@ -304,7 +304,7 @@ test('delete hides content everywhere, keeps its id reserved and history, and re
     const editor={cookie:join.response.headers.get('set-cookie').split(';')[0],csrf:join.data.csrf};
     assert.equal((await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,editor)).response.status,403,'only the owner removes published content');
     const removed=await f.request('/api/posts/I02?revision='+(f.store.post('I02').revision),'DELETE',null,owner);assert.equal(removed.response.status,200);
-    assert.match(f.store.get("SELECT detail FROM events WHERE post_id='I02' AND title='Konten dihapus'").detail,/Instagram tetap ada/);
+    assert.match(f.store.get("SELECT detail FROM events WHERE post_id='I02' AND title='Content deleted'").detail,/Instagram post remains/);
     assert.ok(copy.data);
   }finally{await f.cleanup();}
 });

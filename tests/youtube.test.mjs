@@ -59,8 +59,8 @@ test('YouTube OAuth is session-bound, asks for offline upload access and stores 
   const w = await workspace();
   try {
     const g = google(); const yt = createYouTube(w.store, () => 'https://studio.example.test', { fetch: g.fetch });
-    assert.throws(() => yt.saveConfig({ clientId: 'not-a-client', clientSecret: 'x' }), /Client ID tidak valid/);
-    assert.throws(() => yt.start('owner', 'session-1'), /Client ID dan Client Secret/);
+    assert.throws(() => yt.saveConfig({ clientId: 'not-a-client', clientSecret: 'x' }), /Invalid Client ID/);
+    assert.throws(() => yt.start('owner', 'session-1'), /Client ID and Client Secret/);
     yt.saveConfig({ clientId: CLIENT_ID, clientSecret: 'client-secret-fixture', privacy: 'unlisted' });
     const url = new URL(yt.start('owner', 'session-1'));
     assert.equal(url.origin + url.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
@@ -68,10 +68,10 @@ test('YouTube OAuth is session-bound, asks for offline upload access and stores 
     assert.match(url.searchParams.get('scope'), /youtube\.upload/);
     assert.equal(url.searchParams.get('redirect_uri'), 'https://studio.example.test/auth/youtube/callback');
     const state = url.searchParams.get('state');
-    await assert.rejects(() => yt.callback({ state, code: 'c' }, 'owner', 'other-session'), /sesi berbeda/);
+    await assert.rejects(() => yt.callback({ state, code: 'c' }, 'owner', 'other-session'), /different session/);
     const result = await yt.callback({ state, code: 'c' }, 'owner', 'session-1');
     assert.equal(result.connected, true); assert.equal(result.channelTitle, 'Vayora Channel'); assert.equal(result.privacy, 'unlisted');
-    await assert.rejects(() => yt.callback({ state, code: 'c' }, 'owner', 'session-1'), /kedaluwarsa/, 'state is single use');
+    await assert.rejects(() => yt.callback({ state, code: 'c' }, 'owner', 'session-1'), /expired/, 'state is single use');
     const raw = w.store.get("SELECT value FROM settings WHERE key='youtube.connection'").value;
     assert.ok(!raw.includes('refresh-fixture') && !raw.includes('ya29'), 'tokens are stored encrypted');
     assert.ok(!JSON.stringify(yt.status()).includes('client-secret-fixture'), 'status never exposes the secret');
@@ -92,8 +92,8 @@ test('a scheduled Short uploads once with refreshed access, an exact length and 
     assert.deepEqual(g.calls.meta.snippet.tags, ['Vayora', 'housekeeping villa']); assert.equal(g.calls.meta.status.containsSyntheticMedia, true, 'AI visuals are disclosed');
     assert.equal(g.calls.declaredLength, '7'); assert.equal(g.calls.putLength, '7');
     assert.ok(g.calls.some(c => c.url.href === 'https://oauth2.googleapis.com/token'), 'expired access token was refreshed');
-    assert.ok(w.store.get("SELECT id FROM events WHERE post_id='S01' AND detail LIKE '%terkunci privat%'"));
-    await assert.rejects(() => yt.run('S01'), /tidak memenuhi syarat/, 'a published Short is never uploaded again');
+    assert.ok(w.store.get("SELECT id FROM events WHERE post_id='S01' AND detail LIKE '%locked to private%'"));
+    await assert.rejects(() => yt.run('S01'), /does not meet the requirements/, 'a published Short is never uploaded again');
   } finally { await w.cleanup(); }
 });
 

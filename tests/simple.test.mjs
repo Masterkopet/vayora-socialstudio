@@ -44,15 +44,15 @@ test('problem alerts name what is wrong and who can fix it', () => {
     instagram: { connected: true, expiresAt: soon }, youtube: { connected: false, error: 'Izin YouTube perlu disambungkan kembali.' }, settings: { publishingEnabled: false },
   });
   const text = broken.problemAlerts().map(a => a.level + ': ' + a.text).join('\n');
-  assert.match(text, /danger: 1 konten gagal terbit/);
-  assert.match(text, /danger: 1 konten belum pasti terbit/);
-  assert.match(text, /warning: Izin Instagram akan habis dalam 7 hari/);
-  assert.match(text, /danger: Koneksi YouTube terputus/);
-  assert.match(text, /danger: Ada Short terjadwal, tetapi channel YouTube belum terhubung/);
-  assert.match(text, /warning: 1 konten terjadwal tidak akan terbit karena publikasi nyata belum diaktifkan/);
+  assert.match(text, /danger: 1 posts failed to publish/);
+  assert.match(text, /danger: 1 posts may or may not have been published/);
+  assert.match(text, /warning: Instagram access expires within 7 days/);
+  assert.match(text, /danger: YouTube is disconnected/);
+  assert.match(text, /danger: A Short is scheduled, but the YouTube channel is not connected/);
+  assert.match(text, /warning: 1 scheduled posts will not be published because real publishing is not enabled/);
 
   const editor = views({ youtube: { error: 'x' }, role: 'editor' }).problemAlerts();
-  assert.match(editor[0].text, /Minta pemilik workspace/); assert.equal(editor[0].action, null, 'editors get no settings button');
+  assert.match(editor[0].text, /Ask the workspace owner/); assert.equal(editor[0].action, null, 'editors get no settings button');
 
   const quiet = views({ posts: [{ id: 'I01', format: 'Gambar', status: 'failed' }], youtube: { error: 'x' }, settings: { notifyFailure: false, notifyReconnect: false } });
   assert.deepEqual(quiet.problemAlerts(), [], 'the notification switches in settings are respected');

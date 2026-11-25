@@ -18,7 +18,7 @@ test('reads the episode package as JSON (with BOM) and CSV with multi-line quote
   const [row] = parsePackage(csv, 'a.csv');
   assert.equal(row.caption, 'Baris satu\r\n\r\nBaris "dua"'); assert.equal(row.platform, 'instagram'); assert.equal(row.date, '2026-12-01');
   assert.throws(() => parsePackage('{bad', 'x.json'), /JSON/);
-  assert.throws(() => parsePackage('a,b\n1,2', 'x.csv'), /Tidak ada baris/);
+  assert.throws(() => parsePackage('a,b\n1,2', 'x.csv'), /no rows/);
 });
 
 test('pairs videos by exact file name, then by episode number, and asks when two versions exist', () => {
@@ -39,9 +39,9 @@ test('formats and row checks follow platform rules', () => {
   assert.equal(formatOf('instagram', [file('a.mp4')]), 'Reel');
   assert.equal(formatOf('instagram', [file('a.jpg'), file('b.jpg')]), 'Carousel');
   const row = { title: 'x'.repeat(101), caption: 'ok', tags: [] };
-  assert.match(checkRow({ row, files: [file('a.mp4')], platform: 'youtube' }).errors.join(), /100 karakter/);
+  assert.match(checkRow({ row, files: [file('a.mp4')], platform: 'youtube' }).errors.join(), /over 100 characters/);
   assert.deepEqual(checkRow({ row: { ...row, title: 'ok' }, files: [file('a.mp4')], platform: 'youtube' }).errors, []);
-  assert.match(checkRow({ row: { ...row, title: 'ok' }, files: [], platform: 'youtube' }).errors.join(), /belum dipilih/);
+  assert.match(checkRow({ row: { ...row, title: 'ok' }, files: [], platform: 'youtube' }).errors.join(), /selected yet/);
 });
 
 test('schedule spreads content over the chosen weekdays and times, skipping taken and past slots', () => {
@@ -102,8 +102,8 @@ test('ID-named media without text become their own items (old bulk import), draf
   const [v, c] = matchFiles(rows, files, () => 'instagram');
   assert.equal(formatOf('instagram', v.files), 'Reel'); assert.equal(formatOf('instagram', c.files), 'Carousel');
   assert.deepEqual(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'draft' }).errors, []);
-  assert.match(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'scheduled' }).errors.join(), /caption kosong/);
-  assert.match(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'draft', existingIds: ['V01'] }).errors.join(), /sudah ada/);
+  assert.match(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'scheduled' }).errors.join(), /caption is empty/);
+  assert.match(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'draft', existingIds: ['V01'] }).errors.join(), /already exists/);
   assert.equal(rows[0].platform, 'instagram', 'V/I/C codes are Instagram');
   assert.equal(titleFromFile('I03-foto_kamar-siap.jpg'), 'Foto kamar siap');
 });
@@ -160,6 +160,16 @@ test('blog articles: the Metadata SEO table gives title, slug, category, schedul
   const m = matchFiles(rows, [file('Vayora-Shorts-03.mp4'), file('sop-check-in-villa.webp')], r => r.platform || 'youtube');
   assert.deepEqual(m.map(x => (x.row.platform || 'youtube') + ':' + x.files.map(f => f.name)).sort(), ['blog:sop-check-in-villa.webp', 'youtube:Vayora-Shorts-03.mp4']);
   assert.deepEqual(checkRow({ row: a, files: [], platform: 'blog', mode: 'draft' }).errors, []);
-  assert.match(checkRow({ row: a, files: [], platform: 'blog', mode: 'scheduled' }).errors.join(), /Gambar utama/);
+  assert.match(checkRow({ row: a, files: [], platform: 'blog', mode: 'scheduled' }).errors.join(), /no main image/i);
   assert.equal(formatOf('blog', []), 'Blog');
+});
+
+test('English column aliases import the same as the Indonesian names', () => {
+  const en = JSON.stringify([{ number: '01', title: 'Villa housekeeping', full_description: 'Full text #Vayora', optional_tags: 'vayora, villa', video_file: 'V01.mp4', date: '2026-01-05', time: '19:00' }]);
+  const [r] = parsePackage(en, 'en.json');
+  assert.equal(r.key, '01'); assert.equal(r.title, 'Villa housekeeping'); assert.equal(r.caption, 'Full text #Vayora');
+  assert.deepEqual(r.tags, ['vayora', 'villa']); assert.equal(r.time, '19:00');
+  const csv = 'title,description,platform\nHello,Some caption,youtube\n';
+  const [c] = parsePackage(csv, 'en.csv');
+  assert.equal(c.title, 'Hello'); assert.equal(c.caption, 'Some caption'); assert.equal(c.platform, 'youtube');
 });

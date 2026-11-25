@@ -1,97 +1,97 @@
-# Campaign, pengukuran, dan pembelajaran Vayora
+# Vayora campaigns, measurement, and learning
 
-## Mulai di komputer ini
+## Getting started on this computer
 
-Buka http://localhost:3210/#marketing setelah login. Pada ponsel, Marketing berada di Menu agar navigasi bawah tetap satu baris.
+Open http://localhost:3210/#marketing after logging in. On phones, Marketing is in the Menu so the bottom navigation stays on a single row.
 
-1. Buat campaign dengan nama, konten, kanal, distribusi, pembuka, dan path tujuan di vayora.id. Tujuan tidak dapat diarahkan ke domain lain.
-2. Gunakan **Uji tracking** untuk menguji kunjungan, tombol CTA, dan pencatatan demo. Halaman uji tidak mengirim pesan atau formulir pelanggan. Demo uji memerlukan sesi login Studio.
-3. Aktifkan **Data uji** pada laporan. Hasil uji tidak masuk angka produksi dan tidak mengubah status koneksi website produksi.
-4. Untuk campaign publik sebelum tracker terpasang, salin tautan website + UTM. Tautan localhost hanya dapat diakses dari komputer ini dan tidak cocok dipasang pada bio publik.
+1. Create a campaign with a name, content, channel, distribution, opener, and a destination path on vayora.id. The destination cannot point to another domain.
+2. Use **Test tracking** to test visits, CTA buttons, and demo recording. The test page does not send customer messages or forms. A test demo requires a logged-in Studio session.
+3. Turn on **Test data** in the report. Test results are not included in production numbers and do not change the production website connection status.
+4. For a public campaign before the tracker is installed, copy the website link + UTM. A localhost link can only be reached from this computer and is not suitable for a public bio.
 
-Nama campaign dan konten/pembuka masuk `utm_campaign` dan `utm_content`; kanal dan distribusi masuk `utm_source` serta `utm_medium`. ID `vsc` menghubungkan kunjungan website dengan campaign Studio. Pada Instagram, gunakan tautan melalui bio/fitur tautan yang tersedia; teks URL dalam caption bukan jalur klik utama.
+The campaign name and content/opener go into `utm_campaign` and `utm_content`; the channel and distribution go into `utm_source` and `utm_medium`. The `vsc` ID links website visits to a Studio campaign. On Instagram, use a link through the bio/available link feature; URL text in a caption is not the main click path.
 
-## Arti angka
+## What the numbers mean
 
-- **Klik tautan**: permintaan redirect `/go/<id>` ketika pengukuran diaktifkan. Bot/pratinjau yang dikenali diabaikan, tetapi filter ini tidak sempurna dan kunjungan berulang dapat menambah hitungan.
-- **Kunjungan campaign**: sesi browser yang berbeda per campaign pada periode laporan. Sesi berasal dari sessionStorage, bukan identitas orang. Angka total menjumlahkan campaign sehingga seseorang yang mengunjungi beberapa campaign dapat terhitung beberapa kali.
-- **Klik CTA**: event klik tombol yang ditandai atau tautan WhatsApp, termasuk klik berulang. Bukan percakapan atau demo yang sudah diterima.
-- **Permintaan demo**: konfirmasi manual setelah permintaan nyata diterima, atau konfirmasi backend sesudah formulir berhasil divalidasi dan disimpan. Bukan submit/click browser.
+- **Link clicks**: `/go/<id>` redirect requests while measurement is on. Recognized bots/previews are ignored, but this filter is not perfect and repeat visits can add to the count.
+- **Campaign visits**: distinct browser sessions per campaign in the report period. Sessions come from sessionStorage, not a person's identity. The total adds up the campaigns, so someone who visits several campaigns can be counted several times.
+- **CTA clicks**: click events on marked buttons or WhatsApp links, including repeated clicks. Not a conversation or a demo that has been received.
+- **Demo requests**: a manual confirmation after a real request is received, or a backend confirmation after the form has been validated and saved. Not a browser submit/click.
 
-Laporan bukan funnel satu kohort pengunjung yang sama. Persetujuan analytics, Do Not Track, pemblokir browser, atribusi dalam satu tab selama maksimal 24 jam, perangkat berbeda, dan parameter yang hilang dapat membuat pengukuran tidak lengkap. Ini bukan sistem pencatatan keuangan atau identitas pelanggan.
+The report is not a funnel of one and the same cohort of visitors. Analytics consent, Do Not Track, browser blockers, attribution within a single tab for at most 24 hours, different devices, and lost parameters can make measurement incomplete. This is not a financial record or customer identity system.
 
-Pencatatan manual membutuhkan ID internal dan konfirmasi. Nama, email, serta nomor telepon tidak perlu dimasukkan. ID referensi yang sama pada campaign dan mode data yang sama tidak dihitung dua kali. Gunakan ID yang sama jika mengirim ulang permintaan yang sama; jangan catat lagi secara manual bila sudah masuk melalui backend. Sumber manual tersedia terpisah dalam data laporan/API. Unduhan CSV memuat campaign, konten, kanal, distribusi, pembuka, metrik, dan mode data.
+Manual recording requires an internal ID and confirmation. Names, emails, and phone numbers do not need to be entered. The same reference ID in the same campaign and the same data mode is not counted twice. Use the same ID when resending the same request; do not record it manually again if it already came in through the backend. The manual source is available separately in the report data/API. The CSV download contains the campaign, content, channel, distribution, opener, metrics, and data mode.
 
-## Menyambungkan website produksi
+## Connecting the production website
 
-Fitur lokal sudah dapat diuji. Penerimaan event dari vayora.id membutuhkan server Studio dengan HTTPS publik yang berjalan terus, lalu pemasangan tracker pada website. Mengisi URL di panel tidak menerbitkan server secara otomatis.
+The local features can already be tested. Receiving events from vayora.id requires a Studio server with always-on public HTTPS, then installing the tracker on the website. Entering a URL in the panel does not publish the server automatically.
 
-1. Pasang Studio di server Node 24+ dengan penyimpanan `data/` persisten, HTTPS, pengelola proses, dan backup. Atur `APP_ORIGIN` sesuai domain HTTPS lalu restart sebelum login melalui domain tersebut, agar cookie sesi memakai pengaturan HTTPS.
-2. Pemilik mengisi **Alamat HTTPS publik Social Studio** di Marketing dan mengaktifkan penerimaan event.
-3. Pada website, muat tracker **setelah persetujuan analytics** diberikan. Salin kode dari panel karena sudah berisi domain serta `data-site` workspace. ID site memang publik dan bukan kunci rahasia.
+1. Install the Studio on a Node 24+ server with persistent `data/` storage, HTTPS, a process manager, and backups. Set `APP_ORIGIN` to the HTTPS domain and restart before logging in through that domain, so the session cookie uses the HTTPS settings.
+2. The owner enters the **Public HTTPS address of Social Studio** in Marketing and turns on event reception.
+3. On the website, load the tracker **after analytics consent** has been given. Copy the code from the panel because it already contains the domain and the workspace `data-site`. The site ID is public and is not a secret key.
 
 ```html
-<!-- Jalankan melalui mekanisme persetujuan analytics website. -->
+<!-- Run through the website's analytics consent mechanism. -->
 <script>window.vayoraAnalyticsConsent = true;</script>
-<script async src="https://studio.domainkamu.id/tracker.js"
-  data-site="SALIN_ID_SITE_DARI_PANEL"></script>
+<script async src="https://studio.yourdomain.id/tracker.js"
+  data-site="COPY_SITE_ID_FROM_PANEL"></script>
 ```
 
-Kode di atas contoh pemasangan; jangan otomatis menetapkan persetujuan untuk semua pengunjung. Tracker tidak berjalan bila consent belum true atau Do Not Track bernilai 1. Jika consent dicabut, ubah variabel menjadi false. Tracker tidak mengirim isi formulir, nama, email, nomor telepon, atau query URL selain ID campaign; path selain halaman publik yang diizinkan dinormalisasi menjadi `/`. Server menyimpan hash sesi, bukan raw IP/sesi browser. Browser yang tidak mengizinkan sessionStorage tidak diukur.
+The code above is an installation example; do not set consent automatically for all visitors. The tracker does not run if consent is not true or Do Not Track is 1. If consent is withdrawn, set the variable to false. The tracker does not send form contents, names, emails, phone numbers, or URL queries other than the campaign ID; paths other than the allowed public pages are normalized to `/`. The server stores a session hash, not the raw IP/browser session. Browsers that do not allow sessionStorage are not measured.
 
-Izinkan domain Studio pada `script-src` dan `connect-src` CSP website jika diperlukan. Endpoint browser hanya menerima origin vayora.id/www.vayora.id dan origin aplikasi. Tidak perlu password Instagram atau API secret pada kode website.
+Allow the Studio domain in the website's CSP `script-src` and `connect-src` if needed. The browser endpoint only accepts the origins vayora.id/www.vayora.id and the app origin. No Instagram password or API secret is needed in the website code.
 
-Tambahkan `data-vayora-cta="demo_button"` pada tombol demo. Tautan ke wa.me/api.whatsapp.com dikenali sebagai klik WhatsApp. Halaman yang telah memuat tracker dapat membaca `window.VayoraAnalytics?.campaignId` untuk mengisi referensi campaign pada formulir, tanpa menganggapnya sebagai bukti konversi. Setelah pemasangan, uji dengan URL campaign nyata dan pastikan **Event website diterima** muncul pada laporan produksi.
+Add `data-vayora-cta="demo_button"` to the demo button. Links to wa.me/api.whatsapp.com are recognized as WhatsApp clicks. A page that has loaded the tracker can read `window.VayoraAnalytics?.campaignId` to fill in the campaign reference on a form, without treating it as proof of conversion. After installation, test with a real campaign URL and make sure **Website event received** appears in the production report.
 
-## Demo dari backend formulir
+## Demos from the form backend
 
-Pemilik membuat kunci backend dari panel. Kunci ditampilkan sekali, tersimpan terenkripsi di Studio, dan hanya boleh dipasang di server website. Rotasi membatalkan kunci lama.
+The owner creates a backend key from the panel. The key is shown once, stored encrypted in the Studio, and may only be installed on the website's server. Rotation revokes the old key.
 
-Setelah formulir benar-benar berhasil divalidasi dan disimpan, backend website mengirim:
+After the form has actually been validated and saved, the website backend sends:
 
 ```http
-POST https://studio.domainkamu.id/tracking/webhook
+POST https://studio.yourdomain.id/tracking/webhook
 Content-Type: application/json
-x-vayora-event-key: KUNCI_BACKEND_TERSIMPAN_DI_SERVER
+x-vayora-event-key: BACKEND_KEY_STORED_ON_SERVER
 ```
 
 ```json
 {
   "eventId": "demo_request_REF_20261116_001",
-  "campaignId": "ID_CAMPAIGN_DARI_VSC",
+  "campaignId": "CAMPAIGN_ID_FROM_VSC",
   "type": "demo_request",
   "path": "/"
 }
 ```
 
-`eventId` harus 12–80 karakter huruf/angka/underscore/tanda hubung. Gunakan ID yang sama untuk retry permintaan yang sama agar idempotent. Jangan memasukkan kontak pelanggan. Gunakan `"test": true` saat uji integrasi backend agar tidak mencampur laporan. Konversi browser ditolak; halaman tidak boleh menyimpan kunci backend. Validasi bahwa campaign tersebut memang terkait permintaan calon pelanggan.
+`eventId` must be 12–80 characters of letters/digits/underscore/hyphen. Use the same ID when retrying the same request, so it is idempotent. Do not include customer contact details. Use `"test": true` when testing the backend integration so reports are not mixed. Browser conversions are rejected; the page must not hold the backend key. Validate that the campaign really relates to a prospective customer's request.
 
-Jika website sudah memakai GA4, event `generate_lead` sebaiknya juga dipicu setelah permintaan yang valid benar-benar berhasil. Integrasi GA4 tidak dipasang otomatis oleh proyek ini. Acuan: [recommended event generate_lead](https://developers.google.com/analytics/devguides/collection/ga4/reference/events#generate_lead).
+If the website already uses GA4, the `generate_lead` event should also be triggered after a valid request has actually succeeded. This project does not install the GA4 integration automatically. Reference: [recommended event generate_lead](https://developers.google.com/analytics/devguides/collection/ga4/reference/events#generate_lead).
 
-## Input performa dan CSV
+## Performance input and CSV
 
-Angka Instagram/TikTok saat ini **diinput manual atau diimpor CSV**, bukan otomatis dari Insights. Isi waktu pengamatan sebenarnya, bukan waktu impor. Jendela yang tersedia 24, 48, 72, atau 168 jam setelah terbit; pengamatan diterima dalam enam jam setelah jendela tersebut selesai supaya perbandingan tidak mencampur data umur berbeda.
+Instagram/TikTok numbers are currently **entered manually or imported from CSV**, not pulled automatically from Insights. Enter the actual observation time, not the import time. The available windows are 24, 48, 72, or 168 hours after publishing; an observation is accepted within six hours after the window ends, so comparisons do not mix data of different ages.
 
-- Instagram harus berstatus terbit di Studio dan memiliki waktu terbit tersimpan. Waktu terbit di form dinonaktifkan untuk Instagram.
-- TikTok dapat memakai aset pustaka yang diunggah secara terpisah di platform. Waktu terbit aktual dari TikTok wajib diisi; ini tidak mengubah status publikasi Instagram.
-- Jangkauan, simpan, dan bagikan wajib angka bulat nol atau lebih. Kosong berbeda dari nol. Kunjungan profil opsional.
-- Waktu input form adalah WIB. CSV harus menggunakan ISO dengan zona waktu, misalnya `2026-11-16T19:30:00+07:00`.
-- Pengamatan yang sama berdasarkan konten/kanal/distribusi/jendela diperbarui, bukan ditambahkan sebagai sampel baru.
+- Instagram content must have the published status in the Studio and a stored publish time. The publish time field in the form is disabled for Instagram.
+- TikTok can use library assets that were uploaded separately on the platform. The actual publish time from TikTok is required; this does not change the Instagram publishing status.
+- Reach, saves, and shares must be whole numbers, zero or more. Empty is different from zero. Profile visits are optional.
+- The form input time is WIB. CSV must use ISO with a time zone, for example `2026-11-16T19:30:00+07:00`.
+- The same observation by content/channel/distribution/window is updated, not added as a new sample.
 
-Header CSV:
+CSV header:
 
 ```csv
 postId,channel,distribution,windowHours,publishedAt,observedAt,reach,saves,shares,profileVisits
 ```
 
-Nilai channel `instagram` atau `tiktok`; distribution `organic` atau `paid`. `publishedAt` diperlukan untuk TikTok dan diabaikan pada Instagram karena menggunakan waktu terbit Studio. Maksimal 100 baris/150 KB. Impor dibatalkan seluruhnya jika ada baris salah; pesan menampilkan baris yang perlu diperbaiki. Sumber `manual_from_platform`/`csv_import` terlihat pada pengamatan tersimpan.
+The channel value is `instagram` or `tiktok`; distribution is `organic` or `paid`. `publishedAt` is required for TikTok and ignored for Instagram, which uses the Studio's publish time. Maximum 100 rows/150 KB. The import is cancelled entirely if any row is wrong; the message shows which rows need fixing. The sources `manual_from_platform`/`csv_import` are visible on stored observations.
 
-## Kapan aplikasi mulai belajar
+## When the app starts learning
 
-Perbandingan menunggu minimal tiga konten organik dengan kanal, format, dan jendela yang sama; peringkat memakai `(simpan + bagikan) / jangkauan`. Data berbayar disimpan terpisah dan tidak dicampur dengan organik. Ini pengamatan berdasarkan input pengguna, bukan eksperimen terkontrol; topik dan ukuran audiens tetap dapat memengaruhi hasil. Belum ada metrik retention/watch time atau sinkronisasi Insights otomatis.
+Comparison waits for at least three organic content items with the same channel, format, and window; ranking uses `(saves + shares) / reach`. Paid data is stored separately and is not mixed with organic. These are observations based on user input, not a controlled experiment; topic and audience size can still affect the results. There are no retention/watch time metrics or automatic Insights sync yet.
 
-Saran waktu dari data nyata memerlukan minimal dua kelompok waktu, masing-masing minimal tiga konten Instagram organik dengan format yang sama, jendela 48 jam, dan total jangkauan 100. Jika belum cukup, aplikasi memberikan hipotesis waktu uji. Saran tetap tidak menjamin hasil atau membuktikan sebab-akibat. Pembelajaran waktu berfokus Instagram; tidak memprediksi jam TikTok dari data Instagram.
+Time suggestions from real data require at least two time groups, each with at least three organic Instagram content items of the same format, a 48-hour window, and a total reach of 100. If that is not enough, the app gives test-time hypotheses. A suggestion still does not guarantee results or prove cause and effect. Time learning focuses on Instagram; it does not predict TikTok hours from Instagram data.
 
-## Keadaan yang perlu dibedakan
+## States to tell apart
 
-Login Studio lokal sudah dapat dipakai. Publikasi Instagram tetap memerlukan akun profesional, aplikasi Meta, izin, HTTPS publik, dan pengaktifan oleh pemilik. Caption vision/latar generatif memerlukan koneksi OpenAI dan kredit; mode lokal/desain brand tetap tersedia. Tidak ada akun Meta, angka Insights, lead, atau konversi produksi yang dibuat sebagai data contoh di workspace pengguna.
+Local Studio login can already be used. Instagram publishing still requires a professional account, a Meta app, permissions, public HTTPS, and activation by the owner. Vision captions/generative backgrounds require an OpenAI connection and credit; local mode/brand design remains available. No Meta account, Insights number, lead, or production conversion is created as sample data in the user's workspace.

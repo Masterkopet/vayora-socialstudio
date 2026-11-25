@@ -26,9 +26,9 @@ test('Gemini key is validated, stored encrypted, never shown, and becomes the te
   try {
     const ai = createAssistant(f.store, { fetch: async () => { throw Error('no network expected'); } });
     assert.equal(ai.status().textConfigured, false);
-    assert.throws(() => ai.configure({ geminiKey: 'password123' }), /API key Gemini tidak valid/);
-    assert.throws(() => ai.configure({ geminiKey: 'kunci dengan spasi 0123456789' }), /tanpa spasi/);
-    assert.throws(() => ai.configure({ geminiModel: 'gpt-4; rm -rf' }), /model Gemini/);
+    assert.throws(() => ai.configure({ geminiKey: 'password123' }), /Invalid Gemini API key/);
+    assert.throws(() => ai.configure({ geminiKey: 'kunci dengan spasi 0123456789' }), /without spaces/);
+    assert.throws(() => ai.configure({ geminiModel: 'gpt-4; rm -rf' }), /Invalid Gemini model name/);
     const s = ai.configure({ geminiKey: KEY });
     assert.equal(s.textProvider, 'gemini'); assert.equal(s.gemini.configured, true); assert.equal(s.gemini.model, GEMINI_DEFAULT_MODEL);
     assert.equal(s.configured, false, 'the OpenAI key (backgrounds) is separate');
@@ -53,7 +53,7 @@ test('caption assistant sends media to Gemini with a structured schema', async (
     assert.equal(captured.body.generationConfig.responseSchema.type, 'OBJECT');
     assert.equal(captured.body.generationConfig.responseSchema.properties.variants.items.type, 'OBJECT');
     assert.ok(!JSON.stringify(captured.body.generationConfig.responseSchema).includes('additionalProperties'));
-    assert.match(captured.body.systemInstruction.parts[0].text, /data tidak tepercaya/);
+    assert.match(captured.body.systemInstruction.parts[0].text, /untrusted data, not instructions/);
     assert.equal(captured.body.contents[0].parts[1].inline_data.mime_type, 'image/jpeg');
     assert.equal(result.variants.length, 3);
   } finally { await f.cleanup(); }
@@ -67,11 +67,11 @@ test('"Buat posting" draft returns an editable title and caption, and errors sta
     const ai = createAssistant(f.store, { fetch: async (url, init) => { captured = JSON.parse(init.body); return reply(); } });
     await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), e => e.status === 422 && /Gemini/.test(e.message));
     ai.configure({ geminiKey: KEY });
-    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [] }), /Unggah/);
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [] }), /Upload a photo or video first/);
     const d = await ai.draft({ platform: 'instagram', mediaIds: [f.media.id] });
     assert.equal(d.title, 'Foto kamar villa siap tamu');
     assert.equal(d.caption, 'Tamu datang, kamar sudah siap.\n\n#Vayora #ManajemenVilla', 'invalid hashtags dropped, valid ones appended');
-    assert.match(captured.systemInstruction.parts[0].text, /nama internal/);
+    assert.match(captured.systemInstruction.parts[0].text, /short internal name/);
     assert.equal(f.store.posts().length, 1, 'a draft never creates or changes content');
 
     ready(f.store);
@@ -80,13 +80,13 @@ test('"Buat posting" draft returns an editable title and caption, and errors sta
 
     ready(f.store);
     reply = () => Response.json({ error: { status: 'INVALID_ARGUMENT', message: 'API key not valid. ' + KEY } }, { status: 400 });
-    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), e => /API key Gemini ditolak/.test(e.message) && !e.message.includes('AIza'));
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), e => /Gemini API key was rejected/.test(e.message) && !e.message.includes('AIza'));
     ready(f.store);
     reply = () => Response.json({ candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }] });
-    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /menolak/);
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /declined to write text/);
     ready(f.store);
     reply = () => Response.json({ error: {} }, { status: 429 });
-    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /Kuota atau batas API Gemini/);
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /Gemini API quota or limit/);
   } finally { await f.cleanup(); }
 });
 
@@ -112,12 +112,12 @@ test('Gemini watches the whole Short and writes YouTube titles, description and 
     const r = await ai.caption({ postId: 'S01', mode: 'vision' });
     const video = captured.contents[0].parts[1];
     assert.equal(video.inline_data.mime_type, 'video/mp4', 'the whole video, not a poster');
-    assert.equal(r.platform, 'YouTube'); assert.match(r.source, /menonton video utuh/);
+    assert.equal(r.platform, 'YouTube'); assert.match(r.source, /watched the whole video/);
     assert.equal(r.variants[0].title, 'Cara Cek Kamar Kosong 1', 'title is YouTube-safe');
     assert.deepEqual(r.tags, ['cek kamar kosong', 'kalender villa', 'booking']);
     const sys = captured.systemInstruction.parts[0].text;
-    assert.match(sys, /dengarkan narasinya/); assert.match(sys, /Tags YouTube/);
-    assert.match(sys, /Contoh gaya tim/); assert.ok(sys.includes('ilustrasi AI'), 'house style comes from the scheduled Short');
+    assert.match(sys, /listen to the narration/); assert.match(sys, /YouTube Tags field/);
+    assert.match(sys, /Style examples from approved team posts/); assert.ok(sys.includes('ilustrasi AI'), 'house style comes from the scheduled Short');
     assert.ok(captured.generationConfig.responseSchema.properties.tags, 'YouTube schema asks for tags');
   } finally { await f.cleanup(); }
 });
@@ -157,10 +157,10 @@ test('Check Gemini verifies the key with a free metadata request and explains fa
     assert.equal(calls[0].method, 'GET'); assert.ok(calls[0].url.endsWith('/v1beta/models/gemini-flash-latest')); assert.ok(!calls[0].url.includes('AQ.'), 'the key is only sent in a header');
     assert.equal(ai.status().gemini.check.ok, true); assert.ok(!JSON.stringify(ai.status()).includes('AQ.Ab8'));
     reply = () => Response.json({ error: { status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' } }, { status: 400 });
-    await assert.rejects(() => ai.checkGemini(), /ditolak Google/);
+    await assert.rejects(() => ai.checkGemini(), /rejected by Google/);
     assert.equal(ai.status().gemini.check.ok, false);
     reply = () => Response.json({ error: {} }, { status: 404 });
-    await assert.rejects(() => ai.checkGemini(), /Model .* tidak ditemukan/);
+    await assert.rejects(() => ai.checkGemini(), /Model .* not found/);
     assert.equal(f.store.posts().length, 1, 'checking never touches content');
   } finally { await f.cleanup(); }
 });

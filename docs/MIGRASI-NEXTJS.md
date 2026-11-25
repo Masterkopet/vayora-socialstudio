@@ -1,33 +1,33 @@
-# Migrasi Next.js dan lokasi proyek
+# Next.js migration and project location
 
-Proyek aktif: `E:\Work\VAYORA\Vayora-SocialStudio`.
+Active project: `E:\Work\VAYORA\Vayora-SocialStudio`.
 
-## Stack versi 2
+## Version 2 stack
 
 - Next.js 16.4.6 App Router, React/React DOM 19.3.1, Node.js 24+.
-- Native Next.js Route Handlers untuk API, sesi, OAuth, tracking, dan media privat.
-- SQLite, scrypt, session cookie HttpOnly, CSRF, pemeriksaan origin/host, enkripsi credential, serta persetujuan publikasi dipertahankan.
-- Busboy menangani multipart secara streaming ke file sementara. Media privat mendukung HEAD dan HTTP byte ranges agar video dapat diputar/di-seek tanpa membaca seluruh file ke memori.
-- Sharp, FFmpeg/FFprobe, Lucide, serta Docker Compose/Caddy tetap digunakan.
-- Express dan Multer telah dihapus dari dependensi.
+- Native Next.js Route Handlers for the API, sessions, OAuth, tracking, and private media.
+- SQLite, scrypt, HttpOnly session cookies, CSRF, origin/host checks, credential encryption, and publishing approval are retained.
+- Busboy handles multipart streaming into temporary files. Private media supports HEAD and HTTP byte ranges so video can be played/seeked without reading the whole file into memory.
+- Sharp, FFmpeg/FFprobe, Lucide, and Docker Compose/Caddy are still used.
+- Express and Multer have been removed from the dependencies.
 
-## Struktur
+## Structure
 
-`src/app/layout.jsx` menyediakan document, metadata, CSS, nonce CSP, dan aset ikon. Layout `(studio)` mempertahankan komponen React `StudioClient` selama perpindahan halaman. Halaman mempunyai alamat seperti `/library`, `/calendar`, `/designer`, `/knowledge`, `/marketing`, dan `/ai-settings`.
+`src/app/layout.jsx` provides the document, metadata, CSS, CSP nonce, and icon assets. The `(studio)` layout keeps the `StudioClient` React component alive across page transitions. Pages have addresses such as `/library`, `/calendar`, `/designer`, `/knowledge`, `/marketing`, and `/ai-settings`.
 
-`src/client/` berisi controller editor yang sudah matang, asisten, marketing, navigasi, dan terjemahan. React mengelola host workspace yang persisten; controller mengelola subtree interaktifnya, native dialog, dan pemutar media. Ini mempertahankan perilaku editor tanpa menulis ulang seluruh interaksi saat migrasi. Controller dipasang/dilepas melalui lifecycle React, termasuk cleanup event listener, observer, request awal, dan timer. Kode client dibundel oleh Next.js dan tidak lagi dimuat sebagai aplikasi HTML statis terpisah.
+`src/client/` contains the mature editor controller, assistant, marketing, navigation, and translations. React manages the persistent workspace host; the controllers manage its interactive subtree, native dialogs, and media players. This keeps the editor's behavior without rewriting every interaction during the migration. Controllers are mounted/unmounted through the React lifecycle, including cleanup of event listeners, observers, initial requests, and timers. Client code is bundled by Next.js and is no longer loaded as a separate static HTML app.
 
-`src/server.mjs` memuat aturan bisnis. `src/http.mjs` mengadaptasi service ke Web Request/Response yang dipakai Route Handlers; listener Node hanya digunakan pada unit test terpisah. Tidak ada server Express kedua atau proxy internal ke proses lama. `src/runtime.mjs` menjaga satu runtime/scheduler per proses, termasuk ketika modul Route Handlers berbagi state.
+`src/server.mjs` holds the business rules. `src/http.mjs` adapts the service to the Web Request/Response used by the Route Handlers; the Node listener is only used in separate unit tests. There is no second Express server or internal proxy to the old process. `src/runtime.mjs` keeps a single runtime/scheduler per process, including when Route Handler modules share state.
 
-`src/styles/` memuat gaya brand dan popup menu lima kolom yang muncul di atas navigasi bawah. `public/` memuat logo, vendor ikon, serta tracker website. Native Route Handlers melayani semua data privat. Tautan hash lama seperti `/#designer` masih diterima dan diarahkan ke alamat halaman Next.js setelah workspace terbuka.
+`src/styles/` holds the brand styles and the five-column menu popup that appears above the bottom navigation. `public/` holds the logo, icon vendor files, and the website tracker. Native Route Handlers serve all private data. Old hash links such as `/#designer` are still accepted and redirected to the Next.js page address once the workspace opens.
 
-## Data dan folder lama
+## Data and the old folder
 
-Database, key enkripsi, media, akun, caption, serta metadata dipindahkan melalui snapshot konsisten. Sesi login dipertahankan saat pindah komputer/folder lokal pada alamat localhost yang sama. Snapshot untuk deployment domain baru tetap menghapus sesi secara bawaan. Aplikasi lama dihentikan sebelum pengalihan port sehingga hanya satu scheduler aktif.
+The database, encryption key, media, accounts, captions, and metadata are moved through a consistent snapshot. Login sessions are kept when moving computers/local folders on the same localhost address. Snapshots for deployment to a new domain still remove sessions by default. The old app is stopped before the port is switched, so only one scheduler is active.
 
-Folder sebelumnya dipertahankan sebagai salinan sebelum migrasi. Gunakan folder baru untuk perubahan dan menjalankan aplikasi. Dokumen/proyek video yang memang berada di `E:\Work\VIDEO_EDITING` tetap menjadi sumber referensi brand; alamat historis tersebut tidak diubah menjadi lokasi palsu di folder aplikasi.
+The previous folder is kept as a pre-migration copy. Use the new folder for changes and for running the app. Documents/video projects that really live in `E:\Work\VIDEO_EDITING` remain the source of brand reference; that historical address is not turned into a fake location inside the app folder.
 
-## Menjalankan
+## Running
 
 ```powershell
 npm ci
@@ -35,15 +35,15 @@ npm run build
 npm run start:local
 ```
 
-Launcher `Mulai-Vayora.cmd` menggunakan build standalone yang sudah disiapkan dan membuka http://localhost:3210. `Hentikan-Vayora.cmd` hanya menghentikan proses yang sesuai dengan runner proyek baru. Untuk mengedit dengan hot reload, hentikan launcher lalu gunakan `npm run dev`.
+The `Mulai-Vayora.cmd` launcher uses the prepared standalone build and opens http://localhost:3210. `Hentikan-Vayora.cmd` only stops processes that match the new project's runner. To edit with hot reload, stop the launcher and use `npm run dev`.
 
-Produksi Docker menggunakan `node server.js` dari output standalone, folder data persisten, origin HTTPS, dan akun internal yang telah dimigrasikan. `start:local` secara eksplisit mengizinkan localhost HTTP hanya untuk pengujian lokal; konfigurasi produksi tetap mewajibkan HTTPS. Folder data, file `.env`, artefak pengujian, dan paket privat dikecualikan dari tracing standalone serta Docker image.
+Docker production uses `node server.js` from the standalone output, a persistent data folder, an HTTPS origin, and the internal account that has been migrated. `start:local` explicitly allows localhost HTTP for local testing only; the production configuration still requires HTTPS. The data folder, `.env` files, test artifacts, and private packages are excluded from standalone tracing and the Docker image.
 
-## Verifikasi
+## Verification
 
-- Unit test aturan bisnis, auth, revision, versi caption, publishing lock, dan snapshot migrasi.
-- Browser test berjalan pada server Next.js yang sesungguhnya dengan database/provider simulasi terpisah: login, tim, media/video/cover, caption, desain, pengetahuan, jadwal, marketing, ID/EN, serta responsivitas.
-- Pengujian menu mengukur grid lima kolom, posisi di atas navigasi, auto height, fokus keyboard, dan reduced motion.
-- Container smoke test menguji Linux, login akun yang sudah ada, cookie Secure, font/desain, upload FFmpeg/poster, serta data yang bertahan setelah restart.
+- Unit tests for business rules, auth, revisions, caption versions, publishing lock, and the migration snapshot.
+- Browser tests run on the real Next.js server with a separate simulated database/provider: login, team, media/video/cover, captions, design, knowledge, schedule, marketing, ID/EN, and responsiveness.
+- Menu tests measure the five-column grid, its position above the navigation, auto height, keyboard focus, and reduced motion.
+- The container smoke test covers Linux, logging in with an existing account, the Secure cookie, fonts/design, FFmpeg upload/poster, and data that survives a restart.
 
-Referensi: [Next.js Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route), [CSP dan nonce](https://nextjs.org/docs/app/guides/content-security-policy), [self-hosting Next.js](https://nextjs.org/docs/app/guides/self-hosting).
+References: [Next.js Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route), [CSP and nonce](https://nextjs.org/docs/app/guides/content-security-policy), [self-hosting Next.js](https://nextjs.org/docs/app/guides/self-hosting).

@@ -34,20 +34,20 @@ export function createSanity(store, options = {}) {
 
   function configure(body) {
     const c = saved(), next = { ...c, fields: { ...(c.fields || {}) } };
-    if (body.projectId !== undefined) { next.projectId = str(body.projectId, 30).toLowerCase(); if (next.projectId && !/^[a-z0-9]{6,20}$/.test(next.projectId)) throw fail('Project ID Sanity tidak valid. Salin dari sanity.io/manage (huruf kecil dan angka).'); }
-    if (body.dataset !== undefined) { next.dataset = str(body.dataset, 64) || 'production'; if (!/^[a-z0-9_-]{1,64}$/.test(next.dataset)) throw fail('Nama dataset tidak valid, contoh: production.'); }
-    if (body.removeToken) next.token = ''; else if (body.token) { next.token = str(body.token, 300); if (!/^sk[A-Za-z0-9]{20,}$/.test(next.token)) throw fail('Token Sanity tidak valid. Buat token (izin Editor) di sanity.io/manage → API → Tokens; diawali "sk".'); }
-    if (body.docType !== undefined) { next.docType = str(body.docType, 64) || 'post'; if (!NAME.test(next.docType)) throw fail('Tipe dokumen tidak valid, contoh: post.'); }
-    if (body.publishMode !== undefined) { if (!['published', 'draft'].includes(body.publishMode)) throw fail('Mode terbit harus published atau draft.'); next.publishMode = body.publishMode; }
-    if (body.siteUrl !== undefined) { next.siteUrl = str(body.siteUrl, 200).replace(/\/+$/, ''); if (next.siteUrl && !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(next.siteUrl)) throw fail('Alamat situs harus diawali https://, contoh: https://vayora.id'); }
+    if (body.projectId !== undefined) { next.projectId = str(body.projectId, 30).toLowerCase(); if (next.projectId && !/^[a-z0-9]{6,20}$/.test(next.projectId)) throw fail('Invalid Sanity Project ID. Copy it from sanity.io/manage (lowercase letters and numbers).'); }
+    if (body.dataset !== undefined) { next.dataset = str(body.dataset, 64) || 'production'; if (!/^[a-z0-9_-]{1,64}$/.test(next.dataset)) throw fail('Invalid dataset name, for example: production.'); }
+    if (body.removeToken) next.token = ''; else if (body.token) { next.token = str(body.token, 300); if (!/^sk[A-Za-z0-9]{20,}$/.test(next.token)) throw fail('Invalid Sanity token. Create a token (Editor permission) at sanity.io/manage → API → Tokens; it starts with "sk".'); }
+    if (body.docType !== undefined) { next.docType = str(body.docType, 64) || 'post'; if (!NAME.test(next.docType)) throw fail('Invalid document type, for example: post.'); }
+    if (body.publishMode !== undefined) { if (!['published', 'draft'].includes(body.publishMode)) throw fail('The publish mode must be published or draft.'); next.publishMode = body.publishMode; }
+    if (body.siteUrl !== undefined) { next.siteUrl = str(body.siteUrl, 200).replace(/\/+$/, ''); if (next.siteUrl && !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(next.siteUrl)) throw fail('The site address must start with https://, for example: https://vayora.id'); }
     if (body.blogPath !== undefined) { next.blogPath = '/' + str(body.blogPath, 80).replace(/^\/+|\/+$/g, '') + '/'; if (!/^\/[A-Za-z0-9/_-]*\/$/.test(next.blogPath) || next.blogPath === '//') next.blogPath = '/'; }
-    if (body.categoryType !== undefined) { next.categoryType = str(body.categoryType, 64); if (next.categoryType && !NAME.test(next.categoryType)) throw fail('Tipe dokumen kategori tidak valid.'); }
-    if (body.authorId !== undefined) { next.authorId = str(body.authorId, 80); if (next.authorId && !/^[A-Za-z0-9._-]+$/.test(next.authorId)) throw fail('ID penulis tidak valid. Pilih dari daftar setelah Cek koneksi.'); }
-    if (body.fields && typeof body.fields === 'object') for (const k of FIELD_KEYS) if (body.fields[k] !== undefined) { const v = str(String(body.fields[k]), 64); if (v && !FIELD.test(v)) throw fail(`Nama field ${k} tidak valid.`); next.fields[k] = v; }
+    if (body.categoryType !== undefined) { next.categoryType = str(body.categoryType, 64); if (next.categoryType && !NAME.test(next.categoryType)) throw fail('Invalid category document type.'); }
+    if (body.authorId !== undefined) { next.authorId = str(body.authorId, 80); if (next.authorId && !/^[A-Za-z0-9._-]+$/.test(next.authorId)) throw fail('Invalid author ID. Choose from the list after Check connection.'); }
+    if (body.fields && typeof body.fields === 'object') for (const k of FIELD_KEYS) if (body.fields[k] !== undefined) { const v = str(String(body.fields[k]), 64); if (v && !FIELD.test(v)) throw fail(`Invalid field name ${k}.`); next.fields[k] = v; }
     if (body.extraFields !== undefined) {
-      let extra = body.extraFields; if (typeof extra === 'string') { try { extra = extra.trim() ? JSON.parse(extra) : {}; } catch { throw fail('Field tambahan harus berupa JSON yang valid, contoh: {"featured": false}.'); } }
-      if (!extra || typeof extra !== 'object' || Array.isArray(extra) || JSON.stringify(extra).length > 4000) throw fail('Field tambahan harus berupa objek JSON, maksimal 4.000 karakter.');
-      if (Object.keys(extra).some(k => /^_(id|type|rev|createdAt|updatedAt)$/.test(k))) throw fail('Field tambahan tidak boleh mengubah _id, _type, atau metadata Sanity.');
+      let extra = body.extraFields; if (typeof extra === 'string') { try { extra = extra.trim() ? JSON.parse(extra) : {}; } catch { throw fail('Extra fields must be valid JSON, for example: {"featured": false}.'); } }
+      if (!extra || typeof extra !== 'object' || Array.isArray(extra) || JSON.stringify(extra).length > 4000) throw fail('Extra fields must be a JSON object of at most 4,000 characters.');
+      if (Object.keys(extra).some(k => /^_(id|type|rev|createdAt|updatedAt)$/.test(k))) throw fail('Extra fields must not change _id, _type, or Sanity metadata.');
       next.extraFields = extra;
     }
     store.setSecret('sanity.config', next);
@@ -58,24 +58,24 @@ export function createSanity(store, options = {}) {
   function url(c, path, query = '') { return `https://${c.projectId}.api.sanity.io/v${c.apiVersion}${path}${query}`; }
   // Reads of a public dataset work without a token (anonymous: true); writes always need one.
   async function call(c, path, { method = 'GET', query = '', headers = {}, body, timeout = 30000, anonymous = false } = {}) {
-    if (!c.projectId || (!c.token && !anonymous)) throw fail('Hubungkan Sanity di Pengaturan AI & koneksi terlebih dahulu.', 422, 'NOT_CONNECTED');
+    if (!c.projectId || (!c.token && !anonymous)) throw fail('Connect Sanity in AI settings & connections first.', 422, 'NOT_CONNECTED');
     let response;
     try { response = await transport(url(c, path, query), { method, headers: { ...(c.token ? { Authorization: 'Bearer ' + c.token } : {}), ...headers }, body, signal: AbortSignal.timeout(timeout) }); }
-    catch { throw fail('Tidak dapat menghubungi Sanity. Periksa koneksi internet lalu coba lagi.', 502, 'NETWORK'); }
+    catch { throw fail('Cannot reach Sanity. Check your internet connection and try again.', 502, 'NETWORK'); }
     if (response.ok) return response.json();
     let detail = ''; try { const j = await response.json(); detail = String(j.error?.description || j.message || j.error || '').slice(0, 200); } catch { /* no body */ }
-    if (response.status === 401) throw fail('Token Sanity ditolak. Buat token baru dan simpan lagi.', 502, 'AUTH');
-    if (response.status === 403) throw fail('Token Sanity tidak punya izin untuk ini. Gunakan token dengan peran Editor.', 502, 'FORBIDDEN');
-    if (response.status === 404) throw fail('Project atau dataset Sanity tidak ditemukan. Periksa Project ID dan nama dataset.', 502, 'NOT_FOUND');
-    if (response.status === 429) throw fail('Sanity membatasi permintaan. Coba lagi beberapa saat lagi.', 502, 'RATE');
-    throw fail('Sanity menolak permintaan' + (detail ? ': ' + detail : '.'), 502, 'REJECTED');
+    if (response.status === 401) throw fail('The Sanity token was rejected. Create a new token and save it again.', 502, 'AUTH');
+    if (response.status === 403) throw fail('The Sanity token does not have permission for this. Use a token with the Editor role.', 502, 'FORBIDDEN');
+    if (response.status === 404) throw fail('Sanity project or dataset not found. Check the Project ID and dataset name.', 502, 'NOT_FOUND');
+    if (response.status === 429) throw fail('Sanity is limiting requests. Try again in a moment.', 502, 'RATE');
+    throw fail('Sanity rejected the request' + (detail ? ': ' + detail : '.'), 502, 'REJECTED');
   }
   const query = (c, groq, params = {}, extra = {}) => call(c, `/data/query/${c.dataset}`, { ...extra, query: '?' + new URLSearchParams({ query: groq, ...Object.fromEntries(Object.entries(params).map(([k, v]) => ['$' + k, JSON.stringify(v)])) }) });
 
   // Reads the dataset: how many articles, the field names of a real article, authors and categories to choose from.
   async function check() {
     const c = config();
-    if (!c.projectId || !c.token) throw fail('Isi Project ID dan token Sanity terlebih dahulu.', 422, 'NOT_CONNECTED');
+    if (!c.projectId || !c.token) throw fail('Enter the Sanity Project ID and token first.', 422, 'NOT_CONNECTED');
     try {
       const count = (await query(c, 'count(*[_type==$t])', { t: c.docType })).result;
       const sampleRaw = (await query(c, '*[_type==$t] | order(_createdAt desc)[0]{..., "body": null}', { t: c.docType })).result, sample = sampleRaw && typeof sampleRaw === 'object' && !Array.isArray(sampleRaw) ? sampleRaw : null;
@@ -110,7 +110,7 @@ export function createSanity(store, options = {}) {
   async function uploadImage(row) {
     const c = config(), bytes = await readFile(mediaPath(store, row));
     const data = await call(c, `/assets/images/${c.dataset}`, { method: 'POST', query: '?' + new URLSearchParams({ filename: String(row.name || 'gambar.jpg').slice(0, 120) }), headers: { 'Content-Type': row.mime || 'image/jpeg' }, body: bytes, timeout: 120000 });
-    const id = data.document?._id; if (!id) throw fail('Sanity tidak mengembalikan ID gambar.', 502, 'REJECTED'); return id;
+    const id = data.document?._id; if (!id) throw fail('Sanity did not return an image ID.', 502, 'REJECTED'); return id;
   }
 
   // category: "Operasional" → [{_type:'reference',_ref,_key}] when a category document with that title exists.

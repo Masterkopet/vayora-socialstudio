@@ -1,4 +1,4 @@
-throw new Error('Generator UI statis lama sudah diarsipkan. Edit src/styles dan src/client untuk Next.js.');
+throw new Error('The old static UI generator has been archived. Edit src/styles and src/client for Next.js.');
 /*
 import fs from 'node:fs';
 import path from 'node:path';

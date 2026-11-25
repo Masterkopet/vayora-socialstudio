@@ -1,106 +1,106 @@
 # Vayora Social Studio
 
-Versi 1.0 — 16 November 2026
+Version 1.0 — 16 November 2026
 
-## Tujuan
+## Purpose
 
-Webapp internal Vayora untuk menyiapkan, memeriksa, menjadwalkan, dan memublikasikan konten Instagram dari satu workspace. Pengujian pertama berjalan di komputer pengguna. Aplikasi Meta belum tersedia, sehingga login tim harus dapat diuji secara mandiri dan koneksi Instagram harus menjelaskan kebutuhan konfigurasi secara jujur.
+An internal Vayora web app for preparing, reviewing, scheduling, and publishing Instagram content from a single workspace. The first round of testing runs on the user's computer. The Meta app is not yet available, so team login must be testable on its own and the Instagram connection must honestly explain the configuration it needs.
 
-## Pengguna dan akses
+## Users and access
 
-- Pemilik membuat akun pertama melalui halaman pengaturan awal lokal.
-- Login menggunakan email dan password, session di server, logout, ganti password, dan undangan anggota tim melalui tautan sekali pakai.
-- Pemilik dapat mengatur koneksi Instagram, publikasi, dan anggota tim. Editor mengelola konten dan jadwal.
-- Tidak ada akun demo dengan password bawaan. Form Instagram tidak meminta password Instagram.
+- The owner creates the first account through the local initial setup page.
+- Login uses email and password, server-side sessions, logout, password change, and team member invitations through single-use links.
+- The owner can manage the Instagram connection, publishing, and team members. Editors manage content and schedules.
+- There is no demo account with a default password. The Instagram form never asks for the Instagram password.
 
-## Halaman
+## Pages
 
-1. Pengaturan awal dan login tim
-2. Kalender mingguan, bulanan, dan agenda dengan WIB
-3. Pustaka konten dengan filter format, tujuan, dan status
-4. Pemeriksaan sebelum tayang
-5. Editor caption, alt text, cover Reel, dan urutan carousel
-6. Impor media dan caption melalui ID konten
-7. Antrean, jeda global, pembatalan, dan penjadwalan ulang
-8. Riwayat perubahan serta hasil publikasi
-9. Pengaturan Instagram dan petunjuk Meta
-10. Profil, ganti password, dan undangan tim
+1. Initial setup and team login
+2. Weekly, monthly, and agenda calendar in WIB
+3. Content library with format, goal, and status filters
+4. Pre-publish check
+5. Caption, alt text, Reel cover, and carousel order editor
+6. Media and caption import through content IDs
+7. Queue, global pause, cancellation, and rescheduling
+8. History of changes and publishing results
+9. Instagram settings and Meta instructions
+10. Profile, password change, and team invitations
 
-## Alur konten
+## Content flow
 
-Draft → Perlu diperiksa → Siap tayang → Terjadwal → Memproses → Terbit.
+Draft → Needs review → Ready to publish → Scheduled → Processing → Published.
 
-Hasil gagal dan hasil yang belum dapat dipastikan ditangani terpisah. Jadwal yang terlewat lebih dari lima menit tidak diterbitkan sekaligus ketika aplikasi dinyalakan kembali. Setiap publikasi memerlukan persetujuan media dan caption. Perubahan materi mereset persetujuan dan jadwal aktif; jadwal yang sedang diproses terkunci. Konten yang sudah terbit hanya dapat disalin sebagai draft baru.
+Failed results and results that cannot be confirmed are handled separately. A schedule that is overdue by more than five minutes is not published all at once when the app is turned back on. Every publication requires approval of the media and caption. Changing the material resets the approval and the active schedule; a schedule that is being processed is locked. Content that has been published can only be copied as a new draft.
 
-## Pustaka awal
+## Initial library
 
-Impor 24 konsep asli dari produksi sebelumnya: 10 video, 8 image post, 6 carousel dengan total 30 slide. Gunakan media resolusi asli dan caption manifest. Semua konten awal berstatus draft tanpa tanggal publikasi aktif. Gambar disiapkan sebagai JPEG untuk publikasi API; file sumber tetap dipertahankan di folder aslinya.
+Import the 24 original concepts from the previous production: 10 videos, 8 image posts, and 6 carousels with a total of 30 slides. Use the original-resolution media and the manifest captions. All initial content has the draft status with no active publish date. Images are prepared as JPEG for API publishing; the source files are kept in their original folder.
 
-## Koneksi Instagram
+## Instagram connection
 
-- Jalur Instagram API with Instagram Login; akun Instagram Business atau Creator.
-- OAuth state sekali pakai, kedaluwarsa, dan terikat ke session pemilik.
-- Authorization Code ditukar di server; access token dienkripsi dan tidak dikirim ke browser.
-- App ID dan App Secret diisi melalui environment server. UI menampilkan kesiapan tanpa menampilkan secret.
-- Callback dan media membutuhkan alamat HTTPS yang dapat dijangkau internet saat integrasi diaktifkan.
-- Sediakan pemeriksaan koneksi, sambungkan ulang, dan putuskan koneksi.
-- App belum dikonfigurasi bukan berarti login berhasil. Tampilkan langkah penyiapan yang diperlukan.
+- Instagram API with Instagram Login path; Instagram Business or Creator account.
+- OAuth state is single-use, expiring, and bound to the owner's session.
+- The Authorization Code is exchanged on the server; the access token is encrypted and never sent to the browser.
+- The App ID and App Secret are set through the server environment. The UI shows readiness without showing the secret.
+- The callback and media need an internet-reachable HTTPS address when the integration is enabled.
+- Provide a connection check, reconnect, and disconnect.
+- An app that is not configured does not mean login succeeded. Show the setup steps that are needed.
 
-## Publikasi dan ketahanan
+## Publishing and resilience
 
-- Publikasi nyata nonaktif secara bawaan. Pemilik mengaktifkannya setelah koneksi dan URL publik siap.
-- Penjadwal berjalan di server selama proses aplikasi aktif.
-- Simpan container ID sebelum publishing, tandai permintaan publikasi sebelum panggilan jaringan, dan simpan media ID hasil.
-- Pada timeout atau crash setelah publish dikirim, periksa status container; jangan mengirim publish kedua secara buta.
-- Hasil tidak pasti memerlukan pemeriksaan. Konten yang tercatat terbit tidak dapat diterbitkan ulang.
-- Jeda global mempertahankan jadwal. Tidak ada konten dipublikasikan selama koneksi atau izin tidak valid.
-- Uji integrasi otomatis memakai transport Meta palsu yang terisolasi di test, bukan koneksi palsu di aplikasi pengguna.
+- Live publishing is off by default. The owner turns it on once the connection and public URL are ready.
+- The scheduler runs on the server while the app process is active.
+- Save the container ID before publishing, mark the publish request before the network call, and save the resulting media ID.
+- On a timeout or crash after publish was sent, check the container status; never blindly send a second publish.
+- An uncertain result requires a check. Content recorded as published cannot be published again.
+- The global pause preserves schedules. No content is published while the connection or permissions are invalid.
+- Automated integration tests use a fake Meta transport isolated in the tests, not a fake connection in the user's app.
 
-## Penyimpanan dan keamanan
+## Storage and security
 
-SQLite untuk akun, session, konten, media, koneksi, OAuth state, undangan, dan audit. Media tersimpan di direktori data lokal; data bertahan saat refresh atau restart. Password memakai scrypt dan salt unik. Cookie session HttpOnly, SameSite, kedaluwarsa, CSRF token, pembatasan percobaan login, pemeriksaan Origin, dan otorisasi per endpoint. Media memerlukan session; URL media untuk Meta ditandatangani dengan masa berlaku terbatas. Tolak tipe file dan ID konten yang tidak valid. Jangan menyimpan password atau token di log.
+SQLite for accounts, sessions, content, media, connections, OAuth state, invitations, and audit. Media is stored in the local data directory; data survives a refresh or restart. Passwords use scrypt with a unique salt. Session cookies are HttpOnly, SameSite, and expiring, with a CSRF token, login attempt limiting, Origin checks, and per-endpoint authorization. Media requires a session; the media URLs for Meta are signed with a limited validity. Reject invalid file types and content IDs. Never store passwords or tokens in logs.
 
-## Kriteria penerimaan
+## Acceptance criteria
 
-- Pengguna dapat membuat akun sendiri, logout, login ulang, mengganti password, dan mempertahankan data setelah restart.
-- Akses dashboard/API/media tanpa session ditolak.
-- Seluruh 24 konsep muncul dengan media asli; video dapat diputar dan carousel berurutan benar.
-- Simpan caption, reorder, persetujuan, penjadwalan lintas bulan, jeda, pembatalan, impor, dan audit bertahan di database.
-- Undangan sekali pakai dapat diterima dan tidak memberikan hak pemilik kepada editor.
-- Belum ada Meta app: tombol koneksi memberikan panduan, tidak menampilkan status terhubung palsu.
-- OAuth invalid state ditolak. Token tidak muncul dalam respons browser.
-- Pengujian membuktikan penerbitan ganda dicegah pada retry dan hasil tidak pasti.
-- Tata letak dapat digunakan pada desktop dan ponsel.
+- A user can create their own account, log out, log in again, change the password, and keep their data after a restart.
+- Access to the dashboard/API/media without a session is rejected.
+- All 24 concepts appear with their original media; videos can be played and carousels are in the correct order.
+- Caption saves, reorder, approval, cross-month scheduling, pause, cancellation, import, and audit persist in the database.
+- A single-use invitation can be accepted and does not give owner rights to an editor.
+- With no Meta app: the connect button gives guidance and does not show a fake connected status.
+- An invalid OAuth state is rejected. Tokens do not appear in browser responses.
+- Tests prove that duplicate publishing is prevented on retry and on uncertain results.
+- The layout is usable on desktop and phone.
 
-## Batas pengujian pertama
+## First-round testing limits
 
-Tidak ada publikasi Instagram nyata sebelum pengguna menyiapkan aplikasi Meta, akun profesional, dan HTTPS publik. Tidak ada email otomatis tanpa penyedia email; undangan berupa tautan yang dapat disalin. Publikasi lokal berhenti ketika komputer atau proses server mati. Panduan deploy mandiri disertakan untuk penggunaan 24 jam.
+There is no real Instagram publishing until the user has prepared the Meta app, a professional account, and public HTTPS. There is no automatic email without an email provider; invitations are links that can be copied. Local publishing stops when the computer or server process stops. A standalone deployment guide is included for 24-hour use.
 
-## Referensi implementasi
+## Implementation references
 
-### Penambahan asisten konten — 16 November 2026
+### Content assistant additions — 16 November 2026
 
-Implementasi: [ASISTEN-KONTEN.md](ASISTEN-KONTEN.md).
+Implementation: [ASISTEN-KONTEN.md](ASISTEN-KONTEN.md).
 
-- Caption: tiga pilihan hook, caption, hashtag, kata kunci, CTA; mode lokal diberi label sebagai bantuan konteks, mode vision membaca media nyata melalui API setelah konfigurasi pemilik. Reel hanya cover/poster; carousel semua slide, alt text gambar pertama.
-- Pemeriksaan editorial berbasis aturan untuk klaim, fitur segera hadir, duplikasi, CTA, panjang caption, dan deskripsi aksesibilitas. Tidak menampilkan skor SEO atau prediksi jangkauan.
-- Waktu posting: tiga slot uji WIB dalam 14 hari, masa depan dan tidak berdekatan dengan konten terjadwal/terbit yang tercatat. Belum personalisasi Insights, tidak mengatur delivery iklan berbayar.
-- Image post: komposisi lokal 1080 × 1350 memakai logo dan palet asli, copy editable, preview, download, dan pembuatan draft eksplisit. Latar AI opsional; logo dan copy tidak digambar ulang oleh AI.
-- Arah brand: target audiens dan tone dapat diubah pemilik; fakta produk dan batas klaim mengikuti sumber Vayora yang ditinjau.
-- Pengetahuan brand: 57 catatan terkurasi dari 14 sumber serta 24 referensi kreatif; pencarian/filter status, ekspor JSON, status ketidakpastian, dan enam perbedaan sumber tercatat. AI mendapat katalog lengkap serta prioritas catatan relevan; hasil caption memperlihatkan konteks yang diberikan. Sumber mentah tidak dijadikan instruksi model. Detail: [PENGETAHUAN-BRAND-VAYORA.md](PENGETAHUAN-BRAND-VAYORA.md). Pembaruan fakta memerlukan peninjauan, bukan crawling otomatis.
-- Koneksi AI: API key terenkripsi, batas permintaan harian, satu proses AI bersamaan, error provider disanitasi, tidak retry otomatis. Hanya pemilik mengubah key/batas dan membuat latar AI berbayar. Editor dapat memakai caption dan desain lokal.
-- Hasil tidak mengubah konten sampai diterapkan; penerapan membatalkan approval lama. Tidak ada publikasi otomatis dari generator.
-- Fondasi evaluasi marketing: sebaran topik dan pembuat tautan UTM. Pengukuran performa akun, analytics website, conversion event, rekomendasi berbasis data, dan analisis per campaign merupakan pengembangan berikutnya; tidak ada angka performa fiktif.
+- Captions: three options of hook, caption, hashtags, keywords, and CTA; local mode is labeled as context assistance, while vision mode reads real media through the API after owner configuration. For a Reel only the cover/poster; for a carousel all slides, with alt text for the first image.
+- Rule-based editorial checks for claims, coming-soon features, duplicates, CTA, caption length, and accessibility descriptions. No SEO score or reach prediction is shown.
+- Posting time: three WIB test slots within 14 days, in the future and not close to recorded scheduled/published content. No Insights personalization, and no control of paid ad delivery.
+- Image post: local 1080 × 1350 composition using the real logo and palette, editable copy, preview, download, and explicit draft creation. AI background optional; the logo and copy are not redrawn by AI.
+- Brand direction: the owner can change the target audience and tone; product facts and claim limits follow the reviewed Vayora sources.
+- Brand knowledge: 57 curated notes from 14 sources and 24 creative references; search/status filter, JSON export, uncertainty status, and six recorded source differences. The AI receives the full catalog and the prioritized relevant notes; caption results show the context that was given. Raw sources are not turned into model instructions. Details: [PENGETAHUAN-BRAND-VAYORA.md](PENGETAHUAN-BRAND-VAYORA.md). Updating facts requires review, not automatic crawling.
+- AI connection: encrypted API key, daily request limit, one AI process at a time, sanitized provider errors, no automatic retry. Only the owner changes the key/limit and creates paid AI backgrounds. Editors can use captions and local design.
+- Results do not change the content until applied; applying cancels the old approval. No automatic publishing from the generator.
+- Marketing evaluation foundation: topic distribution and a UTM link builder. Account performance measurement, website analytics, conversion events, data-based recommendations, and per-campaign analysis are next development; there are no fictional performance numbers.
 
-### Pustaka dan mobile bilingual — 16 November 2026
+### Library and bilingual mobile — 16 November 2026
 
-- Detail pustaka memakai dialog native di atas daftar, tanpa pindah rute. Jadwal tampil pada card; filter/posisi daftar dan fokus kembali dipertahankan. Draft tidak dibuang tanpa konfirmasi.
-- Post sekarang memerlukan pemeriksaan, persetujuan eksplisit, koneksi Instagram, HTTPS, serta live publishing. Endpoint memeriksa revisi dan status, mengklaim record sebelum proses jaringan, mengembalikan 202, dan UI memantau hasil. Konten terbit/processing/uncertain tidak dapat diposting ulang. Posting manual tidak melanjutkan antrean lain yang dijeda.
-- Navigasi bawah satu baris pada ≤800 px: Pustaka, Kalender, Antrean, Asisten, Menu. Menu sekunder berisi pemeriksaan, riwayat, pengaturan, akun, impor, serta bahasa. Dialog mengambang pada ponsel, sudut 24 px, tinggi maksimal 76dvh pada mobile dengan margin samping 24 px (88dvh desktop), backdrop blur 10 px, dan transisi singkat dengan dukungan reduced motion; safe area, target sentuh, media proporsional, dan overflow diuji.
-- UI Indonesia/English dengan pilihan tersimpan pada browser. Mengganti bahasa tidak menimpa caption/judul/media/dokumen sumber dan tidak merusak nilai kategori/status di server.
-- Rincian dan verifikasi: [PUSTAKA-DAN-MOBILE.md](PUSTAKA-DAN-MOBILE.md).
+- Library detail uses a native dialog over the list, without a route change. The schedule appears on the card; filters/list position and returning focus are preserved. A draft is not discarded without confirmation.
+- Post now requires a check, explicit approval, an Instagram connection, HTTPS, and live publishing. The endpoint checks the revision and status, claims the record before the network process, returns 202, and the UI monitors the result. Published/processing/uncertain content cannot be posted again. Manual posting does not resume other paused queue items.
+- Single-row bottom navigation at ≤800 px: Home, Library, Create, Calendar, Menu. The secondary menu contains review, history, settings, account, import, and language. On phones the dialog floats, with 24 px corners, a maximum height of 76dvh on mobile with 24 px side margins (88dvh on desktop), a 10 px backdrop blur, and a short transition with reduced motion support; safe area, touch targets, proportional media, and overflow are tested.
+- English/Indonesian UI (English is the default) with the choice stored in the browser. Switching language does not overwrite captions/titles/media/source documents and does not break category/status values on the server.
+- Details and verification: [PUSTAKA-DAN-MOBILE.md](PUSTAKA-DAN-MOBILE.md).
 
-### Referensi Instagram
+### Instagram references
 
 - https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login
 - https://developers.facebook.com/documentation/instagram-platform/content-publishing

@@ -29,6 +29,7 @@ try{
  const reports=[];
  for(const [width,height]of [[536,1403],[390,844],[320,844],[800,1000],[536,500]]){
   await page.setViewportSize({width,height});
+  /* English is the default UI language; each pass selects the language explicitly. */
   for(const language of ['id','en']){
    await page.locator('[data-action="more-menu"]:visible').click();
    await page.waitForFunction(()=>document.querySelector('#vs-detail')?.dataset.phase==='open'&&Number(getComputedStyle(document.querySelector('#vs-detail')).opacity)>.999&&Math.abs(new DOMMatrixReadOnly(getComputedStyle(document.querySelector('#vs-detail')).transform).m42)<.5);
@@ -61,13 +62,14 @@ try{
  await page.locator('#smart-knowledge-form').waitFor();
  assert.equal(new URL(page.url()).pathname,'/knowledge');
  await page.locator('[data-action="more-menu"]:visible').click();
+ assert.equal(await page.locator('#vs-detail [data-language]').inputValue(),'en','English is the default language');
  await page.locator('#vs-detail [data-language]').selectOption('id');
- assert.equal(await page.locator('.vs-menu-grid [data-action="nav:knowledge"]').count(),0,'brand knowledge lives behind Pengaturan AI');
+ assert.equal(await page.locator('.vs-menu-grid [data-action="nav:knowledge"]').count(),0,'brand knowledge lives behind AI settings');
  await page.locator('.vs-menu-grid [data-action="nav:import"]').click();
  await page.locator('#pkg-folder').waitFor();
  assert.equal(new URL(page.url()).pathname,'/import');
  assert.deepEqual(errors,[]);
- console.log('PASS menu: fifteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via Pengaturan AI) and import navigation.');
+ console.log('PASS menu: fifteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via AI settings) and import navigation.');
  console.log(JSON.stringify(reports));
 }finally{
  await browser.close();
