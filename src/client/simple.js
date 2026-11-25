@@ -29,7 +29,7 @@ export function createSimpleViews(ctx) {
       if (scheduled.some(p => platformOf(p) === 'youtube') && !yt.connected) list.push({ level: 'danger', text: 'Ada Short terjadwal, tetapi channel YouTube belum terhubung.', action: fix });
     }
     if (scheduled.length && (!s.publishingEnabled || s.paused)) list.push({ level: 'warning', text: !s.publishingEnabled ? `${scheduled.length} konten terjadwal tidak akan terbit karena publikasi nyata belum diaktifkan.` : `${scheduled.length} konten terjadwal menunggu karena antrean sedang dijeda.`, action: owner ? (!s.publishingEnabled ? ['Aktifkan publikasi', 'nav:settings'] : ['Buka Antrean', 'nav:queue']) : null });
-    return list;
+    return [...list, ...(ctx.extraAlerts?.() || [])];
   }
   const alertsHTML = alerts => alerts.map(a => `<div class="vs-alert ${a.level}" role="${a.level === 'danger' ? 'alert' : 'status'}"><span>${esc(a.text)}</span>${a.action ? button(a.action[0], a.action[1]) : ''}</div>`).join('');
 

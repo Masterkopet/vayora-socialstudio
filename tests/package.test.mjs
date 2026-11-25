@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePackage, matchFiles, formatOf, checkRow, planSchedule, readSources, parseEpisodeText, parseCaptionMarkdown, mediaOnlyRows, mediaInfo, titleFromFile } from '../src/client/package-parse.js';
+import { parsePackage, matchFiles, formatOf, checkRow, planSchedule, readSources, parseEpisodeText, parseCaptionMarkdown, parseArticleMarkdown, isArticleMarkdown, mediaOnlyRows, mediaInfo, titleFromFile } from '../src/client/package-parse.js';
 
 const json = JSON.stringify([
   { episode: '01', judul: 'Housekeeping Villa: Bersih Belum Tentu Siap', deskripsi_lengkap: 'Deskripsi 1\n\n#Vayora', tags_opsional: 'Vayora, housekeeping villa', file_video: 'E:\\Work\\Short YT\\01\\Video\\Vayora-Shorts-01-Closing-Terbaru-PRATINJAU.mp4' },
@@ -106,4 +106,60 @@ test('ID-named media without text become their own items (old bulk import), draf
   assert.match(checkRow({ row: rows[0], files: v.files, platform: 'instagram', mode: 'draft', existingIds: ['V01'] }).errors.join(), /sudah ada/);
   assert.equal(rows[0].platform, 'instagram', 'V/I/C codes are Instagram');
   assert.equal(titleFromFile('I03-foto_kamar-siap.jpg'), 'Foto kamar siap');
+});
+
+const articleMd = `# 03 — SOP Check-in dan Check-out
+
+## Metadata SEO
+
+| Field | Isi |
+| --- | --- |
+| Terbit | Jumat, 27 November 2026, 07.00 WIB |
+| H1 | SOP Check-in dan Check-out Villa & Guesthouse |
+| Title tag | SOP Check-in & Check-out Villa (Lengkap) (55 karakter) |
+| Meta description | SOP check-in dan check-out villa langkah demi langkah. |
+| Slug | /blog/sop-check-in-check-out-villa-guesthouse |
+| Kategori | Operasional |
+
+## Prompt gambar
+
+| Posisi | Prompt (Inggris) | Alt text | Nama file |
+| --- | --- | --- | --- |
+| Utama 16:9 | Photo of a welcome | Penjaga villa menyambut tamu | sop-check-in-villa.webp |
+| Dalam artikel 4:3 | Close-up | Meja resepsionis | resepsionis.webp |
+
+## Naskah artikel
+
+*27 November 2026 — 7 menit baca*
+
+Paragraf pembuka.
+
+### 1. Aturan Dasar
+
+Isi bagian.
+
+*Ditulis oleh Tim Vayora — Pembuat Vayora*
+
+## Caption Instagram (carousel)
+
+Caption IG yang bukan bagian artikel.
+`;
+
+test('blog articles: the Metadata SEO table gives title, slug, category, schedule date and hero image; the body is only the article', () => {
+  assert.ok(isArticleMarkdown(articleMd)); assert.ok(!isArticleMarkdown('## V01 — Tur\nCaption:\nIsi'));
+  const [a] = parseArticleMarkdown(articleMd, 'md/03-sop-check-in.md');
+  assert.equal(a.platform, 'blog'); assert.equal(a.key, '03'); assert.equal(a.title, 'SOP Check-in dan Check-out Villa & Guesthouse');
+  assert.equal(a.blog.slug, 'sop-check-in-check-out-villa-guesthouse'); assert.equal(a.blog.seoTitle, 'SOP Check-in & Check-out Villa (Lengkap)');
+  assert.equal(a.blog.excerpt, 'SOP check-in dan check-out villa langkah demi langkah.'); assert.equal(a.blog.category, 'Operasional');
+  assert.equal(a.date, '2026-11-27'); assert.equal(a.time, '07:00'); assert.deepEqual(a.files, ['sop-check-in-villa.webp']); assert.equal(a.blog.heroAlt, 'Penjaga villa menyambut tamu');
+  assert.equal(a.blog.body, 'Paragraf pembuka.\n\n### 1. Aturan Dasar\n\nIsi bagian.', 'date line, byline and the Instagram caption are not in the body');
+  // Blog rows keep their own key (episode 03 of a YouTube package is a different item) and never take a video by number.
+  const yt = JSON.stringify([{ episode: '03', judul: 'Episode', deskripsi_lengkap: 'D' }]);
+  const { rows } = readSources([{ name: 'a.md', path: 'a.md', text: articleMd }, { name: 'p.json', path: 'p.json', text: yt }]);
+  assert.equal(rows.length, 2);
+  const m = matchFiles(rows, [file('Vayora-Shorts-03.mp4'), file('sop-check-in-villa.webp')], r => r.platform || 'youtube');
+  assert.deepEqual(m.map(x => (x.row.platform || 'youtube') + ':' + x.files.map(f => f.name)).sort(), ['blog:sop-check-in-villa.webp', 'youtube:Vayora-Shorts-03.mp4']);
+  assert.deepEqual(checkRow({ row: a, files: [], platform: 'blog', mode: 'draft' }).errors, []);
+  assert.match(checkRow({ row: a, files: [], platform: 'blog', mode: 'scheduled' }).errors.join(), /Gambar utama/);
+  assert.equal(formatOf('blog', []), 'Blog');
 });

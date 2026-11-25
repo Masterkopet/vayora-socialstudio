@@ -8,6 +8,8 @@ import { createAuth, verifyPassword, hashPassword, validateAccount } from './aut
 import { addMedia, mediaPath, publicMedia } from './media.mjs';
 import { createInstagram, publicHTTPS } from './instagram.mjs';
 import { createYouTube } from './youtube.mjs';
+import { createSanity } from './sanity.mjs';
+import { createBlog } from './blog.mjs';
 import { createAssistant, brandProfile, saveBrand, inspectContent, postingSuggestions } from './assistant.mjs';
 import { composeDesign, registerImage } from './design.mjs';
 import { knowledgeOverview, searchKnowledge, campaignReferences, exportKnowledge } from './knowledge.mjs';
@@ -29,6 +31,8 @@ export function createApp(options={}) {
  const getConfig=()=>{const c=store.secret('instagram.config',{});return{appId:process.env.INSTAGRAM_APP_ID||c.appId||'',appSecret:process.env.INSTAGRAM_APP_SECRET||c.appSecret||'',publicBase:process.env.PUBLIC_BASE_URL||c.publicBase||'',version:process.env.INSTAGRAM_API_VERSION||c.version||'v27.0'};};
  const instagram=createInstagram(store,getConfig,options.instagram||{});
  const youtube=createYouTube(store,()=>getConfig().publicBase,options.youtube||{});
+ const sanity=createSanity(store,options.sanity||{});
+ const blog=createBlog(store,sanity);
  const assistant=createAssistant(store,options.assistant||{});
  const marketing=createMarketing(store,{origin});
  const app=createServiceRouter();
@@ -112,7 +116,7 @@ export function createApp(options={}) {
  app.post('/api/assistant/background',auth.owner,async(req,res)=>{const bytes=await assistant.background(req.body||{});res.status(201).json({media:await registerImage(store,bytes,'Vayora-latar-AI-'+Date.now()+'.png',{kind:'ai-background',brief:String(req.body.brief||'').slice(0,1200),model:assistant.status().imageModel})});});
  app.post('/api/auth/logout',(req,res)=>{store.run('DELETE FROM sessions WHERE hash=?',req.session.hash);res.clearCookie('vayora.sid',auth.cookieOptions);res.json({ok:true});});
  app.post('/api/auth/password',async(req,res)=>{if(!await verifyPassword(String(req.body?.currentPassword||''),store.get('SELECT password_hash FROM users WHERE id=?',req.user.id).password_hash))throw error('Password saat ini tidak sesuai.',400);validateAccount({name:req.user.name,email:req.user.email,password:req.body?.password});const value=await hashPassword(req.body.password);store.run('UPDATE users SET password_hash=? WHERE id=?',value,req.user.id);store.run('DELETE FROM sessions WHERE user_id=? AND hash<>?',req.user.id,req.session.hash);store.event(null,'Password diperbarui','Sesi lain dikeluarkan.','account',req.user.id);res.json({ok:true});});
- app.get('/api/workspace',(req,res)=>res.json({posts:store.posts().map(views),events:store.all('SELECT * FROM events ORDER BY id DESC LIMIT 100'),settings:{paused:store.setting('paused',true),publishingEnabled:store.setting('publishingEnabled',false),notifyFailure:store.setting('notifyFailure',true),notifyReconnect:store.setting('notifyReconnect',true)},instagram:instagram.status(),youtube:youtube.status(),user:auth.publicUser(req.user)}));
+ app.get('/api/workspace',(req,res)=>res.json({posts:store.posts().map(views),events:store.all('SELECT * FROM events ORDER BY id DESC LIMIT 100'),settings:{paused:store.setting('paused',true),publishingEnabled:store.setting('publishingEnabled',false),notifyFailure:store.setting('notifyFailure',true),notifyReconnect:store.setting('notifyReconnect',true)},instagram:instagram.status(),sanity:sanity.status(),blog:blog.list(),youtube:youtube.status(),user:auth.publicUser(req.user)}));
  app.post('/api/workspace/settings',(req,res)=>{for(const key of ['paused','notifyFailure','notifyReconnect'])if(typeof req.body?.[key]==='boolean')store.set(key,req.body[key]);store.event(null,'Preferensi diperbarui','Pengaturan workspace diperbarui.','change',req.user.id);res.json({ok:true});});
  app.post('/api/workspace/publishing',auth.owner,(req,res)=>{if(typeof req.body?.enabled!=='boolean')throw error('Pilih status publikasi.');if(req.body.enabled){const s=instagram.status();if(!s.connected||!s.publicUrlReady)throw error('Hubungkan Instagram dan siapkan HTTPS publik terlebih dahulu.');if(req.body.confirmation!=='AKTIFKAN')throw error('Ketik AKTIFKAN untuk mengaktifkan publikasi nyata.');}store.set('publishingEnabled',req.body.enabled);if(!req.body.enabled)store.set('paused',true);store.event(null,req.body.enabled?'Publikasi diaktifkan':'Publikasi dinonaktifkan','Pengaturan diubah oleh pemilik.','connection',req.user.id);res.json({ok:true});});
  app.get('/api/team',auth.owner,(_req,res)=>res.json({users:store.all('SELECT id,email,name,role,created_at FROM users ORDER BY created_at')}));
@@ -177,13 +181,24 @@ export function createApp(options={}) {
  app.post('/api/youtube/check',auth.owner,async(_req,res)=>res.json(await youtube.check()));
  app.post('/api/youtube/disconnect',auth.owner,(req,res)=>{if(connectionBusy())throw error('Tunggu publikasi yang sedang diproses selesai.',409);youtube.disconnect();store.event(null,'YouTube dilepaskan','Channel tidak lagi terhubung.','connection',req.user.id);res.json({ok:true});});
  app.post('/api/instagram/disconnect',auth.owner,(req,res)=>{if(connectionBusy())throw error('Tunggu publikasi yang sedang diproses selesai.',409);store.run("DELETE FROM settings WHERE key='instagram.connection'");store.set('publishingEnabled',false);store.set('paused',true);store.event(null,'Instagram dilepaskan','Publikasi dinonaktifkan.','connection',req.user.id);res.json({ok:true});});
+ // Blog articles published to Sanity.io. Connection settings are owner only; writing and scheduling is open to editors.
+ app.get('/api/sanity/status',(_req,res)=>res.json(sanity.status()));
+ app.post('/api/sanity/config',auth.owner,(req,res)=>{const result=sanity.configure(req.body||{});store.event(null,'Koneksi Sanity diperbarui','Token tidak ditampilkan kembali.','connection',req.user.id);res.json(result);});
+ app.post('/api/sanity/check',auth.owner,async(_req,res)=>res.json(await sanity.check()));
+ app.get('/api/blog',(_req,res)=>res.json({articles:blog.list()}));
+ app.post('/api/blog/draft',async(req,res)=>res.json(await assistant.article({...(req.body||{}),examples:blog.examples()})));
+ app.get('/api/blog/:id',(req,res)=>res.json(blog.get(req.params.id)));
+ app.post('/api/blog',(req,res)=>res.status(201).json(blog.create(req.body||{},req.user.id)));
+ app.put('/api/blog/:id',(req,res)=>res.json(blog.update(req.params.id,req.body||{},req.user.id)));
+ app.delete('/api/blog/:id',(req,res)=>{const a=blog.get(req.params.id);if(a.status==='published'&&req.user.role!=='owner')throw error('Hanya pemilik yang dapat menghapus artikel yang sudah terbit.',403);blog.remove(req.params.id,req.user.id);res.json({ok:true});});
+ app.post('/api/blog/:id/publish',async(req,res)=>{if(!sanity.status().configured)throw error('Hubungkan Sanity di Pengaturan terlebih dahulu.',422);if(!store.setting('publishingEnabled',false))throw error('Aktifkan publikasi nyata di Koneksi & publikasi terlebih dahulu.',409);if(req.body?.approved!==true)throw error('Periksa artikel lalu berikan persetujuan sebelum menerbitkan.');res.json(await blog.run(req.params.id,{user:req.user.id}));});
  app.use('/api',(_req,res)=>res.status(404).json({error:'Fitur tidak ditemukan.'}));
  app.use((err,_req,res,_next)=>{const status=Number(err.status)|| (err.code?.startsWith('SQLITE_CONSTRAINT')?409:err.code?.startsWith('LIMIT_')?400:500);res.status(status).json({error:status===500?'Terjadi kendala server. Coba kembali atau periksa log aplikasi.':err.message});if(status===500)console.error('[server]',err.name,err.code||'',String(err.message).slice(0,160));});
  let working=false,closed=false;
  async function tick(){if(working)return;working=true;try{
    // Keep the Instagram token alive even while the queue is paused or publishing is off; publish nothing in that state.
    if(store.setting('paused',true)||!store.setting('publishingEnabled',false)){await instagram.refresh();return;}
-   for(const item of store.posts().filter(x=>x.status==='scheduled'&&x.scheduleAt&&Date.parse(x.scheduleAt)<Date.now()-300000)){item.status='failed';item.error='Jadwal terlewat lebih dari lima menit. Tentukan jadwal baru.';item.errorCode='OVERDUE';store.savePost(item);store.event(item.id,'Jadwal terlewat',item.error,'failed');}const due=store.posts().find(x=>x.status==='scheduled'&&Date.parse(x.scheduleAt)<=Date.now());if(due)await (due.format==='Short'?youtube.run(due.id):instagram.run(due.id,signMedia));else await instagram.refresh();}catch(e){if(!['NOT_CONNECTED','PAUSED','PUBLIC_URL_REQUIRED'].includes(e.code))console.error('[scheduler]',e.code||'error');}finally{working=false;}}
+   for(const item of store.posts().filter(x=>x.status==='scheduled'&&x.scheduleAt&&Date.parse(x.scheduleAt)<Date.now()-300000)){item.status='failed';item.error='Jadwal terlewat lebih dari lima menit. Tentukan jadwal baru.';item.errorCode='OVERDUE';store.savePost(item);store.event(item.id,'Jadwal terlewat',item.error,'failed');}const due=store.posts().find(x=>x.status==='scheduled'&&Date.parse(x.scheduleAt)<=Date.now());if(due)await (due.format==='Short'?youtube.run(due.id):instagram.run(due.id,signMedia));else await instagram.refresh();await blog.tickDue();}catch(e){if(!['NOT_CONNECTED','PAUSED','PUBLIC_URL_REQUIRED'].includes(e.code))console.error('[scheduler]',e.code||'error');}finally{working=false;}}
  const timer=options.scheduler===false?null:setInterval(()=>void tick(),15000);timer?.unref();
- return {app,store,instagram,youtube,auth,tick,signMedia,close(){if(closed)return;closed=true;if(timer)clearInterval(timer);store.close();}};
+ return {app,store,instagram,youtube,sanity,blog,auth,tick,signMedia,close(){if(closed)return;closed=true;if(timer)clearInterval(timer);store.close();}};
 }
