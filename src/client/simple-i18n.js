@@ -66,6 +66,10 @@ export const simpleStrings={
   'Video atau foto belum dipilih.':'No video or photo chosen yet.','YouTube Shorts memerlukan tepat satu video MP4.':'YouTube Shorts need exactly one MP4 video.','Gabungan file ini tidak didukung Instagram.':'Instagram does not support this combination of files.',
   'Judul kosong.':'Title is empty.','Deskripsi atau caption kosong.':'Description or caption is empty.','Deskripsi lebih dari 2.200 karakter.':'Description is longer than 2,200 characters.',
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
+  // Sanity sync
+  'Sinkronkan dari Sanity':'Sync from Sanity','Menyinkronkan…':'Syncing…','Semua artikel dari Sanity sudah ada di sini.':'All articles from Sanity are already here.','tidak dapat diubah karena sudah tayang':'cannot be changed because it is already live',
+  // Tabs
+  'Publikasi':'Publishing','Brand':'Brand','Akun saya':'My account','Detail & gambar':'Details & image','Isi artikel':'Article body','Jadwal & terbit':'Schedule & publish',
   // Team management
   'Anggota tim':'Team members','Menghapus anggota mengakhiri akses akunnya seketika. Konten yang pernah dibuatnya tetap ada.':'Removing a member ends their account access immediately. Content they created stays.',
   'Memuat anggota tim…':'Loading team members…','(kamu)':'(you)','Pemilik':'Owner','Editor':'Editor','Undangan tertunda':'Pending invitations','Batalkan':'Cancel','Hapus anggota':'Remove member','Batalkan undangan':'Cancel invitation',
@@ -145,7 +149,8 @@ export const simplePatterns=[
   [/^Batalkan undangan untuk (.+)\? Tautannya tidak berlaku lagi\.$/,(_,e)=>`Cancel the invitation for ${e}? The link will no longer work.`],
   [/^(.+) · (Pemilik|Editor) · bergabung (.+)$/,(_,e,r,d)=>`${e} · ${r==='Pemilik'?'Owner':'Editor'} · joined ${d}`],[/^Berlaku hingga (.+)$/,(_,d)=>`Valid until ${d}`],
   [/^(\d+) artikel blog gagal terbit\. Buka Blog untuk melihat alasannya\.$/,(_,n)=>`${n} blog article(s) failed to publish. Open Blog to see why.`],
-  [/^(.* · )?(\d+) menit baca( · .*)?$/,(_,a,n,b)=>`${a||''}${n} min read${b||''}`],[/^(\d+) karakter · ideal 130–160$/,(_,n)=>`${n} characters · ideal 130–160`],[/^(\d+) kata · (\d+) menit baca$/,(_,a,b)=>`${a} words · ${b} min read`],
+  [/^(.* · )?(\d+) menit baca( · .*)?$/,(_,a,n,b)=>`${a||''}${n} min read${(b||'').replace('dari Sanity','from Sanity')}`],[/^(\d+) karakter · ideal 130–160$/,(_,n)=>`${n} characters · ideal 130–160`],[/^(\d+) kata · (\d+) menit baca$/,(_,a,b)=>`${a} words · ${b} min read`],
+  [/^(\d+) artikel baru dan (\d+) diperbarui dari Sanity\.$/,(_,a,b)=>`${a} new and ${b} updated articles from Sanity.`],
   [/^Artikel dijadwalkan: (.+)\.$/,(_,t)=>`Article scheduled: ${t}.`],[/^Project (\S+) · dataset (\S+)$/,(_,a,b)=>`Project ${a} · dataset ${b}`],
   [/^Unggah foto atau video untuk melihat tampilannya di (.+)\.$/,(_,p)=>`Upload a photo or video to see how it looks on ${p}.`],
   [/^Cover: (.+)$/,(_,a)=>`Cover: ${a}`],[/^(\S+) sudah ada di pustaka, tidak diimpor ulang\.$/,(_,a)=>`${a} is already in the library and is not imported again.`],

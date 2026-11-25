@@ -196,3 +196,54 @@ test('routes: the token stays owner-only and out of every response; publishing n
     assert.equal((await request('/api/blog/B01', 'DELETE')).status, 200); assert.equal((await request('/api/blog')).data.articles.length, 0);
   } finally { await new Promise(r => server.close(r)); runtime.close(); await rm(directory, { recursive: true, force: true }); }
 });
+
+import { portableTextToMarkdown } from '../src/client/portable-text.js';
+
+const live = (id, slug, extra = {}) => ({ _id: id, title: 'Artikel ' + slug, slug, excerpt: 'Ringkasan ' + slug, publishedAt: '2026-11-20T01:00:00Z', seoTitle: 'SEO ' + slug, seoDescription: 'Desc', imageRef: 'image-abc123-1672x941-png', imageAlt: 'Alt', categoryTitles: ['Operasional'], body: [{ _key: 'a', _type: 'block', style: 'normal', markDefs: [], children: [{ _key: 'b', _type: 'span', marks: [], text: 'Pembuka.' }] }, { _key: 'c', _type: 'block', style: 'h2', markDefs: [], children: [{ _key: 'd', _type: 'span', marks: [], text: 'Bagian' }] }], ...extra });
+
+test('Portable Text converts back to Markdown (and survives a round trip) without losing structure', () => {
+  const md = '### Bagian\n\nTeks **tebal**, *miring* dan [tautan](https://vayora.id/x).\n\n1. Satu\n2. Dua\n\n- a\n  - b\n\n> Kutipan\n\n#### Sub';
+  const { markdown, notes } = portableTextToMarkdown(markdownToPortableText(md).blocks);
+  assert.equal(markdown, md); assert.equal(notes.skipped, 0);
+  assert.equal(portableTextToMarkdown([{ _type: 'image' }, ...markdownToPortableText('Halo').blocks]).notes.skipped, 1, 'unsupported blocks are counted, not crashed on');
+  assert.equal(portableTextToMarkdown([{ _type: 'block', style: 'h2', markDefs: [], children: [{ _type: 'span', marks: [], text: 'Judul' }] }]).markdown, '### Judul');
+});
+
+test('articles already published in Sanity are read into the studio, edited there and sent back in place', async () => {
+  let posts = [live('doc-1', 'artikel-satu'), live('doc-2', 'artikel-dua')];
+  const mutations = []; let withToken = false;
+  const f = await fixture(async (url, init = {}) => {
+    if (url.includes('/data/query/')) { if (!withToken) assert.ok(!init.headers.Authorization, 'reads work without a token'); return ok({ result: decodeURIComponent(url).includes('lower(title)') ? null : posts }); }
+    mutations.push(JSON.parse(init.body).mutations[0]); return mutateOk('doc-1');
+  });
+  try {
+    const first = await f.blog.sync({ force: true });
+    assert.deepEqual([first.added, first.total], [2, 2]);
+    const a = f.blog.get('B01');
+    assert.equal(a.status, 'published'); assert.equal(a.source, 'sanity'); assert.equal(a.sanityId, 'doc-1'); assert.equal(a.url, 'https://vayora.id/blog/artikel-satu');
+    assert.equal(a.body, 'Pembuka.\n\n### Bagian'); assert.equal(a.category, 'Operasional'); assert.equal(a.hero.url, 'https://cdn.sanity.io/images/5ugtuy3w/production/abc123-1672x941.png');
+    assert.equal((await f.blog.sync({ force: true })).added, 0, 'a second sync adds nothing');
+    assert.equal((await f.blog.sync()).throttled, true, 'rapid syncs are throttled');
+
+    // A change made in Sanity flows in until the article is edited here.
+    posts = [live('doc-1', 'artikel-satu', { title: 'Judul baru dari Sanity' }), posts[1]];
+    assert.equal((await f.blog.sync({ force: true })).updated, 1); assert.equal(f.blog.get('B01').title, 'Judul baru dari Sanity');
+    const edited = f.blog.update('B01', { title: 'Judul saya', slug: 'diubah-paksa', excerpt: 'R', body: 'Isi baru.', heroAlt: 'Alt', intent: 'published', revision: f.blog.get('B01').revision });
+    assert.equal(edited.slug, 'artikel-satu', 'the address of a live article cannot change');
+    posts = [live('doc-1', 'artikel-satu', { title: 'Sanity lagi' }), posts[1]];
+    await f.blog.sync({ force: true }); assert.equal(f.blog.get('B01').title, 'Judul saya', 'local edits are not overwritten');
+
+    connect(f); withToken = true;
+    // Sending it back patches the same document: author and other fields Sanity holds are untouched, the image is reused.
+    const done = await f.blog.run('B01');
+    assert.equal(done.status, 'published'); assert.equal(mutations.length, 1);
+    const m = mutations[0]; assert.ok(m.patch && !m.createOrReplace, 'patch in place, not a replace');
+    assert.equal(m.patch.id, 'doc-1'); assert.ok(!('author' in m.patch.set) && !('_id' in m.patch.set) && !('_type' in m.patch.set));
+    assert.equal(m.patch.set.title, 'Judul saya'); assert.deepEqual(m.patch.set.mainImage.asset, { _type: 'reference', _ref: 'image-abc123-1672x941-png' });
+    assert.equal(f.calls.filter(c => c.url.includes('/assets/images/')).length, 0, 'no re-upload of the existing image');
+
+    // Removing it here does not bring it back on the next sync.
+    f.blog.remove('B02'); await f.blog.sync({ force: true });
+    assert.deepEqual(f.blog.list().map(x => x.sanityId), ['doc-1']);
+  } finally { await f.cleanup(); }
+});

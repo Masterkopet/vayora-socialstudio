@@ -1,4 +1,5 @@
 // Blog page (articles published to Sanity.io) and the Sanity connection panel for Pengaturan.
+import { tabbed, resetTab } from './tabs.js';
 import { markdownToPortableText, portableTextToHtml, slugify, readingMinutes } from './portable-text.js';
 
 const DAY = 86400000;
@@ -10,7 +11,7 @@ export function createBlogViews(ctx) {
   const { api, esc, button, toast } = ctx;
   const workspace = () => ctx.getWorkspace(), user = () => ctx.getUser(), owner = () => user().role === 'owner';
   const icon = name => (ctx.icon ? ctx.icon(name) : '');
-  let st;
+  let st, autoSynced = false;
   const fresh = () => ({ mode: 'list', a: null, slugTouched: false, when: 'review', date: '', time: '07:00', approved: false, busy: false, error: '', ai: { topic: '', keyword: '', notes: '', busy: false, error: '', warnings: [] }, uploading: false, checking: false, check: null });
   st = fresh();
   const sanity = () => workspace().sanity || { configured: false, fields: {}, check: null };
@@ -29,10 +30,10 @@ export function createBlogViews(ctx) {
   // ---------- list ----------
   function listPage() {
     const a = articles(), count = s => a.filter(x => x.status === s).length, s = sanity();
-    const row = x => `<div class="vs-record"><div class="vs-record-copy"><h3 data-user-content>${esc(x.title)}</h3><span class="vs-mini">${esc(x.id)} · /${esc(x.slug)} · ${x.minutes} menit baca${x.scheduleAt ? ' · ' + esc(ctx.stamp(x.scheduleAt)) : x.publishedAt ? ' · ' + esc(ctx.stamp(x.publishedAt)) : ''}</span>${x.status === 'failed' && x.error ? `<small class="vs-inline-error">${esc(x.error)}</small>` : ''}${x.status === 'published' && x.categoryMissing ? '<small class="vs-mini">Kategori tidak ditemukan di Sanity, jadi tidak dipasang.</small>' : ''}</div><span class="vs-status ${STATUS[x.status]?.[1] || ''}">${STATUS[x.status]?.[0] || x.status}</span><div class="vs-actions">${x.status === 'published' && x.url && !x.sanityDraft ? `<a class="vs-button" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Lihat artikel</a>` : ''}${button('Buka', 'blog-open:' + x.id)}</div></div>`;
+    const row = x => `<div class="vs-record"><div class="vs-record-copy"><h3 data-user-content>${esc(x.title)}</h3><span class="vs-mini">${esc(x.id)} · /${esc(x.slug)} · ${x.minutes} menit baca${x.source === 'sanity' ? ' · dari Sanity' : ''}${x.scheduleAt ? ' · ' + esc(ctx.stamp(x.scheduleAt)) : x.publishedAt ? ' · ' + esc(ctx.stamp(x.publishedAt)) : ''}</span>${x.status === 'failed' && x.error ? `<small class="vs-inline-error">${esc(x.error)}</small>` : ''}${x.status === 'published' && x.categoryMissing ? '<small class="vs-mini">Kategori tidak ditemukan di Sanity, jadi tidak dipasang.</small>' : ''}</div><span class="vs-status ${STATUS[x.status]?.[1] || ''}">${STATUS[x.status]?.[0] || x.status}</span><div class="vs-actions">${x.status === 'published' && x.url && !x.sanityDraft ? `<a class="vs-button" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Lihat artikel</a>` : ''}${button('Buka', 'blog-open:' + x.id)}</div></div>`;
     const connect = s.configured ? '' : `<div class="vs-alert warning"><span>${owner() ? 'Sanity belum terhubung. Artikel tetap bisa ditulis dan disimpan, tetapi baru terbit setelah Sanity terhubung.' : 'Sanity belum terhubung. Minta pemilik workspace menghubungkannya agar artikel bisa terbit.'}</span>${owner() ? button('Hubungkan Sanity', 'nav:settings') : ''}</div>`;
     return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><span class="vs-eyebrow">BLOG</span><h2>Tulis dan jadwalkan artikel ke vayora.id/blog.</h2></div>${button('Artikel baru', 'blog-new', 'vs-primary', 'circle-plus')}</div>${connect}<div class="vs-stats"><span><strong>${count('scheduled')}</strong> terjadwal</span><span><strong>${count('draft') + count('review')}</strong> draft / ditinjau</span><span><strong>${count('published')}</strong> terbit</span><span><strong>${count('failed')}</strong> gagal</span></div></section>
-<section class="vs-panel"><div class="vs-panel-head"><h2>Artikel</h2>${owner() ? button('Impor dari file', 'nav:import', 'vs-text-button', 'upload') : ''}</div><div class="vs-list">${a.slice().reverse().map(row).join('') || '<div class="vs-empty"><h3>Belum ada artikel.</h3><p>Klik Artikel baru, atau impor artikel Markdown dari Impor konten.</p></div>'}</div></section>`;
+<section class="vs-panel"><div class="vs-panel-head"><h2>Artikel</h2>${button(st.syncing ? 'Menyinkronkan…' : 'Sinkronkan dari Sanity', 'blog-sync', 'vs-text-button', 'refresh-cw', st.syncing ? 'disabled' : '')}${owner() ? button('Impor dari file', 'nav:import', 'vs-text-button', 'upload') : ''}</div><div class="vs-list">${a.slice().reverse().map(row).join('') || '<div class="vs-empty"><h3>Belum ada artikel.</h3><p>Klik Artikel baru, atau impor artikel Markdown dari Impor konten.</p></div>'}</div></section>`;
   }
 
   // ---------- editor ----------
@@ -50,12 +51,12 @@ export function createBlogViews(ctx) {
     const label = published ? 'Simpan perubahan' : st.when === 'scheduled' ? 'Simpan & jadwalkan' : st.when === 'draft' ? 'Simpan draft' : 'Simpan & ajukan';
     const canPublish = s.configured && live && st.approved;
     return `<section class="vs-panel vs-pad vs-stack" id="blog-editor"><div class="vs-row"><div><span class="vs-eyebrow">${a.id ? esc(a.id) : 'ARTIKEL BARU'}</span><h2>${a.id ? 'Edit artikel' : 'Tulis artikel baru'}</h2></div><span class="vs-status ${STATUS[a.status]?.[1] || ''}">${STATUS[a.status]?.[0] || ''}</span></div>${a.status === 'failed' && a.error ? `<div class="vs-alert danger" role="alert"><span>${esc(a.error)}</span></div>` : ''}
-<div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${ai}
-<fieldset class="vs-create-group"><legend><span class="vs-step-number">1</span>Judul dan alamat</legend><label class="vs-label">Judul<input class="vs-input" id="blog-title" maxlength="200" value="${esc(a.title)}"></label><label class="vs-label">Slug <small>alamat artikel</small><input class="vs-input" id="blog-slug" maxlength="96" value="${esc(a.slug)}"><small id="blog-url">${esc(siteUrl())}${esc(a.slug || '…')}</small></label><label class="vs-label">Ringkasan <small><span id="blog-excerpt-count">${a.excerpt.length}</span> karakter · ideal 130–160</small><textarea class="vs-input" id="blog-excerpt" maxlength="400" style="min-height:80px">${esc(a.excerpt)}</textarea></label><div class="vs-two"><label class="vs-label">Kategori<input class="vs-input" id="blog-category" maxlength="80" value="${esc(a.category)}"><small>Dipasang bila ada kategori dengan judul yang sama di Sanity.</small></label><label class="vs-label">Judul SEO <small>opsional</small><input class="vs-input" id="blog-seo-title" maxlength="140" value="${esc(a.seoTitle)}"></label></div></fieldset>
+<div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${tabbed('blog-editor', `${ai}
+<!--tab:details--><fieldset class="vs-create-group"><legend><span class="vs-step-number">1</span>Judul dan alamat</legend><label class="vs-label">Judul<input class="vs-input" id="blog-title" maxlength="200" value="${esc(a.title)}"></label><label class="vs-label">Slug <small>alamat artikel${a.source === 'sanity' ? ' · tidak dapat diubah karena sudah tayang' : ''}</small><input class="vs-input" id="blog-slug" maxlength="96" value="${esc(a.slug)}" ${a.source === 'sanity' ? 'disabled' : ''}><small id="blog-url">${esc(siteUrl())}${esc(a.slug || '…')}</small></label><label class="vs-label">Ringkasan <small><span id="blog-excerpt-count">${a.excerpt.length}</span> karakter · ideal 130–160</small><textarea class="vs-input" id="blog-excerpt" maxlength="400" style="min-height:80px">${esc(a.excerpt)}</textarea></label><div class="vs-two"><label class="vs-label">Kategori<input class="vs-input" id="blog-category" maxlength="80" value="${esc(a.category)}"><small>Dipasang bila ada kategori dengan judul yang sama di Sanity.</small></label><label class="vs-label">Judul SEO <small>opsional</small><input class="vs-input" id="blog-seo-title" maxlength="140" value="${esc(a.seoTitle)}"></label></div></fieldset>
 <fieldset class="vs-create-group"><legend><span class="vs-step-number">2</span>Gambar utama</legend><label class="vs-dropzone" id="blog-drop">${icon('upload')}<b>${a.hero ? 'Ganti gambar: tarik & lepas di sini' : 'Tarik & lepas gambar di sini'}</b><span>atau klik untuk memilih · JPG, PNG, atau WebP, ideal 16:9</span><input class="sr-only" type="file" id="blog-hero" accept="image/jpeg,image/png,image/webp" aria-label="Pilih gambar utama"></label>${st.uploading ? '<p class="vs-mini" role="status">Mengunggah…</p>' : ''}${a.hero ? `<p class="vs-mini">${esc(a.hero.name)}${a.hero.width ? ` · ${a.hero.width}×${a.hero.height}` : ''}</p>` : ''}<label class="vs-label">Teks alternatif gambar<input class="vs-input" id="blog-alt" maxlength="400" value="${esc(a.heroAlt)}"></label></fieldset>
-<fieldset class="vs-create-group"><legend><span class="vs-step-number">3</span>Isi artikel</legend><label class="vs-label">Markdown <small><span id="blog-words">${(a.body.match(/\S+/g) || []).length}</span> kata · <span id="blog-minutes">${readingMinutes(a.body)}</span> menit baca</small><textarea class="vs-input vs-blog-textarea" id="blog-body" ${st.ai.busy ? 'disabled' : ''} spellcheck="true">${esc(a.body)}</textarea></label><p class="vs-mini">Gunakan ### untuk judul bagian, **tebal**, *miring*, [tautan](https://…), daftar, dan &gt; kutipan.</p>${tableNote}<details><summary>Deskripsi SEO</summary><label class="vs-label">Meta description <small>kosong = memakai ringkasan</small><textarea class="vs-input" id="blog-seo-desc" maxlength="300" style="min-height:70px">${esc(a.seoDescription)}</textarea></label></details></fieldset>
-<fieldset class="vs-create-group"><legend><span class="vs-step-number">4</span>Kapan terbit?</legend>${when}${approve}</fieldset>
-${st.error ? `<p class="vs-inline-error" role="alert">${esc(st.error)}</p>` : ''}<div class="vs-actions">${button(st.busy ? 'Menyimpan…' : label, 'blog-save', 'vs-primary', 'save', !a.title.trim() || busy || (st.when === 'scheduled' && !published && !st.approved) ? 'disabled' : '')}${(published || a.id) && (s.configured && live) ? button(published ? 'Perbarui di Sanity' : 'Terbitkan sekarang', 'blog-publish', '', 'send', !canPublish || busy ? 'disabled' : '') : ''}${button('Kembali ke daftar', 'blog-back', 'vs-text-button')}${a.id ? button('Hapus', 'blog-delete', 'vs-text-button vs-danger') : ''}</div>${a.id && !(s.configured && live) ? `<p class="vs-mini">${s.configured ? 'Aktifkan publikasi nyata di Koneksi & publikasi agar artikel bisa dikirim ke Sanity.' : 'Hubungkan Sanity agar artikel bisa dikirim.'}</p>` : ''}${published && a.url ? `<p class="vs-mini">${a.sanityDraft ? 'Terkirim ke Sanity sebagai draf (belum tayang). ' : ''}Alamat: <a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.url)}</a></p>` : ''}</div>
+<!--tab:body--><fieldset class="vs-create-group"><legend><span class="vs-step-number">3</span>Isi artikel</legend><label class="vs-label">Markdown <small><span id="blog-words">${(a.body.match(/\S+/g) || []).length}</span> kata · <span id="blog-minutes">${readingMinutes(a.body)}</span> menit baca</small><textarea class="vs-input vs-blog-textarea" id="blog-body" ${st.ai.busy ? 'disabled' : ''} spellcheck="true">${esc(a.body)}</textarea></label><p class="vs-mini">Gunakan ### untuk judul bagian, **tebal**, *miring*, [tautan](https://…), daftar, dan &gt; kutipan.</p>${tableNote}<details><summary>Deskripsi SEO</summary><label class="vs-label">Meta description <small>kosong = memakai ringkasan</small><textarea class="vs-input" id="blog-seo-desc" maxlength="300" style="min-height:70px">${esc(a.seoDescription)}</textarea></label></details></fieldset>
+<!--tab:publish--><fieldset class="vs-create-group"><legend><span class="vs-step-number">4</span>Kapan terbit?</legend>${when}${approve}</fieldset><!--/tabs-->
+${st.error ? `<p class="vs-inline-error" role="alert">${esc(st.error)}</p>` : ''}<div class="vs-actions">${button(st.busy ? 'Menyimpan…' : label, 'blog-save', 'vs-primary', 'save', !a.title.trim() || busy || (st.when === 'scheduled' && !published && !st.approved) ? 'disabled' : '')}${(published || a.id) && (s.configured && live) ? button(published ? 'Perbarui di Sanity' : 'Terbitkan sekarang', 'blog-publish', '', 'send', !canPublish || busy ? 'disabled' : '') : ''}${button('Kembali ke daftar', 'blog-back', 'vs-text-button')}${a.id ? button('Hapus', 'blog-delete', 'vs-text-button vs-danger') : ''}</div>${a.id && !(s.configured && live) ? `<p class="vs-mini">${s.configured ? 'Aktifkan publikasi nyata di Koneksi & publikasi agar artikel bisa dikirim ke Sanity.' : 'Hubungkan Sanity agar artikel bisa dikirim.'}</p>` : ''}${published && a.url ? `<p class="vs-mini">${a.sanityDraft ? 'Terkirim ke Sanity sebagai draf (belum tayang). ' : ''}Alamat: <a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.url)}</a></p>` : ''}`, [{ id: 'details', label: 'Detail & gambar' }, { id: 'body', label: 'Isi artikel' }, { id: 'publish', label: 'Jadwal & terbit' }])}</div>
 <div id="blog-preview" class="smart-design-result vs-create-preview vs-blog-preview-box" aria-label="Pratinjau">${previewHTML()}</div></div></section>`;
   }
 
@@ -90,6 +91,7 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
   }
   function bind() {
     const root = ctx.root(), $ = s => root.querySelector(s), a = st.a;
+    if (st.mode === 'list' && !autoSynced && $('[data-action="blog-new"]')) { autoSynced = true; void autoSync(); }
     const form = $('#sanity-form');
     if (form) form.addEventListener('submit', e => { e.preventDefault(); void ctx.run(saveSanity); });
     if (st.mode !== 'edit' || !a || !$('#blog-editor')) return;
@@ -117,6 +119,10 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
     }
   }
 
+  // Quietly brings in articles published elsewhere (once per page load; the server also rate-limits it).
+  async function autoSync() {
+    try { const r = await api('/api/blog/sync', 'POST', {}); if (r.added || r.updated) { await ctx.reload(); ctx.render(); } } catch { /* Sanity unreachable: the list simply stays as it is */ }
+  }
   async function saveSanity() {
     const root = ctx.root(), v = s => root.querySelector(s)?.value ?? '';
     const fields = Object.fromEntries([...root.querySelectorAll('[data-sanity-field]')].map(el => [el.dataset.sanityField, el.value.trim()]));
@@ -127,6 +133,7 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
   }
 
   async function open(id) {
+    resetTab('blog-editor');
     const a = await api('/api/blog/' + encodeURIComponent(id));
     st = { ...fresh(), mode: 'edit', a: { ...blank(), ...a }, slugTouched: true, when: a.status === 'scheduled' ? 'scheduled' : a.status === 'draft' || a.status === 'failed' ? 'draft' : 'review', date: a.date || '', time: a.time || '07:00' };
     ctx.render();
@@ -144,7 +151,7 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
     return item;
   }
   async function action(name, id) {
-    if (name === 'blog-new') { st = { ...fresh(), mode: 'edit', a: blank() }; ctx.render(); return true; }
+    if (name === 'blog-new') { resetTab('blog-editor'); st = { ...fresh(), mode: 'edit', a: blank() }; ctx.render(); return true; }
     if (name === 'blog-open') { await open(id); return true; }
     if (name === 'blog-back') { st = fresh(); await ctx.reload(); ctx.render(); return true; }
     if (name === 'blog-save') {
@@ -172,6 +179,12 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
         st.ai.warnings = d.warnings || []; st.slugTouched = !!a.slug;
       } catch (error) { st.ai.error = error.message; }
       st.ai.busy = false; ctx.render(); return true;
+    }
+    if (name === 'blog-sync') {
+      st.syncing = true; ctx.render();
+      try { const r = await api('/api/blog/sync', 'POST', { force: true }); await ctx.reload(); toast(r.added || r.updated ? `${r.added} artikel baru dan ${r.updated} diperbarui dari Sanity.` : 'Semua artikel dari Sanity sudah ada di sini.'); }
+      catch (error) { toast(error.message, true); }
+      st.syncing = false; ctx.render(); return true;
     }
     if (name === 'blog-check') { st.checking = true; ctx.render(); try { await api('/api/sanity/check', 'POST', {}); toast('Sanity terhubung.'); } catch (error) { toast(error.message, true); } st.checking = false; await ctx.reload(); ctx.render(); return true; }
     if (name === 'blog-remove-token') { await api('/api/sanity/config', 'POST', { removeToken: true }); await ctx.reload(); ctx.render(); toast('Token Sanity dihapus.'); return true; }

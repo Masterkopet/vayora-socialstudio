@@ -405,3 +405,14 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 #vayora-studio-complete .vs-blog-body blockquote{margin:0 0 10px;padding:8px 12px;border-left:3px solid #FFB600;background:#fff8e5}
 #vayora-studio-complete .vs-blog-body a{color:#0b5fbf}
 #vayora-studio-complete .vs-pkg-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+#vayora-studio-complete .vs-tabs{display:grid;gap:16px;min-width:0}
+#vayora-studio-complete .vs-tablist{display:flex;gap:4px;border-bottom:1px solid #d6dde8;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#vayora-studio-complete .vs-tablist::-webkit-scrollbar{display:none}
+#vayora-studio-complete .vs-tab{appearance:none;border:0;background:none;padding:10px 14px;font:inherit;font-weight:600;color:#4a5a70;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-1px;display:inline-flex;align-items:center;gap:8px;border-radius:8px 8px 0 0}
+#vayora-studio-complete .vs-tab:hover{color:#00285C;background:#f2f5fa}
+#vayora-studio-complete .vs-tab[aria-selected="true"]{color:#00285C;border-bottom-color:#FFB600}
+#vayora-studio-complete .vs-tab:focus-visible{outline:2px solid #00285C;outline-offset:-2px}
+#vayora-studio-complete .vs-tab-dot{width:8px;height:8px;border-radius:50%;background:#c4ccd8}
+#vayora-studio-complete .vs-tab-dot.ok{background:#2e9e5b}
+#vayora-studio-complete .vs-tab-dot.warn{background:#e0a100}
+#vayora-studio-complete .vs-tabpanel[hidden]{display:none}
