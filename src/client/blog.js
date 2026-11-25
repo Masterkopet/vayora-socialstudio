@@ -309,5 +309,5 @@ ${checkHTML}<form class="vs-stack" id="sanity-form"><div class="vs-two"><label c
     if (name === 'blog-remove-token') { await api('/api/sanity/config', 'POST', { removeToken: true }); await ctx.reload(); ctx.render(); toast('Sanity token removed.'); return true; }
     return false;
   }
-  return { page, bind, action, embeddedEditor, settingsPanel, problemAlerts, queuePanel, reset: () => { st = fresh(); } };
+  return { page, bind, action, embeddedEditor, editing: () => st.mode === 'edit' && !onCreatePage(), crumbLabel: () => st.mode === 'edit' && !onCreatePage() ? (st.a?.id ? 'Edit article' : 'New article') : null, settingsPanel, problemAlerts, queuePanel, reset: () => { st = fresh(); } };
 }

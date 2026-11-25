@@ -90,3 +90,14 @@ test('"Buat posting" creates content without an ID code and can schedule it with
     assert.equal(scheduled.status, 200); assert.equal(scheduled.data.status, 'scheduled'); assert.equal(scheduled.data.approved, true);
   } finally { await new Promise(r => server.close(r)); runtime.close(); await rm(dir, { recursive: true, force: true }); }
 });
+
+test('breadcrumb trails: Home › group › page, details hang under their page, Home has none', async () => {
+  const { crumbs, parentOf } = await import('../src/client/navigation.js');
+  assert.deepEqual(crumbs('home'), []);
+  assert.deepEqual(crumbs('library'), [{ label: 'Home', view: 'home' }, { label: 'Content' }, { label: 'Instagram library', current: true }]);
+  assert.deepEqual(crumbs('profile').map(c => c.label), ['Home', 'Settings', 'Team account']);
+  assert.deepEqual(crumbs('blog', 'Edit article'), [{ label: 'Home', view: 'home' }, { label: 'Content' }, { label: 'Blog', view: 'blog' }, { label: 'Edit article', current: true }], 'something open inside a page makes the page a link');
+  assert.deepEqual(crumbs('delivery'), [{ label: 'Home', view: 'home' }, { label: 'Content' }, { label: 'Queue', view: 'queue' }, { label: 'Publishing details', current: true }]);
+  assert.deepEqual(crumbs('knowledge').map(c => c.label), ['Home', 'Settings', 'Settings', 'Brand knowledge']);
+  assert.deepEqual([parentOf('delivery'), parentOf('knowledge'), parentOf('calendar')], ['queue', 'settings', 'home']);
+});

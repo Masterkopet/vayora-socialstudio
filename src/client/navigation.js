@@ -11,6 +11,24 @@ export const navigationGroups=[
 // strategy and marketing (unused), package (merged into the one Import content page). Their data stays.
 export const hiddenPageIds=['review','knowledge','strategy','marketing','package','ai-settings'];
 export const pageIds=[...new Set([...navigationGroups.flatMap(group=>group.items.map(([id])=>id)),...hiddenPageIds])];
+// Pages that are not in the menu hang under a menu page; their titles are for the breadcrumb.
+const PARENTS = { delivery: 'queue', knowledge: 'settings', 'ai-settings': 'settings', editor: 'library', review: 'queue' };
+const HIDDEN_TITLES = { delivery: 'Publishing details', knowledge: 'Brand knowledge', review: 'Content review', strategy: 'Content strategy', marketing: 'Marketing', package: 'Import content', editor: 'Content' };
+export const parentOf = view => PARENTS[view] || 'home';
+const menuItem = id => { for (const group of navigationGroups) { const item = group.items.find(([x]) => x === id); if (item) return { group: group.label, title: item[2] }; } return null; };
+// The trail for a page: Home › group › page (› detail). `extra` is the label of something open inside the page (an article being
+// edited). Links go to pages; the group is only a label. Home itself has no trail.
+export function crumbs(view, extra = null) {
+  if (view === 'home') return [];
+  const out = [{ label: 'Home', view: 'home' }], own = menuItem(view), parent = PARENTS[view] ? menuItem(PARENTS[view]) : null;
+  const place = own || parent;
+  if (place) out.push({ label: place.group });
+  if (own) out.push(extra ? { label: own.title, view } : { label: own.title, current: true });
+  else if (parent) out.push({ label: parent.title, view: PARENTS[view] });
+  if (!own) out.push({ label: HIDDEN_TITLES[view] || view, current: true });
+  if (own && extra) out.push({ label: extra, current: true });
+  return out;
+}
 const visibleGroups=role=>navigationGroups.map(group=>({...group,items:group.items.filter(item=>!item[3]||['owner','admin'].includes(role))})).filter(group=>group.items.length);
 const current=(view,id)=>view===id||view==='editor'&&id==='library';
 export function menuGridHTML({view,alertCount=0,icon,role='owner'}){
