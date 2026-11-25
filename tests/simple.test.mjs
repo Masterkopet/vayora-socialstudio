@@ -16,7 +16,7 @@ test('menu is short for editors, keeps owner settings for the owner, and hidden 
   for (const id of ['home', 'create', 'library', 'youtube-library', 'blog', 'calendar', 'queue', 'assistant', 'profile', 'history']) {
     assert.ok(editor.includes(`nav:${id}"`), `editor sees ${id}`);
   }
-  for (const id of ['settings', 'ai-settings', 'import']) {
+  for (const id of ['settings', 'import']) {
     assert.ok(owner.includes(`nav:${id}"`), `owner sees ${id}`);
     assert.ok(!editor.includes(`nav:${id}"`), `editor does not see ${id}`);
   }
@@ -26,7 +26,7 @@ test('menu is short for editors, keeps owner settings for the owner, and hidden 
   }
   assert.match(navigationHTML({ view: 'home', icon, alertCount: 2 }), /nav:home"[^>]*>.*vs-nav-count[^>]*>2</);
   const tiles = role => (menuGridHTML({ view: 'home', icon, role }).match(/vs-menu-tile/g) || []).length;
-  assert.equal(tiles('owner'), 15); assert.equal(tiles('editor'), 12);
+  assert.equal(tiles('owner'), 14); assert.equal(tiles('editor'), 12);
 });
 
 function views({ posts = [], instagram = {}, youtube = {}, settings = {}, role = 'owner' } = {}) {

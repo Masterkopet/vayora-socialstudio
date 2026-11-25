@@ -1,5 +1,11 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"What kind of content is this?":"Jenis konten apa ini?",
+"Photos, carousels, Reels":"Foto, carousel, Reels",
+"Vertical videos":"Video vertikal",
+"Articles for vayora.id/blog":"Artikel untuk vayora.id/blog",
+"Only the chosen type is imported. Code S01 is YouTube; V01, I01, C01 are Instagram; B01 is a blog article.":"Hanya jenis yang dipilih yang diimpor. Kode S01 adalah YouTube; V01, I01, C01 adalah Instagram; B01 adalah artikel blog.",
+"Profile & team":"Profil & tim",
 "Article on vayora.id/blog":"Artikel di vayora.id/blog",
 "Admin":"Admin",
 "Make admin":"Jadikan admin",
@@ -416,6 +422,7 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^(\d+) (Instagram|YouTube Shorts|Blog) item\(s\) found in these files are not shown\. Choose (Instagram|YouTube Shorts|Blog) above to import them instead\.$/,(_,n,t)=>`${n} item ${t} ditemukan di file ini tetapi tidak ditampilkan. Pilih ${t} di atas untuk mengimpornya.`],
 [/^(.+) · (Owner|Admin|Editor) · joined (.+)$/,(_,e,r,d)=>`${e} · ${r==="Owner"?"Pemilik":r} · bergabung ${d}`],
 [/^Give (.+) admin access\? Admins can use every feature, including connections, imports, AI settings and removing editors\.$/,(_,n)=>`Beri ${n} akses admin? Admin dapat memakai semua fitur, termasuk koneksi, impor, pengaturan AI, dan menghapus editor.`],
 [/^Make (.+) an editor\? They will lose access to connections, imports and AI settings\.$/,(_,n)=>`Jadikan ${n} editor? Akses ke koneksi, impor, dan pengaturan AI akan hilang.`],

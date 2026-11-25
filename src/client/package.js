@@ -24,11 +24,13 @@ export function createPackageImport(ctx) {
   function rebuild() {
     const { rows, sources } = readSources(st.texts);
     st.sources = sources;
+    if (!st.chosen) { const counts = {}; for (const r of rows) if (r.platform) counts[r.platform] = (counts[r.platform] || 0) + 1; const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]; if (top) st.platform = top[0]; }
     const pf = row => row.platform || st.platform;
     const matched = matchFiles(rows, st.media, pf), used = new Set(matched.flatMap(m => [...m.files, ...m.choices, m.cover].filter(Boolean)));
     const extra = mediaOnlyRows(rows, st.media.filter(f => !used.has(f)));
     const all = [...matched, ...matchFiles(extra, st.media.filter(f => !used.has(f)), pf)];
-    st.rows = all.map(m => {
+    st.other = {};
+    st.rows = all.filter(m => { const p = pf(m.row); if (p === st.platform) return true; st.other[p] = (st.other[p] || 0) + 1; return false; }).map(m => {
       const key = m.row.id || (m.row.number != null ? 'n' + m.row.number : m.row.key), e = st.edits[key] || {};
       const row = { ...m.row, title: e.title ?? (m.row.title || titleFromFile(m.files[0]?.name || '')), fromFile: !m.row.title && e.title == null };
       return { key, row, files: e.picked ? [e.picked] : m.files, cover: m.cover, choices: m.choices, result: st.rows.find(r => r.key === key)?.result || null };
@@ -62,7 +64,7 @@ export function createPackageImport(ctx) {
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
 <ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
 <div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,.docx,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
-<label class="vs-label">Default platform<select class="vs-input" id="pkg-platform"><option value="youtube" ${st.platform === 'youtube' ? 'selected' : ''}>YouTube Shorts</option><option value="instagram" ${st.platform === 'instagram' ? 'selected' : ''}>Instagram</option></select><small>Used when the text names no platform. Code S01 is always YouTube; V01, I01, C01 are always Instagram.</small></label>
+<div class="vs-stack"><b>What kind of content is this?</b><div class="vs-choice-grid">${[['instagram', 'Instagram', 'Photos, carousels, Reels'], ['youtube', 'YouTube Shorts', 'Vertical videos'], ['blog', 'Blog', 'Articles for vayora.id/blog']].map(([id, title, hint]) => `<button type="button" class="vs-choice" data-pkg-type="${id}" aria-pressed="${st.platform === id}"><b>${title}</b><span>${hint}</span></button>`).join('')}</div>${Object.entries(st.other || {}).map(([id, n]) => `<p class="vs-mini" role="status">${n} ${{ instagram: 'Instagram', youtube: 'YouTube Shorts', blog: 'Blog' }[id]} item(s) found in these files are not shown. Choose ${{ instagram: 'Instagram', youtube: 'YouTube Shorts', blog: 'Blog' }[id]} above to import them instead.</p>`).join('')}<small>Only the chosen type is imported. Code S01 is YouTube; V01, I01, C01 are Instagram; B01 is a blog article.</small></div>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
     if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">No content can be made from these files yet. Add videos/photos and their title/description text.</p>' : ''}</div>`;
     const dayBoxes = WEEKDAYS.map(([d, label]) => `<label class="vs-check vs-day"><input type="checkbox" data-pkg-day="${d}" ${st.days.includes(d) ? 'checked' : ''}><span>${label}</span></label>`).join('');
@@ -168,7 +170,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
       page.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; zone.classList.remove('is-dragging'); } });
       page.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; zone.classList.remove('is-dragging'); if (st.running) return; const pending = droppedFiles(e.dataTransfer); st.reading = true; ctx.render(); void pending.then(addFiles).catch(() => { st.reading = false; ctx.render(); toast('Some files could not be read. Try choosing them with the buttons.', true); }); });
     }
-    on('#pkg-platform', 'change', el => { st.platform = el.value; rebuild(); ctx.render(); });
+    root.querySelectorAll('[data-pkg-type]').forEach(b => b.addEventListener('click', () => { st.platform = b.dataset.pkgType; st.chosen = true; rebuild(); ctx.render(); }));
     on('[name="pkg-mode"]', 'change', el => { st.mode = el.value; ctx.render(); });
     on('#pkg-start', 'change', el => { st.start = el.value; clearOverrides(); ctx.render(); });
     on('#pkg-times', 'change', el => { st.times = el.value; clearOverrides(); ctx.render(); });
