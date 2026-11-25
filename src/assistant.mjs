@@ -125,7 +125,7 @@ export function createAssistant(store,options={}) {
   // When Google says a model is busy (HTTP 500/502/503/504) even after retries, other Gemini flash models on the same key are
   // usually fine. They are read from the key's own model list (so only models it can use are tried) and kept for six hours;
   // without that list, the stable flash models are tried.
-  const GEMINI_FALLBACK_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite'];
+  const GEMINI_FALLBACK_MODELS=['gemini-flash-lite-latest','gemini-flash-latest'];
   let modelCache={at:0,key:'',list:null};
   // Every model this key may call with generateContent ({id, label}), from Google's own list; kept six hours per key.
   async function geminiModelList(c){
@@ -144,9 +144,12 @@ export function createAssistant(store,options={}) {
   // Busy fallback: newest numbered flash models, then the aliases, then the lite ones.
   async function geminiAlternates(c,current){
     let ids;
-    try{const {text}=classifyGeminiModels(await geminiModelList(c));const flash=text.filter(m=>/flash/.test(m.id)&&!/preview|exp/.test(m.id));ids=[...flash.filter(m=>!/lite/.test(m.id)),...flash.filter(m=>/lite/.test(m.id))].map(m=>m.id);if(!ids.length)throw Error('none');}
-    catch{ids=GEMINI_FALLBACK_MODELS;}
-    return ids.filter(n=>n!==current).slice(0,2);
+    try{
+      const {text}=classifyGeminiModels(await geminiModelList(c)),stable=text.filter(m=>/flash/.test(m.id)&&!/preview|exp/.test(m.id)&&m.id!==current);
+      const flash=stable.filter(m=>!/lite/.test(m.id)).map(m=>m.id),lite=stable.filter(m=>/lite/.test(m.id)).map(m=>m.id);
+      ids=[flash[0],lite[0],lite[1]??flash[1]].filter(Boolean);if(!ids.length)throw Error('none');
+    }catch{ids=GEMINI_FALLBACK_MODELS.filter(n=>n!==current);}
+    return ids.slice(0,3);
   }
   // For the Settings dropdowns: the text and image models of this key, with the saved choice.
   async function geminiModels(){
@@ -171,11 +174,12 @@ export function createAssistant(store,options={}) {
       const busy=r=>[500,502,503,504].includes(r.status);
       for(const wait of [2500,6000]){if(!busy(response))break;await new Promise(r=>setTimeout(r,options.retryMs??wait));response=await request(c);}
       // Still busy: try the other models once each (the same request, so it counts once against the daily limit).
-      if(busy(response)&&alternates){for(const next of await alternates(c)){await new Promise(r=>setTimeout(r,options.retryMs??1500));const answer=await next.request(c);console.warn('[assistant]',provider,'busy; tried',next.label,'HTTP',answer.status);if(!busy(answer)){response=answer;break;}}}
+      const tried=[];
+      if(busy(response)&&alternates){for(const next of await alternates(c)){tried.push(next.label);await new Promise(r=>setTimeout(r,options.retryMs??1500));const answer=await next.request(c);console.warn('[assistant]',provider,'busy; tried',next.label,'HTTP',answer.status);if(!busy(answer)){response=answer;break;}}}
       if(!response.ok){let reason='',detail='';try{const body=await response.json();reason=JSON.stringify(body);detail=safeReason(body?.error?.message||body?.error?.status||'');}catch{}
         console.warn('[assistant]',provider,'HTTP',response.status,detail||'(no detail)');
         const badKey=response.status===401||response.status===403||/API_KEY_INVALID|API key not valid/i.test(reason);
-        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:`${name} could not complete the request yet (HTTP ${response.status}${detail?': '+detail:''}). Try again later.`,502);}
+        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:tried.length&&busy(response)?`All Gemini models tried are busy right now (HTTP ${response.status}, also tried ${tried.join(', ')}). This is Google's capacity, not your quota. Try again in a few minutes.`:`${name} could not complete the request yet (HTTP ${response.status}${detail?': '+detail:''}). Try again later.`,502);}
       return await response.json();
     }catch(e){if(e.status)throw e;throw fail('The AI connection was lost or timed out. No result is available yet; the request still counts and may incur charges. It is not retried automatically.',502);}finally{running=false;}
   }

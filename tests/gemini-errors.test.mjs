@@ -40,10 +40,12 @@ test('when Gemini keeps failing the message names the HTTP status and Google\'s 
     ai.configure({ geminiKey: KEY });
     f.store.set('assistant.lastRequest', 0);
     await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), e => {
-      assert.equal(e.status, 502); assert.match(e.message, /^Gemini could not complete the request yet \(HTTP 503: The model is overloaded\./); assert.match(e.message, /Try again later\.$/);
+      // Every model is busy here, so the message says so and names what was tried; Google's own reason goes to the log.
+      assert.equal(e.status, 502); assert.match(e.message, /^All Gemini models tried are busy right now \(HTTP 503, also tried /); assert.match(e.message, /Try again in a few minutes\.$/);
       assert.ok(!/AIza|https?:/.test(e.message), 'no key or URL in the message'); return true;
     });
-    assert.ok(warnings.some(w => /\[assistant\] gemini HTTP 503/.test(w) && !/AIza/.test(w)), 'a log line names the status for the server logs');
+    assert.ok(warnings.some(w => /\[assistant\] gemini HTTP 503 The model is overloaded\. See \[url\]/.test(w)), "the log keeps Google's reason, without the URL");
+    assert.ok(!warnings.some(w => /AIza/.test(w)), 'the key never reaches the log');
 
     // A 400 is not transient: no retry, and the reason says what was wrong.
     let calls = 0;
@@ -101,9 +103,9 @@ test('if every model is busy, at most two others are tried and the message stays
     } });
     ai.configure({ geminiKey: KEY });
     f.store.set('assistant.lastRequest', 0);
-    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /HTTP 503: This model is currently experiencing high demand\./);
-    assert.deepEqual(seen.slice(3), ['gemini-2.5-flash', 'gemini-2.5-flash-lite'], 'the stable flash models as the fallback');
-    assert.equal(seen.length, 5, 'three tries on the chosen model, one on each fallback');
+    await assert.rejects(() => ai.draft({ platform: 'instagram', mediaIds: [f.media.id] }), /All Gemini models tried are busy right now \(HTTP 503, also tried gemini-flash-lite-latest\)\. This is Google's capacity, not your quota\./);
+    assert.deepEqual(seen.slice(3), ['gemini-flash-lite-latest'], 'without a model list the Flash-Lite alias is the fallback');
+    assert.equal(seen.length, 4, 'three tries on the chosen model, one on the fallback');
   } finally { await f.cleanup(); }
 });
 
@@ -130,5 +132,23 @@ test('the model list comes from the key, is cached, and needs a key', async () =
     assert.deepEqual(list.image.map(m => m.id), ['gemini-2.5-flash-image']);
     assert.deepEqual(list.current, { text: 'gemini-2.5-flash', image: 'gemini-2.5-flash-image' });
     await ai.geminiModels(); assert.equal(lists, 1, 'cached');
+  } finally { await f.cleanup(); }
+});
+
+test('when every flash model is full (as seen in production), Flash-Lite writes the draft', async () => {
+  const f = await fixture();
+  try {
+    const seen = [];
+    const fetch = async url => {
+      const u = new URL(url);
+      if (u.pathname === '/v1beta/models') return Response.json({ models: ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-pro-preview'].map(id => ({ name: 'models/' + id, supportedGenerationMethods: ['generateContent'] })) });
+      const model = decodeURIComponent(u.pathname.split('/models/')[1].split(':')[0]); seen.push(model);
+      return /lite/.test(model) ? ok() : failure(503, 'This model is currently experiencing high demand.');
+    };
+    const ai = createAssistant(f.store, { retryMs: 0, fetch });
+    ai.configure({ geminiKey: KEY, geminiModel: 'gemini-3.7-flash' });
+    f.store.set('assistant.lastRequest', 0);
+    assert.equal((await ai.draft({ platform: 'instagram', mediaIds: [f.media.id] })).title, 'Judul');
+    assert.deepEqual(seen, ['gemini-3.7-flash', 'gemini-3.7-flash', 'gemini-3.7-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'], 'one other flash model, then Flash-Lite; never a preview');
   } finally { await f.cleanup(); }
 });

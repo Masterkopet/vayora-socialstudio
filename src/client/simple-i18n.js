@@ -577,6 +577,7 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^All Gemini models tried are busy right now \(HTTP (\d+), also tried (.+?)\)\. This is Google's capacity, not your quota\. Try again in a few minutes\.$/,(_,code,list)=>`Semua model Gemini yang dicoba sedang penuh (HTTP ${code}, juga dicoba ${list}). Ini kapasitas Google, bukan kuota Anda. Coba lagi beberapa menit lagi.`],
 [/^(.+?) · (Always the newest version; can be busy at peak times|Fastest and cheapest; simpler writing|Best writing; slower and costs more|Fast; good for captions and articles|Blog header images|Current setting, not in the list for this key)( · preview, may change)?$/,(_,name,hint,pre)=>`${name} · ${{"Always the newest version; can be busy at peak times":"Selalu versi terbaru; bisa sibuk saat ramai","Fastest and cheapest; simpler writing":"Paling cepat dan murah; tulisan lebih sederhana","Best writing; slower and costs more":"Tulisan terbaik; lebih lambat dan lebih mahal","Fast; good for captions and articles":"Cepat; cocok untuk caption dan artikel","Blog header images":"Gambar utama blog","Current setting, not in the list for this key":"Pengaturan saat ini, tidak ada di daftar kunci ini"}[hint]}${pre?" · pratinjau, bisa berubah":""}`],
 [/^(.+), (not connected|not set up)$/,(_,n,s)=>`${n}, ${s==="not set up"?"belum diatur":"belum terhubung"}`],
 [/^(.+) was removed because these files do not fit there\.$/,(_,n)=>`${n} dihapus karena file ini tidak cocok di sana.`],
