@@ -29,7 +29,8 @@ function item(fields) {
   const platformRaw = String(fields.platform || '').toLowerCase();
   return {
     key: key || id, number: idMatch ? Number(idMatch[2]) : firstNumber(key), id,
-    platform: /insta|ig\b|reel/.test(platformRaw) ? 'instagram' : /you|yt|short/.test(platformRaw) ? 'youtube' : id ? (id.startsWith('S') ? 'youtube' : 'instagram') : '',
+    ...(fields.blog ? { blog: fields.blog } : {}),
+    platform: fields.blog ? 'blog' : /insta|ig\b|reel/.test(platformRaw) ? 'instagram' : /you|yt|short/.test(platformRaw) ? 'youtube' : id ? (id.startsWith('S') ? 'youtube' : 'instagram') : '',
     title: String(fields.title || '').trim(), caption: String(fields.caption || '').trim(),
     tags: (Array.isArray(fields.tags) ? fields.tags : String(fields.tags || '').split(',')).map(s => String(s).trim()).filter(Boolean),
     files: (Array.isArray(fields.files) ? fields.files : String(fields.files || '').split(/[;|\n]/)).map(s => String(s).trim()).filter(Boolean),
@@ -91,6 +92,36 @@ function folderNumber(path) {
   return null;
 }
 
+// Blog article (Markdown) with a "Metadata SEO" table, e.g. the 12-article Vayora package: the table gives title,
+// meta description, slug, category and publish date; "Prompt gambar" gives the hero image file name and alt text;
+// "Naskah artikel" is the body. Anything after the next "## " heading (e.g. the Instagram caption) is not the article.
+const MONTHS = { januari: 1, februari: 2, maret: 3, april: 4, mei: 5, juni: 6, juli: 7, agustus: 8, september: 9, oktober: 10, november: 11, desember: 12 };
+function tableFields(section) {
+  const out = {};
+  for (const line of section.split('\n')) { if (!/^\s*\|/.test(line) || /^\s*\|?\s*:?-{2,}/.test(line)) continue; const [k, ...v] = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()); if (k && v.length) out[k.toLowerCase()] = v.join(' | ').trim(); }
+  return out;
+}
+export function isArticleMarkdown(text) { return /^##\s+Metadata SEO\s*$/im.test(text) && /^##\s+Naskah artikel\s*$/im.test(text); }
+export function parseArticleMarkdown(text, fileName = '') {
+  const md = clean(text).replace(/\r\n?/g, '\n'), part = name => { const m = new RegExp('^##\\s+' + name + '[^\\n]*\\n([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))', 'im').exec(md); return m ? m[1] : ''; };
+  const meta = tableFields(part('Metadata SEO')), heading = (md.match(/^#\s+(.+)$/m) || [])[1] || '';
+  const number = firstNumber(String(fileName).split(/[\\/]/).pop()) ?? firstNumber(heading);
+  const title = meta['h1'] || heading.replace(/^\d+\s*\S\s*/, '').trim();
+  const slug = (meta['slug'] || '').replace(/^.*\/blog\//, '').replace(/^\/+|\/+$/g, '').toLowerCase();
+  const date = /(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:[^\d]+(\d{1,2})[.:](\d{2}))?/.exec(meta['terbit'] || ''), month = date ? MONTHS[date[2].toLowerCase()] : 0;
+  const hero = part('Prompt gambar').split('\n').find(l => /^\s*\|\s*Utama/i.test(l)), heroCells = hero ? hero.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()) : [];
+  // The date/reading-time line and the "Ditulis oleh …" byline are not part of the article body.
+  const body = part('Naskah artikel').replace(/^\s*\*\d{1,2}\s+\p{L}+\s+\d{4}[^\n]*\*\s*\n/u, '').replace(/\n+\*Ditulis oleh[^\n]*\*\s*$/u, '').trim();
+  const excerpt = (meta['meta description'] || '').trim();
+  if (!title || !body) return [];
+  return [item({
+    key: number == null ? slug : String(number).padStart(2, '0'), title, caption: excerpt,
+    tags: (meta['keyword pendukung'] || '').split(','), files: heroCells[3] || '',
+    date: month ? `${date[3]}-${String(month).padStart(2, '0')}-${String(date[1]).padStart(2, '0')}` : '', time: date && date[4] ? `${String(date[4]).padStart(2, '0')}:${date[5]}` : '07:00',
+    blog: { slug, excerpt, seoTitle: (meta['title tag'] || '').replace(/\s*\(\d+\s*karakter\)\s*$/i, '').trim(), category: meta['kategori'] || '', heroAlt: heroCells[2] || '', body },
+  })];
+}
+
 // Markdown caption list keyed by content ID: "## V01 — Judul" … "Caption:" followed by the caption paragraph.
 export function parseCaptionMarkdown(text) {
   return clean(text).replace(/\r\n/g, '\n').split(/^##\s+/m).slice(1).map(block => {
@@ -105,10 +136,10 @@ export function parseCaptionMarkdown(text) {
 export function readSources(textFiles) {
   const rank = f => /\.json$/i.test(f.name) ? 0 : /\.csv$/i.test(f.name) ? 1 : /\.txt$/i.test(f.name) ? 2 : 3;
   const sources = [], merged = new Map();
-  const keyOf = r => r.id || (r.number != null ? 'n' + r.number : 'k' + r.key.toLowerCase());
+  const keyOf = r => r.blog ? 'blog:' + (r.blog.slug || r.key) : r.id || (r.number != null ? 'n' + r.number : 'k' + r.key.toLowerCase());
   for (const f of [...textFiles].filter(f => !IGNORED.test(String(f.path || f.name).replace(/\\/g, '/'))).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { numeric: true }))) {
     let rows = [];
-    try { rows = /\.(json|csv)$/i.test(f.name) ? parsePackage(f.text, f.name) : /\.md$/i.test(f.name) ? parseCaptionMarkdown(f.text) : parseEpisodeText(f.text, f.path || f.name); } catch { rows = []; }
+    try { rows = /\.(json|csv)$/i.test(f.name) ? parsePackage(f.text, f.name) : /\.md$/i.test(f.name) ? (isArticleMarkdown(f.text) ? parseArticleMarkdown(f.text, f.path || f.name) : parseCaptionMarkdown(f.text)) : parseEpisodeText(f.text, f.path || f.name); } catch { rows = []; }
     let added = 0;
     for (const r of rows) {
       const k = keyOf(r), have = merged.get(k);
@@ -149,7 +180,7 @@ export function matchFiles(rows, files, platformOf = r => r.platform || 'youtube
   const result = rows.map(row => ({ row, files: [], cover: null, choices: [] }));
   for (const m of result) { const exact = m.row.files.map(p => byName.get(base(p).toLowerCase())).filter(Boolean); if (exact.length) { m.files = exact; exact.forEach(f => used.add(f)); } }
   for (const m of result) {
-    if (m.files.length) continue;
+    if (m.files.length || m.row.blog) continue;
     const info = f => mediaInfo(f);
     let found = pool.filter(f => !used.has(f) && (m.row.id ? info(f).id === m.row.id : m.row.number != null && info(f).number === m.row.number));
     found.sort((a, b) => base(a.name).localeCompare(base(b.name), undefined, { numeric: true }));
@@ -184,6 +215,7 @@ export function titleFromFile(name) {
 }
 
 export function formatOf(platform, files) {
+  if (platform === 'blog') return 'Blog';
   if (!files.length) return '';
   const videos = files.filter(isVideo);
   if (platform === 'youtube') return files.length === 1 && videos.length === 1 ? 'Short' : '';
@@ -193,6 +225,15 @@ export function formatOf(platform, files) {
 
 // Problems that block a row, and softer warnings. A caption is only required when the item goes beyond draft.
 export function checkRow({ row, files, platform, mode = 'scheduled', existingIds = [] }) {
+  if (platform === 'blog') {
+    const errors = [], warnings = [], b = row.blog || {};
+    if (!row.title) errors.push('Judul kosong.'); if (!b.slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug)) errors.push('Slug tidak valid.'); if (!b.body) errors.push('Isi artikel kosong.');
+    if (!b.excerpt && mode !== 'draft') errors.push('Ringkasan (meta description) kosong.');
+    if (!files.length) { if (mode === 'scheduled') errors.push('Gambar utama belum ada. Tambahkan gambarnya atau simpan sebagai draft.'); else warnings.push('Gambar utama belum ada; wajib sebelum artikel bisa terbit.'); }
+    else if (!b.heroAlt) warnings.push('Teks alternatif gambar kosong; isi di editor sebelum terbit.');
+    if (files.length > 1) errors.push('Artikel hanya memakai satu gambar utama.');
+    return { format: 'Blog', errors, warnings };
+  }
   const format = formatOf(platform, files), errors = [], warnings = [];
   if (!files.length) errors.push('Video atau foto belum dipilih.');
   else if (!format) errors.push(platform === 'youtube' ? 'YouTube Shorts memerlukan tepat satu video MP4.' : 'Gabungan file ini tidak didukung Instagram.');

@@ -41,7 +41,8 @@ export function createPackageImport(ctx) {
   function plan() {
     if (st.mode === 'draft') return () => null;
     const taken = (ctx.getWorkspace().posts || []).filter(p => p.status === 'scheduled' && p.scheduleAt).map(p => p.scheduleAt);
-    const list = ready(), fixed = list.map(r => edit(r).override || (st.useFileDates && r.row.date && r.row.time ? { date: r.row.date, time: r.row.time } : null));
+    const future = s => s && Date.parse(`${s.date}T${s.time}:00+07:00`) > Date.now() + 120000 ? s : null;
+    const list = ready(), fixed = list.map(r => future(edit(r).override) || (st.useFileDates && r.row.date && r.row.time ? future({ date: r.row.date, time: r.row.time }) : null));
     const slots = planSchedule(list.length, { start: st.start, days: st.days, times: st.times.split(/[,\s]+/), taken, fixed });
     const map = new Map(list.map((r, i) => [r, slots[i]]));
     return r => map.get(r) || null;
@@ -68,12 +69,12 @@ ${rows.some(r => !r.row.caption) && st.mode !== 'draft' ? (ai?.textConfigured ? 
 ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input type="checkbox" id="pkg-synthetic" ${st.synthetic ? 'checked' : ''}><span>Video berisi visual realistis buatan AI. Ungkapkan ke YouTube (setelan "konten sintetis").</span></label>` : ''}`);
     const table = rows.map((r, i) => {
       const c = checked(r), slot = slotOf(r), p = platformOf(r), res = r.result, e = edit(r), locked = res?.ok || st.running;
-      const media = r.files.length ? esc(r.files.map(f => f.name).join(', ')) + (r.cover ? `<small class="vs-mini">Cover: ${esc(r.cover.name)}</small>` : '') : r.choices.length ? `<select class="vs-input" data-pkg-choice="${i}"><option value="">Pilih versi…</option>${r.choices.map((f, j) => `<option value="${j}">${esc(pathOf(f).split('/').slice(-2).join('/'))}</option>`).join('')}</select>` : '<span class="vs-mini">Belum ada</span>';
+      const media = r.files.length ? esc(r.files.map(f => f.name).join(', ')) + (r.cover ? `<small class="vs-mini">Cover: ${esc(r.cover.name)}</small>` : '') : r.choices.length ? `<select class="vs-input" data-pkg-choice="${i}"><option value="">Pilih versi…</option>${r.choices.map((f, j) => `<option value="${j}">${esc(pathOf(f).split('/').slice(-2).join('/'))}</option>`).join('')}</select>` : p === 'blog' ? '<span class="vs-mini">Tanpa gambar utama</span>' : '<span class="vs-mini">Belum ada</span>';
       const state = res ? (res.ok ? `<span class="vs-status scheduled">${esc(res.text)}</span>` : res.busy ? `<span class="vs-status">${esc(res.text)}</span>` : `<span class="vs-status failed">Gagal</span><small class="vs-inline-error">${esc(res.text)}</small>`)
         : c.errors.length ? `<small class="vs-inline-error">${esc(c.errors.join(' '))}</small>` : `<span class="vs-status scheduled">Siap · ${c.format}</span>${c.warnings.map(w => `<small class="vs-mini">${esc(w)}</small>`).join('')}`;
       const when = slot ? `<input class="vs-input" type="date" data-pkg-date="${i}" value="${slot.date}" ${locked ? 'disabled' : ''}><input class="vs-input" type="time" data-pkg-time="${i}" value="${slot.time}" ${locked ? 'disabled' : ''}>` : '<span class="vs-mini">—</span>';
       const label = r.row.id || r.row.key || '—';
-      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Ikutkan ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : 'Instagram'}</small></td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Deskripsi${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">Tanpa caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
+      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Ikutkan ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : p === 'blog' ? 'Blog' : 'Instagram'}</small></td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Deskripsi${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">Tanpa caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
     }).join('');
     const label = st.mode === 'scheduled' ? `Jadwalkan ${count} konten` : st.mode === 'review' ? `Ajukan ${count} konten` : `Simpan ${count} draft`;
     const s3 = step(3, 'Periksa lalu jalankan', `<div class="vs-table-wrap"><table class="vs-pkg-table"><thead><tr><th></th><th>No</th><th>Judul</th><th>Media</th><th>${st.mode === 'draft' ? 'Jadwal' : 'Jadwal (WIB)'}</th><th>Status</th></tr></thead><tbody>${table}</tbody></table></div>
@@ -95,7 +96,14 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
       try {
         set('Mengunggah…', { busy: true });
         const form = new FormData(); for (const f of r.files) form.append('files', f);
-        const media = (await api('/api/media', 'POST', form)).media || [];
+        const media = r.files.length ? (await api('/api/media', 'POST', form)).media || [] : [];
+        if (p === 'blog') {
+          set('Menyimpan artikel…', { busy: true });
+          const b = r.row.blog, intent = st.mode === 'draft' ? 'draft' : st.mode;
+          let art = await api('/api/blog', 'POST', { title: r.row.title, slug: b.slug, excerpt: b.excerpt, seoTitle: b.seoTitle, seoDescription: b.excerpt, category: b.category, body: b.body, heroMediaId: media[0]?.id || null, heroAlt: b.heroAlt });
+          if (intent !== 'draft') art = await api('/api/blog/' + encodeURIComponent(art.id), 'PUT', { title: art.title, slug: art.slug, excerpt: art.excerpt, seoTitle: art.seoTitle, seoDescription: art.seoDescription, category: art.category, body: art.body, heroMediaId: art.heroMediaId, heroAlt: art.heroAlt, revision: art.revision, intent, approved: intent === 'scheduled', date: slot?.date, time: slot?.time });
+          ok++; set(intent === 'scheduled' ? `${art.id} · terjadwal` : intent === 'review' ? `${art.id} · ditinjau` : `${art.id} · draft`, { ok: true }); continue;
+        }
         let coverId = null;
         if (r.cover && format === 'Reel') { const cf = new FormData(); cf.append('files', r.cover); coverId = (await api('/api/media?role=cover', 'POST', cf)).media?.[0]?.id || null; }
         let intent = st.mode;
