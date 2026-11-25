@@ -15,25 +15,36 @@ const pathOf = f => f.webkitRelativePath || f.name;
 export function createPackageImport(ctx) {
   const { api, esc, button, toast } = ctx;
   let st, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
-  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, platform: 'youtube', mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true, genHero: true }; };
+  const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true, genHero: true }; };
   reset();
 
   // ---------- derived state ----------
-  const platformOf = r => r.row.platform || st.platform;
+  // The type of every item is detected from the files: articles (.docx/Markdown with article fields) are Blog, codes say
+  // Instagram (V/I/C) or YouTube (S). A video with no such hint can go to Instagram, YouTube Shorts or both (the row's
+  // destinations); photos can only go to Instagram.
+  const platformOf = r => r.target;
+  const isVid = f => /^video\//.test(f.type || '') || /\.(mp4|mov|m4v|webm)$/i.test(f.name);
   const edit = r => st.edits[r.key] || (st.edits[r.key] = { include: true });
+  const shared = r => st.edits['@' + r.base] || (st.edits['@' + r.base] = {});
+  const TARGETS = [['instagram', 'Instagram'], ['youtube', 'YouTube Short']];
+  const loose = f => ({ key: 'file:' + pathOf(f), number: null, id: '', platform: '', title: titleFromFile(f.name), caption: '', tags: [], files: [f.name], date: '', time: '', loose: true });
   function rebuild() {
     const { rows, sources } = readSources(st.texts);
     st.sources = sources;
-    if (!st.chosen) { const counts = {}; for (const r of rows) if (r.platform) counts[r.platform] = (counts[r.platform] || 0) + 1; const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]; if (top) st.platform = top[0]; }
-    const pf = row => row.platform || st.platform;
+    const pf = row => row.platform || 'instagram';
     const matched = matchFiles(rows, st.media, pf), used = new Set(matched.flatMap(m => [...m.files, ...m.choices, m.cover].filter(Boolean)));
     const extra = mediaOnlyRows(rows, st.media.filter(f => !used.has(f)));
     const all = [...matched, ...matchFiles(extra, st.media.filter(f => !used.has(f)), pf)];
-    st.other = {};
-    st.rows = all.filter(m => { const p = pf(m.row); if (p === st.platform) return true; st.other[p] = (st.other[p] || 0) + 1; return false; }).map(m => {
-      const key = m.row.id || (m.row.number != null ? 'n' + m.row.number : m.row.key), e = st.edits[key] || {};
-      const row = { ...m.row, title: e.title ?? (m.row.title || titleFromFile(m.files[0]?.name || '')), fromFile: !m.row.title && e.title == null };
-      return { key, row, files: e.picked ? [e.picked] : m.files, cover: m.cover, choices: m.choices, result: st.rows.find(r => r.key === key)?.result || null };
+    // Videos and photos that no text and no content code claims still become items of their own (title from the file name).
+    const claimed = new Set(all.flatMap(m => [...m.files, ...m.choices, m.cover].filter(Boolean)));
+    for (const f of st.media) if (!claimed.has(f) && !/^cover/i.test(f.name.split('/').pop())) { const [m] = matchFiles([{ ...loose(f) }], [f], pf); all.push(m); }
+    st.rows = all.flatMap(m => {
+      const base = m.row.id || (m.row.number != null ? 'n' + m.row.number : m.row.key), sh = st.edits['@' + base] || {};
+      const choosable = !m.row.platform && (m.files.some(isVid) || m.choices.length > 0);
+      const targets = choosable ? (sh.targets || ['instagram', 'youtube']) : [pf(m.row)];
+      const row = { ...m.row, title: sh.title ?? (m.row.title || titleFromFile(m.files[0]?.name || '')), fromFile: !m.row.title && sh.title == null };
+      const make = (target, idle) => { const key = base + ':' + (idle ? 'none' : target); return { key, base, target, idle, choosable, row: { ...row, tags: [...row.tags] }, files: sh.picked ? [sh.picked] : m.files, cover: m.cover, choices: m.choices, result: st.rows.find(r => r.key === key)?.result || null }; };
+      return targets.length ? targets.map(t => make(t, false)) : [make('instagram', true)];
     });
     st.synthetic = st.synthetic || st.rows.some(r => AI_NOTE.test(r.row.caption));
   }
@@ -42,7 +53,7 @@ export function createPackageImport(ctx) {
   const willGen = r => platformOf(r) === 'blog' && !r.files.length && !!r.row.blog?.heroPrompt && st.genHero && !!ai?.heroConfigured;
   const aiFill = () => st.aiFill && !!ai?.textConfigured && st.mode !== 'draft';
   const needsAI = r => !r.row.caption && aiFill();
-  const checked = r => { const c = checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: needsAI(r) ? 'draft' : st.mode, existingIds: existingIds(), willGenerate: willGen(r) }); if (needsAI(r)) c.warnings.unshift('Title & caption are written by AI, then submitted for review.'); return c; };
+  const checked = r => { const c = checkRow({ row: r.row, files: r.files, platform: platformOf(r), mode: needsAI(r) ? 'draft' : st.mode, existingIds: existingIds(), willGenerate: willGen(r) }); if (r.idle) { c.errors.unshift('Choose Instagram or YouTube Short for this video.'); c.format = ''; } if (needsAI(r)) c.warnings.unshift('Title & caption are written by AI, then submitted for review.'); return c; };
   const active = r => edit(r).include && !r.result?.ok && !checked(r).errors.length;
   const ready = () => st.rows.filter(active);
   function plan() {
@@ -64,7 +75,7 @@ export function createPackageImport(ctx) {
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
 <ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
 <div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,.docx,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
-<div class="vs-stack"><b>What kind of content is this?</b><div class="vs-choice-grid">${[['instagram', 'Instagram', 'Photos, carousels, Reels'], ['youtube', 'YouTube Shorts', 'Vertical videos'], ['blog', 'Blog', 'Articles for vayora.id/blog']].map(([id, title, hint]) => `<button type="button" class="vs-choice" data-pkg-type="${id}" aria-pressed="${st.platform === id}"><b>${title}</b><span>${hint}</span></button>`).join('')}</div>${Object.entries(st.other || {}).map(([id, n]) => `<p class="vs-mini" role="status">${n} ${{ instagram: 'Instagram', youtube: 'YouTube Shorts', blog: 'Blog' }[id]} item(s) found in these files are not shown. Choose ${{ instagram: 'Instagram', youtube: 'YouTube Shorts', blog: 'Blog' }[id]} above to import them instead.</p>`).join('')}<small>Only the chosen type is imported. Code S01 is YouTube; V01, I01, C01 are Instagram; B01 is a blog article.</small></div>
+<p class="vs-mini">The type of each item is detected from the files: articles go to the Blog, codes S01 / V01 / I01 / C01 say YouTube or Instagram, and every video can go to Instagram, YouTube Shorts or both. Photos go to Instagram.</p>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
     if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">No content can be made from these files yet. Add videos/photos and their title/description text.</p>' : ''}</div>`;
     const dayBoxes = WEEKDAYS.map(([d, label]) => `<label class="vs-check vs-day"><input type="checkbox" data-pkg-day="${d}" ${st.days.includes(d) ? 'checked' : ''}><span>${label}</span></label>`).join('');
@@ -82,7 +93,7 @@ ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input 
         : c.errors.length ? `<small class="vs-inline-error">${esc(c.errors.join(' '))}</small>` : `<span class="vs-status scheduled">Ready · ${c.format}</span>${c.warnings.map(w => `<small class="vs-mini">${esc(w)}</small>`).join('')}`;
       const when = slot ? `<input class="vs-input" type="date" data-pkg-date="${i}" value="${slot.date}" ${locked ? 'disabled' : ''}><input class="vs-input" type="time" data-pkg-time="${i}" value="${slot.time}" ${locked ? 'disabled' : ''}>` : '<span class="vs-mini">—</span>';
       const label = r.row.id || r.row.key || '—';
-      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Include ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : p === 'blog' ? 'Blog' : 'Instagram'}</small></td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Description${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">No caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
+      return `<tr class="${e.include ? '' : 'vs-muted'}"><td><input type="checkbox" data-pkg-include="${i}" ${e.include ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="Include ${esc(label)}"></td><td>${esc(label)}<br><small class="vs-mini">${p === 'youtube' ? 'YouTube' : p === 'blog' ? 'Blog' : 'Instagram'}</small>${r.choosable ? `<div class="vs-stack">${TARGETS.map(([id, name]) => `<label class="vs-check"><input type="checkbox" data-pkg-target="${id}" data-pkg-base="${esc(r.base)}" ${!r.idle && p === id || !r.idle && (shared(r).targets || ['instagram', 'youtube']).includes(id) ? 'checked' : ''} ${locked ? 'disabled' : ''}><span>${name}</span></label>`).join('')}</div>` : ''}</td><td><input class="vs-input" data-pkg-title="${i}" value="${esc(r.row.title)}" maxlength="${p === 'youtube' ? 100 : 180}" ${res?.ok ? 'disabled' : ''}>${r.row.caption ? `<details><summary>Description${r.row.tags.length ? ' & tags' : ''}</summary><p class="vs-pkg-caption">${esc(r.row.caption)}</p>${r.row.tags.length ? `<p class="vs-mini">Tags: ${esc(r.row.tags.join(', '))}</p>` : ''}</details>` : '<small class="vs-mini">No caption</small>'}</td><td class="vs-pkg-media">${media}</td><td class="vs-pkg-when">${when}</td><td>${state}</td></tr>`;
     }).join('');
     const label = st.mode === 'scheduled' ? `Schedule ${count} posts` : st.mode === 'review' ? `Submit ${count} posts for review` : `Save ${count} drafts`;
     const s3 = step(3, 'Review and run', `<div class="vs-table-wrap"><table class="vs-pkg-table"><thead><tr><th></th><th>No</th><th>Title</th><th>Media</th><th>${st.mode === 'draft' ? 'Schedule' : 'Schedule (WIB)'}</th><th>Status</th></tr></thead><tbody>${table}</tbody></table></div>
@@ -136,7 +147,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
       } catch (error) { set(error.message || 'Processing failed.'); }
     }
     st.running = false; st.approved = false; st.done = st.rows.every(r => !edit(r).include || r.result?.ok);
-    await ctx.reload();
+    await ctx.reload(); ctx.render();
     toast(`${ok} of ${list.length} posts processed.`, ok < list.length);
   }
 
@@ -170,7 +181,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
       page.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; zone.classList.remove('is-dragging'); } });
       page.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; zone.classList.remove('is-dragging'); if (st.running) return; const pending = droppedFiles(e.dataTransfer); st.reading = true; ctx.render(); void pending.then(addFiles).catch(() => { st.reading = false; ctx.render(); toast('Some files could not be read. Try choosing them with the buttons.', true); }); });
     }
-    root.querySelectorAll('[data-pkg-type]').forEach(b => b.addEventListener('click', () => { st.platform = b.dataset.pkgType; st.chosen = true; rebuild(); ctx.render(); }));
+    on('[data-pkg-target]', 'change', el => { const sh = st.edits['@' + el.dataset.pkgBase] || (st.edits['@' + el.dataset.pkgBase] = {}), cur = sh.targets || ['instagram', 'youtube']; sh.targets = el.checked ? [...new Set([...cur, el.dataset.pkgTarget])] : cur.filter(x => x !== el.dataset.pkgTarget); rebuild(); ctx.render(); });
     on('[name="pkg-mode"]', 'change', el => { st.mode = el.value; ctx.render(); });
     on('#pkg-start', 'change', el => { st.start = el.value; clearOverrides(); ctx.render(); });
     on('#pkg-times', 'change', el => { st.times = el.value; clearOverrides(); ctx.render(); });
@@ -182,9 +193,9 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
     if (ai === null) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }
     on('#pkg-approved', 'change', el => { st.approved = el.checked; const b = root.querySelector('[data-action="pkg-run"]'); if (b) b.disabled = !el.checked || !ready().length; });
     on('[data-pkg-include]', 'change', el => { edit(st.rows[el.dataset.pkgInclude]).include = el.checked; ctx.render(); });
-    on('[data-pkg-title]', 'input', el => { const r = st.rows[el.dataset.pkgTitle]; r.row.title = el.value; edit(r).title = el.value; });
+    on('[data-pkg-title]', 'input', el => { const r = st.rows[el.dataset.pkgTitle]; r.row.title = el.value; shared(r).title = el.value; });
     on('[data-pkg-title]', 'change', () => ctx.render());
-    on('[data-pkg-choice]', 'change', el => { const r = st.rows[el.dataset.pkgChoice]; if (el.value !== '') { edit(r).picked = r.choices[Number(el.value)]; rebuild(); ctx.render(); } });
+    on('[data-pkg-choice]', 'change', el => { const r = st.rows[el.dataset.pkgChoice]; if (el.value !== '') { shared(r).picked = r.choices[Number(el.value)]; rebuild(); ctx.render(); } });
     on('[data-pkg-date],[data-pkg-time]', 'change', el => { const i = el.dataset.pkgDate ?? el.dataset.pkgTime, date = root.querySelector(`[data-pkg-date="${i}"]`).value, time = root.querySelector(`[data-pkg-time="${i}"]`).value; if (date && time) edit(st.rows[i]).override = { date, time }; ctx.render(); });
   }
   // The AI endpoint allows one request every few seconds; wait and retry instead of failing the row.
@@ -212,7 +223,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   async function action(name) {
     if (name === 'pkg-run') { await run(); return true; }
     if (name === 'pkg-reset') { reset(); ctx.render(); return true; }
-    if (name === 'pkg-open') { const yt = st.rows.some(r => platformOf(r) === 'youtube'); reset(); ctx.navigate(yt ? 'youtube-library' : 'library'); return true; }
+    if (name === 'pkg-open') { const kinds = new Set(st.rows.filter(r => r.result?.ok).map(platformOf)); reset(); ctx.navigate(kinds.size === 1 && kinds.has('blog') ? 'blog' : kinds.size === 1 && kinds.has('youtube') ? 'youtube-library' : 'library'); return true; }
     return false;
   }
   return { page, bind, action };
