@@ -1,5 +1,25 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"Admin":"Admin",
+"Make admin":"Jadikan admin",
+"Make editor":"Jadikan editor",
+"Invite a team member":"Undang anggota tim",
+"Access":"Akses",
+"Editor · content and schedules":"Editor · konten dan jadwal",
+"Admin · all features":"Admin · semua fitur",
+"Editors manage content and schedules. Admins can use every feature: connections, imports, AI settings and the team. Only the owner can invite or manage admins.":"Editor mengelola konten dan jadwal. Admin dapat memakai semua fitur: koneksi, impor, pengaturan AI, dan tim. Hanya pemilik yang dapat mengundang atau mengelola admin.",
+"Role updated.":"Peran diperbarui.",
+"Only a workspace admin can change this.":"Hanya admin workspace yang dapat mengubah ini.",
+"Only a workspace admin can connect YouTube.":"Hanya admin workspace yang dapat menghubungkan YouTube.",
+"Only a workspace admin can connect Instagram.":"Hanya admin workspace yang dapat menghubungkan Instagram.",
+"Only an admin can delete published content.":"Hanya admin yang dapat menghapus konten yang sudah terbit.",
+"Only an admin can delete articles that have been published.":"Hanya admin yang dapat menghapus artikel yang sudah terbit.",
+"Only the owner can invite an admin.":"Hanya pemilik yang dapat mengundang admin.",
+"Only the owner can cancel an admin invitation.":"Hanya pemilik yang dapat membatalkan undangan admin.",
+"Only the owner can remove an admin.":"Hanya pemilik yang dapat menghapus admin.",
+"The role must be editor or admin.":"Peran harus editor atau admin.",
+"The owner role cannot be changed.":"Peran pemilik tidak dapat diubah.",
+"You cannot change your own role.":"Kamu tidak dapat mengubah perananmu sendiri.",
 "Blog image provider":"Penyedia gambar blog",
 "Gemini (one key for text and images)":"Gemini (satu key untuk teks dan gambar)",
 "OpenAI":"OpenAI",
@@ -395,6 +415,10 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^(.+) · (Owner|Admin|Editor) · joined (.+)$/,(_,e,r,d)=>`${e} · ${r==="Owner"?"Pemilik":r} · bergabung ${d}`],
+[/^Give (.+) admin access\? Admins can use every feature, including connections, imports, AI settings and removing editors\.$/,(_,n)=>`Beri ${n} akses admin? Admin dapat memakai semua fitur, termasuk koneksi, impor, pengaturan AI, dan menghapus editor.`],
+[/^Make (.+) an editor\? They will lose access to connections, imports and AI settings\.$/,(_,n)=>`Jadikan ${n} editor? Akses ke koneksi, impor, dan pengaturan AI akan hilang.`],
+[/^(Admin|Editor) · Valid until (.+)$/,(_,r,d)=>`${r} · Berlaku hingga ${d}`],
 [/^(d+) selected$/,(_,n)=>`${n} dipilih`],
 [/^Schedule (d+) articles?$/,(_,n)=>`Jadwalkan ${n} artikel`],
 [/^Schedule (d+)$/,(_,n)=>`Jadwalkan ${n}`],

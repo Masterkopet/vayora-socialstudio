@@ -14,7 +14,7 @@ export function createMarketingUI(ctx){
 
  function observations(){return`<section class="vs-panel vs-pad vs-stack"><h2>Saved observations</h2>${data.performance.length?data.performance.slice(0,20).map(s=>`<article class="mk-observation"><div><b data-user-content>${esc(s.post_id+' · '+(s.post?.title||''))}</b><p class="vs-mini">${esc(s.channel)} · <span>${s.distribution==='paid'?'Paid':'Organic'}</span> · <span>${s.window_hours} hours</span> · <span>${s.source==='csv_import'?'CSV import':'Manual input'}</span></p><small>${ctx.stamp(s.observed_at)}</small></div><div class="mk-mini-stats"><span>Reach<b>${n(s.reach)}</b></span><span>Saves<b>${n(s.saves)}</b></span><span>Shares<b>${n(s.shares)}</b></span></div></article>`).join(''):'<p class="vs-sub">No performance observations yet.</p>'}</section>`;}
 
- function page(){const d=data,s=d.status,owner=ctx.user().role==='owner',base=s.publicReady?s.publicBase:location.origin;
+ function page(){const d=data,s=d.status,owner=['owner','admin'].includes(ctx.user().role),base=s.publicReady?s.publicBase:location.origin;
 
  const snippet=`<script>window.vayoraAnalyticsConsent = true; // set after analytics consent</script>\n<script async src="${base}/tracker.js" data-site="${s.siteId}"></script>`;
 

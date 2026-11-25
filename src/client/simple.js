@@ -12,7 +12,7 @@ export function createSimpleViews(ctx) {
 
   // ---------- Problems that need attention ----------
   function problemAlerts() {
-    const w = workspace(), owner = user().role === 'owner', s = w.settings || {}, list = [];
+    const w = workspace(), owner = ['owner','admin'].includes(user().role), s = w.settings || {}, list = [];
     const ig = w.instagram || {}, yt = w.youtube || {}, posts = w.posts || [];
     const scheduled = posts.filter(p => p.status === 'scheduled');
     if (s.notifyFailure !== false) {
@@ -51,7 +51,7 @@ export function createSimpleViews(ctx) {
 <div class="vs-stats"><span><strong>${todayCount}</strong> going live today</span><span><strong>${upcoming.length}</strong> scheduled in 7 days</span><span><strong>${review.length}</strong> need review</span><span><strong>${drafts}</strong> draft</span><span><strong>${published}</strong> published in 30 days</span></div>
 <section class="vs-panel"><div class="vs-panel-head"><h2>Next 7 days</h2>${button('Calendar', 'nav:calendar', 'vs-text-button')}</div><div class="vs-list">${upcoming.map(record).join('') || '<div class="vs-empty"><h3>Nothing scheduled this week.</h3><p>Create a new post, then pick a date and time.</p></div>'}</div></section>
 <section class="vs-panel"><div class="vs-panel-head"><h2>Needs review</h2></div><div class="vs-list">${review.map(record).join('') || '<div class="vs-empty"><h3>Nothing is waiting for review.</h3><p>Content submitted for review appears here.</p></div>'}</div></section>
-<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'No account connected yet.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'No channel connected yet.')}<div class="vs-setting"><div><h3>Live publishing</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'On, but the queue is paused.' : 'On. Scheduled content goes live automatically.') : 'Off. Content is only saved as a plan.'}</p></div>${user().role === 'owner' ? button('Set up', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
+<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'No account connected yet.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'No channel connected yet.')}<div class="vs-setting"><div><h3>Live publishing</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'On, but the queue is paused.' : 'On. Scheduled content goes live automatically.') : 'Off. Content is only saved as a plan.'}</p></div>${['owner','admin'].includes(user().role) ? button('Set up', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
   }
 
   // ---------- "Create post": form on the left (platform → upload → words → when), live preview on the right ----------
@@ -142,7 +142,7 @@ export function createSimpleViews(ctx) {
     finally { if (flow === f) { f.writing = false; ctx.render(); } }
   }
   function aiLine(f) {
-    if (ai && !ai.textConfigured) return user().role === 'owner' ? `<div class="vs-alert warning"><span>Connect Gemini so the title and caption fill in automatically after upload.</span>${button('Set up Gemini', 'nav:ai-settings')}</div>` : '';
+    if (ai && !ai.textConfigured) return ['owner','admin'].includes(user().role) ? `<div class="vs-alert warning"><span>Connect Gemini so the title and caption fill in automatically after upload.</span>${button('Set up Gemini', 'nav:ai-settings')}</div>` : '';
     if (!ai) return '';
     if (f.writing) return '<p class="vs-ai-note" role="status">AI is looking at the media and writing a title and caption…</p>';
     const again = button(f.written ? 'Rewrite with AI' : 'Write with AI', 'create-ai', 'vs-text-button', 'sparkles');

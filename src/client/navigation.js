@@ -11,7 +11,7 @@ export const navigationGroups=[
 // strategy and marketing (unused), package (merged into the one Import content page). Their data stays.
 export const hiddenPageIds=['review','knowledge','strategy','marketing','package'];
 export const pageIds=[...new Set([...navigationGroups.flatMap(group=>group.items.map(([id])=>id)),...hiddenPageIds])];
-const visibleGroups=role=>navigationGroups.map(group=>({...group,items:group.items.filter(item=>!item[3]||role==='owner')})).filter(group=>group.items.length);
+const visibleGroups=role=>navigationGroups.map(group=>({...group,items:group.items.filter(item=>!item[3]||['owner','admin'].includes(role))})).filter(group=>group.items.length);
 const current=(view,id)=>view===id||view==='editor'&&id==='library';
 export function menuGridHTML({view,alertCount=0,icon,role='owner'}){
  const shortLabels={home:'Home',create:'Create',library:'Instagram','youtube-library':'YouTube',blog:'Blog',import:'Import',calendar:'Calendar',queue:'Queue',assistant:'Caption',designer:'Design',settings:'Connections','ai-settings':'AI setup',history:'History',profile:'Account'};
