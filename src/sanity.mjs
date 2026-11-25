@@ -58,7 +58,7 @@ export function createSanity(store, options = {}) {
   function url(c, path, query = '') { return `https://${c.projectId}.api.sanity.io/v${c.apiVersion}${path}${query}`; }
   // Reads of a public dataset work without a token (anonymous: true); writes always need one.
   async function call(c, path, { method = 'GET', query = '', headers = {}, body, timeout = 30000, anonymous = false } = {}) {
-    if (!c.projectId || (!c.token && !anonymous)) throw fail('Connect Sanity in AI settings & connections first.', 422, 'NOT_CONNECTED');
+    if (!c.projectId || (!c.token && !anonymous)) throw fail('Connect Sanity in Settings first.', 422, 'NOT_CONNECTED');
     let response;
     try { response = await transport(url(c, path, query), { method, headers: { ...(c.token ? { Authorization: 'Bearer ' + c.token } : {}), ...headers }, body, signal: AbortSignal.timeout(timeout) }); }
     catch { throw fail('Cannot reach Sanity. Check your internet connection and try again.', 502, 'NETWORK'); }

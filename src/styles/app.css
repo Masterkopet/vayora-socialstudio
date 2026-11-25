@@ -416,6 +416,34 @@ body:has(#vayora-studio-complete dialog[open]){overflow:hidden}
 #vayora-studio-complete .vs-tab-dot.ok{background:#2e9e5b}
 #vayora-studio-complete .vs-tab-dot.warn{background:#e0a100}
 #vayora-studio-complete .vs-tabpanel[hidden]{display:none}
+/* Side layout (Settings): grouped sections on the left; on a phone the list is the page and a section opens full screen. */
+#vayora-studio-complete .vs-sidetabs{display:grid;grid-template-columns:250px minmax(0,1fr);gap:22px;align-items:start;min-width:0}
+#vayora-studio-complete .vs-sidenav{display:grid;gap:16px;position:sticky;top:12px}
+#vayora-studio-complete .vs-sidegroup{display:grid;gap:3px}
+#vayora-studio-complete .vs-sidegroup-title{margin:0 10px 4px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#61758b}
+#vayora-studio-complete .vs-sidetab{appearance:none;display:flex;align-items:center;gap:11px;width:100%;min-height:48px;padding:9px 12px;border:0;border-left:3px solid transparent;border-radius:10px;background:none;font:inherit;text-align:left;color:#4a5a70;cursor:pointer}
+#vayora-studio-complete .vs-sidetab:hover{background:#eef2f8;color:#00285C}
+#vayora-studio-complete .vs-sidetab[aria-selected="true"]{background:#fff;color:#00285C;border-left-color:#FFB600;box-shadow:0 1px 3px #00285c14}
+#vayora-studio-complete .vs-sidetab:focus-visible{outline:2px solid #00285C;outline-offset:-2px}
+#vayora-studio-complete .vs-sidetab-text{display:grid;min-width:0;flex:1;line-height:1.3}
+#vayora-studio-complete .vs-sidetab-text b{font-weight:600;font-size:14px}
+#vayora-studio-complete .vs-sidetab-text small{font-size:12px;color:#61758b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vayora-studio-complete .vs-sidetab-chevron{display:none;font-size:22px;color:#9aa8ba}
+#vayora-studio-complete .vs-sidepanels{min-width:0}
+@media(max-width:800px){
+  #vayora-studio-complete .vs-sidetabs{display:block}
+  #vayora-studio-complete .vs-sidenav{position:static;gap:18px}
+  #vayora-studio-complete .vs-sidetab{min-height:60px;padding:12px 14px;border:1px solid #e0e7ef;border-left-width:1px;border-radius:12px;background:#fff}
+  #vayora-studio-complete .vs-sidetab[aria-selected="true"]{border-left-color:#e0e7ef;box-shadow:none}
+  #vayora-studio-complete .vs-sidetab-chevron{display:block}
+  #vayora-studio-complete .vs-sidetabs[data-view="list"] .vs-sidepanels{display:none}
+  #vayora-studio-complete .vs-sidetabs[data-view="detail"] .vs-sidenav{display:none}
+}
+/* Ordinary tab bars on a small screen: wrap onto more lines instead of being cut off or scrolled sideways. */
+@media(max-width:600px){
+  #vayora-studio-complete .vs-tablist{flex-wrap:wrap;overflow-x:visible;gap:2px}
+  #vayora-studio-complete .vs-tab{flex:1 1 auto;justify-content:center;white-space:normal;text-align:center;padding:10px 8px}
+}
 #vayora-studio-complete .vs-blog-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 16px}
 #vayora-studio-complete .vs-blog-toolbar .vs-search-field{flex:1 1 220px}
 #vayora-studio-complete .vs-blog-bulk{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:0 16px 8px;padding:10px 14px;border-radius:10px;background:#eef3fb;color:#00285C}

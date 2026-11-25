@@ -64,12 +64,12 @@ try{
  await page.locator('[data-action="more-menu"]:visible').click();
  assert.equal(await page.locator('#vs-detail [data-language]').inputValue(),'en','English is the default language');
  await page.locator('#vs-detail [data-language]').selectOption('id');
- assert.equal(await page.locator('.vs-menu-grid [data-action="nav:knowledge"]').count(),0,'brand knowledge lives behind AI settings');
+ assert.equal(await page.locator('.vs-menu-grid [data-action="nav:knowledge"]').count(),0,'brand knowledge lives behind Settings');
  await page.locator('.vs-menu-grid [data-action="nav:import"]').click();
  await page.locator('#pkg-folder').waitFor();
  assert.equal(new URL(page.url()).pathname,'/import');
  assert.deepEqual(errors,[]);
- console.log('PASS menu: fifteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via AI settings) and import navigation.');
+ console.log('PASS menu: fifteen owner actions in five columns/three rows; content-sized popup anchored above main navigation; reduced-motion support; ID/EN label fit and 44px touch areas; short-screen scrolling; active route, keyboard close/focus, language switch, knowledge (via Settings) and import navigation.');
  console.log(JSON.stringify(reports));
 }finally{
  await browser.close();
