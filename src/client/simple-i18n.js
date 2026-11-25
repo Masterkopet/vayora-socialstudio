@@ -67,6 +67,7 @@ export const simpleStrings={
   'Judul kosong.':'Title is empty.','Deskripsi atau caption kosong.':'Description or caption is empty.','Deskripsi lebih dari 2.200 karakter.':'Description is longer than 2,200 characters.',
   'Judul YouTube lebih dari 100 karakter.':'YouTube title is longer than 100 characters.','File lebih dari 100 MB.':'File is larger than 100 MB.','Tags hanya dipakai YouTube.':'Tags are only used by YouTube.',
   // Blog (Sanity)
+  'karakter · ideal 130–160':'characters · ideal 130–160','kata ·':'words ·','menit baca':'min read',
   'Blog':'Blog','BLOG':'BLOG','ARTIKEL BARU':'NEW ARTICLE','Tulis dan jadwalkan artikel ke vayora.id/blog.':'Write and schedule articles for vayora.id/blog.','Tulis, jadwalkan, dan terbitkan artikel ke Sanity untuk vayora.id/blog.':'Write, schedule, and publish articles to Sanity for vayora.id/blog.',
   'Artikel baru':'New article','Artikel':'Articles','Impor dari file':'Import from files','Belum ada artikel.':'No articles yet.','Klik Artikel baru, atau impor artikel Markdown dari Impor konten.':'Click New article, or import Markdown articles from Import content.',
   'draft / ditinjau':'drafts / in review','gagal':'failed','Lihat artikel':'View article','Hubungkan Sanity':'Connect Sanity',
@@ -137,7 +138,7 @@ export const simplePatterns=[
   [/^(\d+) konten belum punya caption\. Hubungkan Gemini di Pengaturan AI agar caption kosong bisa ditulis otomatis\.$/,(_,n)=>`${n} item(s) have no caption. Connect Gemini in AI settings so empty captions can be written automatically.`],
   [/^(\d+) file dilewati karena formatnya tidak didukung\.$/,(_,n)=>`${n} file(s) skipped because the format is not supported.`],
   [/^(\d+) artikel blog gagal terbit\. Buka Blog untuk melihat alasannya\.$/,(_,n)=>`${n} blog article(s) failed to publish. Open Blog to see why.`],
-  [/^(\d+) menit baca$/,(_,n)=>`${n} min read`],[/^(\d+) karakter · ideal 130–160$/,(_,n)=>`${n} characters · ideal 130–160`],[/^(\d+) kata · (\d+) menit baca$/,(_,a,b)=>`${a} words · ${b} min read`],
+  [/^(.* · )?(\d+) menit baca( · .*)?$/,(_,a,n,b)=>`${a||''}${n} min read${b||''}`],[/^(\d+) karakter · ideal 130–160$/,(_,n)=>`${n} characters · ideal 130–160`],[/^(\d+) kata · (\d+) menit baca$/,(_,a,b)=>`${a} words · ${b} min read`],
   [/^Artikel dijadwalkan: (.+)\.$/,(_,t)=>`Article scheduled: ${t}.`],[/^Project (\S+) · dataset (\S+)$/,(_,a,b)=>`Project ${a} · dataset ${b}`],
   [/^Unggah foto atau video untuk melihat tampilannya di (.+)\.$/,(_,p)=>`Upload a photo or video to see how it looks on ${p}.`],
   [/^Cover: (.+)$/,(_,a)=>`Cover: ${a}`],[/^(\S+) sudah ada di pustaka, tidak diimpor ulang\.$/,(_,a)=>`${a} is already in the library and is not imported again.`],
