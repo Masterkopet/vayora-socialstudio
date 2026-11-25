@@ -67,12 +67,13 @@ try {
   await page.locator('[data-pkg-target="youtube"]').first().check();
   assert.match(await page.locator('.vs-pkg-table tbody tr').first().innerText(), /YouTube/);
 
-  // 4. A photo can only go to Instagram.
+  // 4. A photo goes to Instagram at first and can also go to Facebook or TikTok (never YouTube).
   await page.locator('[data-action="pkg-reset"]').click();
   await page.locator('#pkg-files').setInputFiles({ name: 'villa-front.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('jpg') });
   await page.locator('.vs-pkg-table tbody tr').first().waitFor();
-  assert.equal(await page.locator('[data-pkg-target]').count(), 0, 'photos have no destination choice');
+  assert.deepEqual(await page.locator('[data-pkg-target]').evaluateAll(els => els.map(e => e.dataset.pkgTarget)), ['instagram', 'facebook', 'tiktok'], 'photos offer Instagram, Facebook and TikTok');
+  assert.equal(await page.locator('.vs-pkg-table tbody tr').count(), 1, 'only Instagram is ticked at first');
   assert.match(await page.locator('.vs-pkg-table tbody tr').first().innerText(), /Instagram/);
   if (errors.length) throw Error(errors.join('\n'));
-  console.log('PASS import: docx → Blog draft saved with title, slug, excerpt and body; video → Instagram/YouTube choice (one, both, none flagged); photo → Instagram');
+  console.log('PASS import: docx → Blog draft saved with title, slug, excerpt and body; video → Instagram/YouTube choice (one, both, none flagged); photo → Instagram, with Facebook/TikTok available');
 } catch (error) { console.error("FAIL", error); process.exitCode = 1; } finally { await browser.close(); await server.close?.(); runtime.close?.(); process.exit(process.exitCode || 0); }

@@ -2,18 +2,18 @@
 // and the list of problems that need attention. They reuse the studio's helpers through `ctx`.
 
 const DAY = 86400000;
-const PLATFORM = { instagram: 'Instagram', youtube: 'YouTube Shorts' };
+const PLATFORM = { instagram: 'Instagram', youtube: 'YouTube Shorts', facebook: 'Facebook', tiktok: 'TikTok' };
 const wibDate = value => new Date(Date.parse(value) + 7 * 3600000).toISOString().slice(0, 10);
 
 export function createSimpleViews(ctx) {
   const { api, esc, button, toast, stamp, previewImage, names } = ctx;
   const workspace = () => ctx.getWorkspace(), user = () => ctx.getUser();
-  const platformOf = item => item.format === 'Short' ? 'youtube' : 'instagram';
+  const platformOf = item => PLATFORM[item.platform] && item.platform !== 'blog' ? item.platform : item.format === 'Short' ? 'youtube' : 'instagram';
 
   // ---------- Problems that need attention ----------
   function problemAlerts() {
     const w = workspace(), owner = ['owner','admin'].includes(user().role), s = w.settings || {}, list = [];
-    const ig = w.instagram || {}, yt = w.youtube || {}, posts = w.posts || [];
+    const ig = w.instagram || {}, yt = w.youtube || {}, fb = w.facebook || {}, tt = w.tiktok || {}, posts = w.posts || [];
     const scheduled = posts.filter(p => p.status === 'scheduled');
     if (s.notifyFailure !== false) {
       const failed = posts.filter(p => p.status === 'failed').length, uncertain = posts.filter(p => p.status === 'uncertain').length;
@@ -27,6 +27,9 @@ export function createSimpleViews(ctx) {
       if (yt.error) list.push({ level: 'danger', text: owner ? 'YouTube is disconnected. Reconnect the channel so Shorts keep uploading.' : 'YouTube is disconnected. Ask the workspace owner to reconnect it.', action: fix });
       if (scheduled.some(p => platformOf(p) === 'instagram') && !ig.connected) list.push({ level: 'danger', text: 'Instagram content is scheduled, but Instagram is not connected.', action: fix });
       if (scheduled.some(p => platformOf(p) === 'youtube') && !yt.connected) list.push({ level: 'danger', text: 'A Short is scheduled, but the YouTube channel is not connected.', action: fix });
+      if (fb.error || (scheduled.some(p => platformOf(p) === 'facebook') && !fb.connected)) list.push({ level: 'danger', text: owner ? 'Facebook posts are scheduled or waiting, but the Facebook Page is not connected.' : 'The Facebook Page is not connected. Ask the workspace owner to connect it.', action: fix });
+      if (tt.error || (scheduled.some(p => platformOf(p) === 'tiktok') && !tt.connected)) list.push({ level: 'danger', text: owner ? 'TikTok posts are scheduled or waiting, but TikTok is not connected.' : 'TikTok is not connected. Ask the workspace owner to connect it.', action: fix });
+      if (scheduled.some(p => platformOf(p) === 'tiktok') && tt.connected && !tt.privacy) list.push({ level: 'danger', text: 'TikTok posts are scheduled, but no TikTok visibility is chosen in Settings.', action: fix });
     }
     if (scheduled.length && (!s.publishingEnabled || s.paused)) list.push({ level: 'warning', text: !s.publishingEnabled ? `${scheduled.length} scheduled posts will not be published because real publishing is not enabled.` : `${scheduled.length} scheduled posts are waiting because the queue is paused.`, action: owner ? (!s.publishingEnabled ? ['Enable publishing', 'nav:settings'] : ['Open queue', 'nav:queue']) : null });
     return [...list, ...(ctx.extraAlerts?.() || [])];
@@ -45,13 +48,13 @@ export function createSimpleViews(ctx) {
     const review = posts.filter(p => p.status === 'review');
     const drafts = posts.filter(p => p.status === 'draft').length;
     const published = posts.filter(p => p.status === 'published' && p.publishedAt && now - Date.parse(p.publishedAt) < 30 * DAY).length;
-    const ig = w.instagram || {}, yt = w.youtube || {}, s = w.settings || {};
+    const ig = w.instagram || {}, yt = w.youtube || {}, fb = w.facebook || {}, tt = w.tiktok || {}, s = w.settings || {};
     const connection = (label, ok, detail) => `<div class="vs-setting"><div><h3>${label}</h3><p class="vs-sub">${detail}</p></div><span class="vs-status ${ok ? 'scheduled' : 'review'}">${ok ? 'Connected' : 'Not connected'}</span></div>`;
     return `<section class="vs-panel vs-pad vs-stack"><div class="vs-row"><div><h2>Hello, ${esc(user().name)}</h2><p class="vs-sub">${alerts.length ? 'Something needs your attention.' : 'Everything is running fine. Nothing needs handling.'}</p></div>${button('Create post', 'nav:create', 'vs-primary', 'circle-plus')}</div>${alerts.length ? `<div class="vs-stack">${alertsHTML(alerts)}</div>` : ''}</section>
 <div class="vs-stats"><span><strong>${todayCount}</strong> going live today</span><span><strong>${upcoming.length}</strong> scheduled in 7 days</span><span><strong>${review.length}</strong> need review</span><span><strong>${drafts}</strong> draft</span><span><strong>${published}</strong> published in 30 days</span></div>
 <section class="vs-panel"><div class="vs-panel-head"><h2>Next 7 days</h2>${button('Calendar', 'nav:calendar', 'vs-text-button')}</div><div class="vs-list">${upcoming.map(record).join('') || '<div class="vs-empty"><h3>Nothing scheduled this week.</h3><p>Create a new post, then pick a date and time.</p></div>'}</div></section>
 <section class="vs-panel"><div class="vs-panel-head"><h2>Needs review</h2></div><div class="vs-list">${review.map(record).join('') || '<div class="vs-empty"><h3>Nothing is waiting for review.</h3><p>Content submitted for review appears here.</p></div>'}</div></section>
-<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'No account connected yet.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'No channel connected yet.')}<div class="vs-setting"><div><h3>Live publishing</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'On, but the queue is paused.' : 'On. Scheduled content goes live automatically.') : 'Off. Content is only saved as a plan.'}</p></div>${['owner','admin'].includes(user().role) ? button('Set up', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
+<section class="vs-panel vs-pad">${connection('Instagram', ig.connected, ig.username ? '@' + esc(ig.username) : 'No account connected yet.')}${connection('YouTube Shorts', yt.connected, yt.channelTitle ? esc(yt.channelTitle) : 'No channel connected yet.')}${connection('Facebook', fb.connected, fb.pageName ? esc(fb.pageName) : 'No Page connected yet.')}${connection('TikTok', tt.connected, tt.username ? '@' + esc(tt.username) : tt.displayName ? esc(tt.displayName) : 'No account connected yet.')}<div class="vs-setting"><div><h3>Live publishing</h3><p class="vs-sub">${s.publishingEnabled ? (s.paused ? 'On, but the queue is paused.' : 'On. Scheduled content goes live automatically.') : 'Off. Content is only saved as a plan.'}</p></div>${['owner','admin'].includes(user().role) ? button('Set up', 'nav:settings', 'vs-text-button') : ''}</div></section>`;
   }
 
   // ---------- "Create post": form on the left (platform → upload → words → when), live preview on the right ----------
@@ -67,29 +70,31 @@ export function createSimpleViews(ctx) {
     if (media.length === 1) return videos.length ? 'Reel' : 'Gambar';
     return images.length === media.length && media.length <= 20 ? 'Carousel' : '';
   }
-  const formatLabel = { Gambar: 'Photo (1 image)', Carousel: 'Carousel (several images)', Reel: 'Reel (video)', Short: 'YouTube Short (vertical video)' };
+  const LABELS = { instagram: { Gambar: 'Photo (1 image)', Carousel: 'Carousel (several images)', Reel: 'Reel (video)' }, youtube: { Short: 'YouTube Short (vertical video)' }, facebook: { Gambar: 'Facebook photo', Carousel: 'Facebook album (several photos)', Reel: 'Facebook Reel (video)' }, tiktok: { Gambar: 'TikTok photo post', Carousel: 'TikTok photo post (several photos)', Reel: 'TikTok video' } };
+  const formatLabel = (platform, format) => LABELS[platform]?.[format] || format;
+  const HINTS = { instagram: 'Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.', youtube: 'Choose 1 vertical MP4 video, up to 3 minutes.', facebook: 'Choose 1 photo, 2–20 photos for an album, or 1 video (3–90 seconds) for a Reel.', tiktok: 'Choose 1 vertical video, or 1–20 photos for a photo post.' };
+  const platformChoices = current => { const choice = (id, title, hint) => `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${current === id}"><b>${title}</b><span>${hint}</span></button>`; return `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}${choice('facebook', 'Facebook', 'Page post: photo, album, or Reel')}${choice('tiktok', 'TikTok', 'Video or photo post')}${choice('blog', 'Blog', 'Article on vayora.id/blog')}</div>`; };
+  const accountName = platform => { const w = workspace(); return platform === 'facebook' ? w.facebook?.pageName || 'Vayora' : platform === 'tiktok' ? (w.tiktok?.username ? '@' + w.tiktok.username : 'vayora.id') : w.instagram?.username || 'vayora.id'; };
   const icon = name => (ctx.icon ? ctx.icon(name) : '');
 
   function createPage() {
     if (flow.platform === 'blog' && ctx.blogEditor) return blogCreate();
     const f = flow, format = formatFor(f.platform, f.media), yt = f.platform === 'youtube', ready = canSubmit(f);
     const group = (n, title, body, disabled = false, hint = '') => `<fieldset class="vs-create-group" ${disabled ? 'disabled' : ''}><legend><span class="vs-step-number">${n}</span>${title}</legend>${disabled && hint ? `<p class="vs-mini">${hint}</p>` : body}</fieldset>`;
-    const choice = (id, title, hint) => `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${f.platform === id}"><b>${title}</b><span>${hint}</span></button>`;
-    const mediaHint = yt ? 'Choose 1 vertical MP4 video, up to 3 minutes.' : 'Choose 1 photo, 2–20 photos for a carousel, or 1 video for a Reel.';
+    const mediaHint = HINTS[f.platform] || HINTS.instagram;
     const files = f.media.length ? `<ul class="vs-create-files">${f.media.map(m => `<li>${esc(m.name)}${m.duration ? ' · ' + Math.round(m.duration) + ' sec' : ''}</li>`).join('')}</ul>` : '';
-    const g1 = group(1, 'Where do you want to post?', `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}${choice('blog', 'Blog', 'Article on vayora.id/blog')}</div>`);
-    const g2 = group(2, 'Choose a photo or video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Replace files: drag & drop here' : 'Drag & drop files here'}</b><span>or click to choose from your computer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Choose a photo or video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Uploading…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Content type: <b>' + formatLabel[format] + '</b>' : 'This combination of files is not supported. ' + mediaHint}</p>` : ''}`);
-    const g3 = group(3, 'Write a title and caption', `${aiLine(f)}<label class="vs-label">Title${yt ? ' <small>shown as the YouTube video title, up to 100 characters</small>' : ' <small>for the team only, not shown on Instagram</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Description' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2,200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Need ideas? After saving, open the content and use the Caption assistant.</p>'}${yt && f.tags.length ? `<p class="vs-mini">YouTube tags: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Available after a photo or video is uploaded.');
+    const g1 = group(1, 'Where do you want to post?', platformChoices(f.platform));
+    const g2 = group(2, 'Choose a photo or video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Replace files: drag & drop here' : 'Drag & drop files here'}</b><span>or click to choose from your computer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Choose a photo or video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Uploading…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Content type: <b>' + formatLabel(f.platform, format) + '</b>' : 'This combination of files is not supported. ' + mediaHint}</p>` : ''}`);
+    const g3 = group(3, 'Write a title and caption', `${aiLine(f)}<label class="vs-label">Title${yt ? ' <small>shown as the YouTube video title, up to 100 characters</small>' : f.platform === 'tiktok' ? ' <small>shown as the title of TikTok photo posts (up to 90 characters); videos use only the caption</small>' : ' <small>for the team only, not shown on the post</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Description' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2,200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Need ideas? After saving, open the content and use the Caption assistant.</p>'}${yt && f.tags.length ? `<p class="vs-mini">YouTube tags: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Available after a photo or video is uploaded.');
     const g4 = group(4, 'When should it go live?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Submit for review</b> · the owner checks it before it is scheduled</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Schedule now</b> · goes live automatically at the chosen time</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Save as draft</b> · continue later</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Date<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Time (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>I have checked the photo/video and caption, and this content may go live.</span></label>` : ''}</div>`, !format, 'Available after a photo or video is uploaded.');
     const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Save & schedule' : f.when === 'draft' ? 'Save draft' : 'Save & submit', 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Start over', 'create-reset', 'vs-text-button')}</div>`;
-    const spec = format ? formatLabel[format] : yt ? 'YouTube Shorts · 9:16' : 'Instagram · 4:5 to 1.91:1';
+    const spec = format ? formatLabel(f.platform, format) : { youtube: 'YouTube Shorts · 9:16', facebook: 'Facebook Page', tiktok: 'TikTok · 9:16' }[f.platform] || 'Instagram · 4:5 to 1.91:1';
     return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Upload, write, then choose when it goes live.</h2></div><span class="vs-status">${esc(spec)}</span></div><p class="vs-sub">The preview on the right updates as you type. Content is only saved when you press Save.</p><div class="smart-layout vs-create-layout"><div class="vs-stack vs-create-form">${g1}${g2}${g3}${g4}${actions}</div><div id="create-preview" class="smart-design-result vs-create-preview" aria-label="Preview">${preview(f)}</div></div></section>`;
   }
 
   // Blog: the platform choice stays on top, the article editor (with its own preview) takes over below.
   function blogCreate() {
-    const choice = (id, title, hint) => `<button type="button" class="vs-choice" data-create-platform="${id}" aria-pressed="${flow.platform === id}"><b>${title}</b><span>${hint}</span></button>`;
-    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Where do you want to post?</h2></div></div><div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Photo, carousel, or Reel')}${choice('youtube', 'YouTube Shorts', 'Vertical video up to 3 minutes')}${choice('blog', 'Blog', 'Article on vayora.id/blog')}</div></section>${ctx.blogEditor()}`;
+    return `<section class="vs-panel vs-pad vs-stack" id="create-post"><div class="vs-row"><div><span class="vs-eyebrow">CREATE POST</span><h2>Where do you want to post?</h2></div></div>${platformChoices(flow.platform)}</section>${ctx.blogEditor()}`;
   }
 
   // ---------- live preview ----------
@@ -109,21 +114,21 @@ export function createSimpleViews(ctx) {
     return `<div class="${frameClass}" style="aspect-ratio:${frameClass.includes('short') ? '9 / 16' : ratio}">${body}${nav}</div>`;
   }
   function preview(f) {
-    if (!f.media.length && !f.busy) return `<img class="smart-design-placeholder" src="/brand/icon.svg" alt=""><h3>Your post preview appears here.</h3><p class="vs-mini">Upload a photo or video to see how it will look on ${f.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram'}.</p>`;
+    if (!f.media.length && !f.busy) return `<img class="smart-design-placeholder" src="/brand/icon.svg" alt=""><h3>Your post preview appears here.</h3><p class="vs-mini">Upload a photo or video to see how it will look on ${PLATFORM[f.platform] || 'Instagram'}.</p>`;
     const w = workspace();
     if (f.platform === 'youtube') {
       const channel = w.youtube?.channelTitle || 'YouTube channel';
       const long = f.title.length > 100 ? '<p class="vs-inline-error">YouTube titles are limited to 100 characters.</p>' : '';
       return `<div class="vs-preview-label">YouTube Shorts preview</div><div class="vs-short-card">${mediaPreview(f, 'vs-preview-media vs-preview-short')}<div class="vs-short-meta"><b id="create-pv-title">${esc(f.title) || '<span class="vs-mini">The video title appears here.</span>'}</b><span class="vs-mini">${esc(channel)}</span><p id="create-pv-caption" class="vs-preview-caption">${captionPreview(f)}</p></div></div>${long}`;
     }
-    const user = w.instagram?.username || 'vayora.id';
-    return `<div class="vs-preview-label">Instagram preview</div><article class="vs-ig-card"><header><img src="/brand/icon.svg" alt=""><b>${esc(user)}</b></header>${mediaPreview(f, 'vs-preview-media')}<div class="vs-ig-icons">${icon('heart')}${icon('message-circle')}${icon('send')}<span></span>${icon('bookmark')}</div><p id="create-pv-caption" class="vs-preview-caption"><b>${esc(user)}</b> ${captionPreview(f)}</p></article>`;
+    const user = accountName(f.platform), vertical = f.platform === 'tiktok' && f.media[0]?.mime === 'video/mp4';
+    return `<div class="vs-preview-label">${PLATFORM[f.platform] || 'Instagram'} preview</div><article class="vs-ig-card"><header><img src="/brand/icon.svg" alt=""><b>${esc(user)}</b></header>${mediaPreview(f, vertical ? 'vs-preview-media vs-preview-short' : 'vs-preview-media')}<div class="vs-ig-icons">${icon('heart')}${icon('message-circle')}${icon('send')}<span></span>${icon('bookmark')}</div><p id="create-pv-caption" class="vs-preview-caption"><b>${esc(user)}</b> ${captionPreview(f)}</p></article>`;
   }
   // Typing only refreshes the preview text, so focus and video playback are not disturbed.
   function refreshPreviewText() {
     const root = ctx.root(), title = root.querySelector('#create-pv-title'), caption = root.querySelector('#create-pv-caption');
     if (title) title.innerHTML = esc(flow.title) || '<span class="vs-mini">The video title appears here.</span>';
-    if (caption) caption.innerHTML = flow.platform === 'youtube' ? captionPreview(flow) : `<b>${esc(workspace().instagram?.username || 'vayora.id')}</b> ${captionPreview(flow)}`;
+    if (caption) caption.innerHTML = flow.platform === 'youtube' ? captionPreview(flow) : `<b>${esc(accountName(flow.platform))}</b> ${captionPreview(flow)}`;
   }
 
   async function upload(files) {
@@ -162,11 +167,11 @@ export function createSimpleViews(ctx) {
     if (!format || f.busy) return;
     f.busy = true; f.error = ''; ctx.render();
     try {
-      let item = await api('/api/posts', 'POST', { format, title: f.title.trim(), caption: f.caption, mediaIds: f.media.map(m => m.id), ...(f.platform === 'youtube' && f.tags.length ? { tags: f.tags } : {}) });
+      let item = await api('/api/posts', 'POST', { format, platform: f.platform, title: f.title.trim(), caption: f.caption, mediaIds: f.media.map(m => m.id), ...(f.platform === 'youtube' && f.tags.length ? { tags: f.tags } : {}) });
       if (f.when !== 'draft') {
         item = await api('/api/posts/' + encodeURIComponent(item.id), 'PUT', { revision: item.revision, intent: f.when, approved: f.when === 'scheduled' && f.approved, title: item.title, caption: item.caption, alt: item.alt || '', mediaIds: item.mediaIds, category: item.category, goal: item.goal, coverId: null, coverTime: null, date: f.when === 'scheduled' ? f.date : item.date, time: f.when === 'scheduled' ? f.time : item.time });
       }
-      const target = f.platform === 'youtube' ? 'youtube-library' : 'library';
+      const target = { youtube: 'youtube-library', facebook: 'facebook-library', tiktok: 'tiktok-library' }[f.platform] || 'library';
       reset(); await ctx.reload();
       toast(f.when === 'scheduled' ? 'Post scheduled.' : f.when === 'draft' ? 'Draft saved.' : 'Post submitted for review.');
       ctx.navigate(target);
