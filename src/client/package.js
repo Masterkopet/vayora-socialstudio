@@ -3,6 +3,7 @@
 // schedule, then uploaded and saved/scheduled row by row.
 import { expandZip } from './zip.js';
 import { docxToMarkdown } from './docx.js';
+import { createDrivePicker } from './drive.js';
 import { readSources, matchFiles, mediaOnlyRows, checkRow, planSchedule, mediaInfo, titleFromFile, MEDIA_FILE, TEXT_FILE } from './package-parse.js';
 
 const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
@@ -15,6 +16,8 @@ const pathOf = f => f.webkitRelativePath || f.name;
 export function createPackageImport(ctx) {
   const { api, esc, button, toast } = ctx;
   let st, ai = null; // ai: AI status from /api/assistant (null = not loaded yet)
+  const drive = createDrivePicker({ api, esc, button, toast, render: () => ctx.render(), addFiles: files => addFiles(files) });
+  const imported = new Map(); // Drive file → media already fetched during this run (one file used for Instagram and YouTube is fetched once)
   const reset = () => { st = { texts: [], media: [], sources: [], rows: [], edits: {}, mode: 'scheduled', start: tomorrow(), days: [1, 3, 5], times: '19:00', useFileDates: true, synthetic: false, approved: false, running: false, done: false, reading: false, aiFill: true, genHero: true }; };
   reset();
 
@@ -74,7 +77,7 @@ export function createPackageImport(ctx) {
     const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} videos/photos ·${usedSources.length ? 'text from ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'no title/description text file yet'}${otherSources ? ` · ${otherSources} other text files only fill in what is empty` : ''} · ${rows.length} posts found.</p>` : '';
     const s1 = step(1, 'Choose a folder or files', `<p class="vs-sub">Choose one folder (subfolders included) or several files at once. Recognized:</p>
 <ul class="vs-help-list"><li><b>Videos & photos</b>: MP4, JPG, PNG, WebP. Matched by the file name in the package, content code (V01-…, C01-slide-1…), the number in the file name, or the episode folder (01 - Title/Video/…).</li><li><b>Text</b>: JSON/CSV packages (title, description, tags, file, date, time), one .txt per episode (TITLE, FULL DESCRIPTION, TAGS; the Indonesian headings JUDUL and DESKRIPSI LENGKAP also work), or a Markdown caption list (## V01 … Caption:).</li><li>Project folders such as node_modules are ignored.</li></ul>
-<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,.docx,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
+<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Add more: drag & drop a folder or files here' : 'Drag & drop a folder or files here'}</b><span>or choose from your computer:</span><div class="vs-actions"><label class="vs-button">Choose folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Choose files<input class="sr-only" type="file" id="pkg-files" multiple accept=".zip,.json,.csv,.txt,.md,.docx,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label>${button('Google Drive', 'pkg-drive-open', '', 'cloud')}</div></div>${drive.panel()}
 <p class="vs-mini">The type of each item is detected from the files: articles go to the Blog, codes S01 / V01 / I01 / C01 say YouTube or Instagram, and every video can go to Instagram, YouTube Shorts or both. Photos go to Instagram.</p>
 ${st.reading ? '<p class="vs-mini" role="status">Reading files…</p>' : summary}`);
     if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">No content can be made from these files yet. Add videos/photos and their title/description text.</p>' : ''}</div>`;
@@ -104,18 +107,28 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   }
 
   // ---------- run ----------
+  // Files from the computer are uploaded; files that still sit in Google Drive are fetched by the server.
+  async function uploadFiles(files, role = 'content') {
+    const url = '/api/media' + (role === 'cover' ? '?role=cover' : '');
+    if (!files.some(f => f.driveId)) { const form = new FormData(); for (const f of files) form.append('files', f); return (await api(url, 'POST', form)).media || []; }
+    const out = [];
+    for (const f of files) {
+      if (f.driveId) { const key = f.driveId + ':' + role; if (!imported.has(key)) imported.set(key, (await api('/api/drive/import', 'POST', { fileId: f.driveId, role })).media || []); out.push(...imported.get(key)); }
+      else { const form = new FormData(); form.append('files', f); out.push(...((await api(url, 'POST', form)).media || [])); }
+    }
+    return out;
+  }
   async function run() {
     const slotOf = plan(), list = ready();
     if (!list.length || st.running) return;
-    st.running = true; ctx.render();
+    st.running = true; imported.clear(); ctx.render();
     let ok = 0;
     for (const r of list) {
       const slot = slotOf(r), p = platformOf(r), { format } = checked(r), taken = existingIds();
       const set = (text, extra = {}) => { r.result = { text, ...extra }; ctx.render(); };
       try {
         set('Uploading…', { busy: true });
-        const form = new FormData(); for (const f of r.files) form.append('files', f);
-        const media = r.files.length ? (await api('/api/media', 'POST', form)).media || [] : [];
+        const media = r.files.length ? await uploadFiles(r.files) : [];
         if (p === 'blog') {
           set('Saving article…', { busy: true });
           const b = r.row.blog; let intent = st.mode === 'draft' ? 'draft' : st.mode, heroId = media[0]?.id || null;
@@ -129,7 +142,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
           ok++; set(intent === 'scheduled' ? `${art.id} · scheduled` : intent === 'review' ? `${art.id} · in review` : `${art.id} · draft`, { ok: true }); continue;
         }
         let coverId = null;
-        if (r.cover && format === 'Reel') { const cf = new FormData(); cf.append('files', r.cover); coverId = (await api('/api/media?role=cover', 'POST', cf)).media?.[0]?.id || null; }
+        if (r.cover && format === 'Reel') { coverId = (await uploadFiles([r.cover], 'cover'))[0]?.id || null; }
         let intent = st.mode;
         if (needsAI(r)) {
           set('AI is writing the caption…', { busy: true });
@@ -170,6 +183,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   }
   function bind() {
     const root = ctx.root(), on = (sel, ev, fn) => root.querySelectorAll(sel).forEach(el => el.addEventListener(ev, e => fn(el, e)));
+    drive.bind(root);
     on('#pkg-folder,#pkg-files', 'change', el => { if (el.files.length) void addFiles([...el.files]); });
     // Drag & drop of files or whole folders anywhere on the page.
     const page = root.querySelector('#pkg-page'), zone = root.querySelector('#pkg-drop');
@@ -221,6 +235,7 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   }
   const clearOverrides = () => Object.values(st.edits).forEach(e => { e.override = null; });
   async function action(name) {
+    if (name.startsWith('pkg-drive-')) return drive.action(name);
     if (name === 'pkg-run') { await run(); return true; }
     if (name === 'pkg-reset') { reset(); ctx.render(); return true; }
     if (name === 'pkg-open') { const kinds = new Set(st.rows.filter(r => r.result?.ok).map(platformOf)); reset(); ctx.navigate(kinds.size === 1 && kinds.has('blog') ? 'blog' : kinds.size === 1 && kinds.has('youtube') ? 'youtube-library' : 'library'); return true; }

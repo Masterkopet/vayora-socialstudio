@@ -1,5 +1,24 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"Use selected":"Gunakan terpilih",
+"Loading…":"Memuat…",
+"Google Drive":"Google Drive",
+"Connect Google Drive":"Hubungkan Google Drive",
+"My Drive":"Drive Saya",
+"Shared with me":"Dibagikan kepada saya",
+"Load more":"Muat lagi",
+"Google Drive connected.":"Google Drive terhubung.",
+"The login session ended before Google returned. Connect Google Drive once more.":"Sesi login berakhir sebelum Google kembali. Hubungkan Google Drive sekali lagi.",
+"The Google Drive connection did not finish. The reason is recorded in History.":"Koneksi Google Drive belum selesai. Alasannya tercatat di Riwayat.",
+"Google Drive uses the same Google client as YouTube. Open Settings → YouTube and enter the Client ID and Client Secret first.":"Google Drive memakai klien Google yang sama dengan YouTube. Buka Pengaturan → YouTube dan isi Client ID serta Client Secret terlebih dahulu.",
+"Connect the Google account that holds the files. Studio only reads from Drive (read-only access) and never changes or deletes anything there.":"Hubungkan akun Google yang menyimpan file. Studio hanya membaca dari Drive (akses baca saja) dan tidak pernah mengubah atau menghapus apa pun di sana.",
+"No folders, videos, photos or text files here.":"Tidak ada folder, video, foto, atau file teks di sini.",
+"Tick a folder to take everything inside it (subfolders included). Videos and photos are fetched by the server when you run the import.":"Centang folder untuk mengambil seluruh isinya (termasuk subfolder). Video dan foto diambil oleh server saat impor dijalankan.",
+"Turn on the Google Drive API for the Google Cloud project, then try again.":"Aktifkan Google Drive API di proyek Google Cloud, lalu coba lagi.",
+"Google Drive is not connected.":"Google Drive belum terhubung.",
+"Google Drive permission expired or was revoked. Reconnect Google Drive.":"Izin Google Drive berakhir atau dicabut. Hubungkan kembali Google Drive.",
+"Google Drive permission needs to be reconnected.":"Izin Google Drive perlu dihubungkan kembali.",
+"That Drive file was not found, or this account cannot open it.":"File Drive tidak ditemukan, atau akun ini tidak bisa membukanya.",
 "What kind of content is this?":"Jenis konten apa ini?",
 "Photos, carousels, Reels":"Foto, carousel, Reels",
 "Vertical videos":"Video vertikal",
@@ -422,6 +441,10 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^Fetching (d+) of (d+)…$/,(_,a,b)=>`Mengambil ${a} dari ${b}…`],
+[/^Reading folder (.+)…$/,(_,n)=>`Membaca folder ${n}…`],
+[/^Use (d+) selected$/,(_,n)=>`Gunakan ${n} terpilih`],
+[/^(d+) files added from Google Drive.$/,(_,n)=>`${n} file ditambahkan dari Google Drive.`],
 [/^(\d+) (Instagram|YouTube Shorts|Blog) item\(s\) found in these files are not shown\. Choose (Instagram|YouTube Shorts|Blog) above to import them instead\.$/,(_,n,t)=>`${n} item ${t} ditemukan di file ini tetapi tidak ditampilkan. Pilih ${t} di atas untuk mengimpornya.`],
 [/^(.+) · (Owner|Admin|Editor) · joined (.+)$/,(_,e,r,d)=>`${e} · ${r==="Owner"?"Pemilik":r} · bergabung ${d}`],
 [/^Give (.+) admin access\? Admins can use every feature, including connections, imports, AI settings and removing editors\.$/,(_,n)=>`Beri ${n} akses admin? Admin dapat memakai semua fitur, termasuk koneksi, impor, pengaturan AI, dan menghapus editor.`],

@@ -129,7 +129,7 @@ The owner can create editor invitations from Team account. The link is valid for
 
 **Sessions.** A signed-in member stays signed in (a 400-day cookie that renews while it is used) until they press **Sign out** or the owner/admin presses **Sign out** on their row in Team account (`POST /api/team/:id/sign-out`; admins can do this for editors, the owner for anyone else).
 
-**Import content** asks first what kind of content the files are: Instagram, YouTube Shorts or Blog. Only that type is imported; items of another type found in the files are counted with a hint to switch. When the files name their type (a Word file of articles, codes S01/V01/B01), the choice follows them until you pick one yourself.
+**Import content** detects the type of every item itself: Word/Markdown articles become Blog drafts, codes S01 / V01 / I01 / C01 say YouTube or Instagram, and each video can go to Instagram, YouTube Shorts or both (tick the destinations in its row); photos go to Instagram. Videos or photos with no text and no code still become items titled from the file name.
 
 ## Data and backup
 
@@ -152,3 +152,6 @@ Use a VPS/server with Node 24+, an HTTPS reverse proxy, a persistent data volume
 The local version stops publishing when the computer sleeps or the server process stops. Schedules that are more than five minutes overdue are not published all at once after the app comes back up.
 
 Structure documentation, UI migration limits, and Next.js verification: [MIGRASI-NEXTJS.md](docs/MIGRASI-NEXTJS.md).
+
+
+**Google Drive as an import source.** On Import content, **Google Drive** opens a picker for My Drive and Shared with me; tick folders (subfolders included) or files. Articles, metadata and zips are read in the browser; videos and photos stay in Drive and the server downloads them when the import runs (up to 700 MB each). Google Docs are exported as Word. Studio only has read-only Drive access. It reuses the Google client set up for YouTube and the same callback address, so nothing new is registered; two things are needed once in Google Cloud: enable the **Google Drive API** for the project, and let the signed-in admin approve the read-only Drive permission when connecting (the app may show Google's "unverified app" notice, like YouTube). API (admin only): `GET /api/drive/status`, `POST /api/drive/connect`, `POST /api/drive/disconnect`, `GET /api/drive/list?folder=root|shared|<id>`, `GET /api/drive/walk?folder=<id>`, `GET /api/drive/file/:id` (text files), `POST /api/drive/import` `{fileId, role}` (video or photo).
