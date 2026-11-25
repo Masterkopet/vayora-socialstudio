@@ -14,6 +14,8 @@ const topics = {
   'Demo produk': { keyword:'software manajemen villa', tags:['#PMSVilla','#ManajemenProperti'], hooks:['Semua villa. Satu dasbor.','Ingin melihat alur operasional villa yang lebih rapi?','Dari reservasi sampai kamar siap kembali.'], benefit:'Kenali Vayora, software manajemen villa untuk reservasi, housekeeping, tagihan, dan laporan pemilik.' },
 };
 const fail = (message,status=400) => Object.assign(new Error(message),{status});
+// Google's own short error text, without URLs or long token-like strings, for the message shown to the team.
+const safeReason = value => typeof value === 'string' ? value.replace(/https?:\/\/\S+/g,'[url]').replace(/[A-Za-z0-9_\-]{32,}/g,'[…]').replace(/\s+/g,' ').trim().slice(0,140) : '';
 const str = (value,max=2200) => typeof value==='string'?value.trim().slice(0,max):'';
 const dayKey = now => new Date(now+7*3600000).toISOString().slice(0,10);
 export function brandProfile(store) { const p=store.setting('assistant.brand',{});return {...BRAND,audience:p.audience||BRAND.audience,tone:p.tone||BRAND.tone}; }
@@ -115,10 +117,13 @@ export function createAssistant(store,options={}) {
     running=true;u[kind]++;store.set('assistant.usage.'+dayKey(Date.now()),u);store.set('assistant.lastRequest',Date.now());
     const name=provider==='gemini'?'Gemini':'OpenAI';
     try {
-      const response=await request(c);
-      if(!response.ok){let reason='';try{reason=JSON.stringify(await response.json());}catch{}
+      let response=await request(c);
+      // Google's 500/503/504 answers ("overloaded", "unavailable") are usually gone a moment later: retry twice before giving up.
+      for(const wait of [2500,6000]){if(![500,502,503,504].includes(response.status))break;await new Promise(r=>setTimeout(r,options.retryMs??wait));response=await request(c);}
+      if(!response.ok){let reason='',detail='';try{const body=await response.json();reason=JSON.stringify(body);detail=safeReason(body?.error?.message||body?.error?.status||'');}catch{}
+        console.warn('[assistant]',provider,'HTTP',response.status,detail||'(no detail)');
         const badKey=response.status===401||response.status===403||/API_KEY_INVALID|API key not valid/i.test(reason);
-        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:`${name} could not complete the request yet. Try again later.`,502);}
+        throw fail(badKey?`The ${name} API key was rejected. Check the key in Settings.`:response.status===429?`The ${name} API quota or limit is insufficient. Check the ${provider==='gemini'?'Google AI Studio':'OpenAI'} dashboard.`:response.status===404?`Model ${name} not found. Check the model name in Settings.`:`${name} could not complete the request yet (HTTP ${response.status}${detail?': '+detail:''}). Try again later.`,502);}
       return await response.json();
     }catch(e){if(e.status)throw e;throw fail('The AI connection was lost or timed out. No result is available yet; the request still counts and may incur charges. It is not retried automatically.',502);}finally{running=false;}
   }
