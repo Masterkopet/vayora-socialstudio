@@ -55,10 +55,10 @@ export function createPackageImport(ctx) {
     const summary = st.media.length || st.texts.length ? `<p class="vs-mini">${st.media.length} video/foto · ${usedSources.length ? 'teks dari ' + usedSources.map(s => `<b>${esc(s.name)}</b>`).join(', ') : 'belum ada file teks judul/deskripsi'}${otherSources ? ` · ${otherSources} file teks lain hanya melengkapi yang kosong` : ''} · ${rows.length} konten terbaca.</p>` : '';
     const s1 = step(1, 'Pilih folder atau file', `<p class="vs-sub">Pilih satu folder (subfolder ikut dibaca) atau beberapa file sekaligus. Yang dikenali:</p>
 <ul class="vs-help-list"><li><b>Video & foto</b>: MP4, JPG, PNG, WebP. Dicocokkan lewat nama file di paket, kode konten (V01-…, C01-slide-1…), nomor di nama file, atau folder episode (01 - Judul/Video/…).</li><li><b>Teks</b>: paket JSON/CSV (judul, deskripsi, tags, file, tanggal, jam), file .txt per episode (JUDUL, DESKRIPSI LENGKAP, TAGS), atau daftar caption Markdown (## V01 … Caption:).</li><li>Folder proyek seperti node_modules diabaikan.</li></ul>
-<div class="vs-two"><label class="vs-label">Folder<input class="vs-input" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-label">Atau file<input class="vs-input" type="file" id="pkg-files" multiple accept=".json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div>
+<div class="vs-dropzone" id="pkg-drop">${ctx.icon ? ctx.icon('upload') : ''}<b>${st.media.length || st.texts.length ? 'Tambah lagi: tarik & lepas folder atau file di sini' : 'Tarik & lepas folder atau file di sini'}</b><span>atau pilih dari komputer:</span><div class="vs-actions"><label class="vs-button">Pilih folder<input class="sr-only" type="file" id="pkg-folder" webkitdirectory multiple></label><label class="vs-button">Pilih file<input class="sr-only" type="file" id="pkg-files" multiple accept=".json,.csv,.txt,.md,video/mp4,video/quicktime,image/jpeg,image/png,image/webp"></label></div></div>
 <label class="vs-label">Platform bawaan<select class="vs-input" id="pkg-platform"><option value="youtube" ${st.platform === 'youtube' ? 'selected' : ''}>YouTube Shorts</option><option value="instagram" ${st.platform === 'instagram' ? 'selected' : ''}>Instagram</option></select><small>Dipakai bila teks tidak menyebut platform. Kode S01 selalu YouTube; V01, I01, C01 selalu Instagram.</small></label>
 ${st.reading ? '<p class="vs-mini" role="status">Membaca file…</p>' : summary}`);
-    if (!rows.length) return `<div class="vs-stack">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">Belum ada konten yang bisa dibuat dari file ini. Tambahkan video/foto dan teks judul-deskripsinya.</p>' : ''}</div>`;
+    if (!rows.length) return `<div class="vs-stack" id="pkg-page">${s1}${st.media.length || st.texts.length ? '<p class="vs-empty">Belum ada konten yang bisa dibuat dari file ini. Tambahkan video/foto dan teks judul-deskripsinya.</p>' : ''}</div>`;
     const dayBoxes = WEEKDAYS.map(([d, label]) => `<label class="vs-check vs-day"><input type="checkbox" data-pkg-day="${d}" ${st.days.includes(d) ? 'checked' : ''}><span>${label}</span></label>`).join('');
     const s2 = step(2, 'Atur jadwal', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="pkg-mode" value="scheduled" ${st.mode === 'scheduled' ? 'checked' : ''}><span><b>Jadwalkan otomatis</b> · terbit sesuai tanggal di tabel</span></label><label class="vs-check"><input type="radio" name="pkg-mode" value="review" ${st.mode === 'review' ? 'checked' : ''}><span><b>Ajukan untuk ditinjau</b> · tanggal disimpan, dijadwalkan setelah diperiksa</span></label><label class="vs-check"><input type="radio" name="pkg-mode" value="draft" ${st.mode === 'draft' ? 'checked' : ''}><span><b>Simpan sebagai draft</b> · caption boleh kosong, dilengkapi nanti</span></label></div>
 ${st.mode === 'draft' ? '' : `<div class="vs-two"><label class="vs-label">Mulai tanggal<input class="vs-input" type="date" id="pkg-start" value="${esc(st.start)}"></label><label class="vs-label">Jam terbit (WIB)<input class="vs-input" id="pkg-times" value="${esc(st.times)}" placeholder="19:00, 09:00"><small>Pisahkan dengan koma untuk lebih dari satu jam per hari.</small></label></div>
@@ -80,7 +80,7 @@ ${rows.some(r => platformOf(r) === 'youtube') ? `<label class="vs-check"><input 
 ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="pkg-approved" ${st.approved ? 'checked' : ''} ${st.running ? 'disabled' : ''}><span>Saya sudah memeriksa video, judul, dan deskripsi di atas, dan semuanya boleh terbit sesuai jadwal.</span></label>` : ''}
 <div class="vs-actions">${st.done ? button('Lihat pustaka', 'pkg-open', 'vs-primary', 'layout-grid') : button(st.running ? 'Sedang memproses…' : label, 'pkg-run', 'vs-primary', 'send', !count || st.running || (st.mode === 'scheduled' && !st.approved) ? 'disabled' : '')}${button('Mulai ulang', 'pkg-reset', 'vs-text-button', '', st.running ? 'disabled' : '')}</div>
 <p class="vs-mini">File diunggah satu per satu dari komputer ini; biarkan halaman tetap terbuka sampai selesai. YouTube mengunggah video pada waktu jadwalnya, jadi jadwal yang tersebar juga menjaga kuota harian.</p>`);
-    return `<div class="vs-stack">${s1}${s2}${s3}</div>`;
+    return `<div class="vs-stack" id="pkg-page">${s1}${s2}${s3}</div>`;
   }
 
   // ---------- run ----------
@@ -134,6 +134,16 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
   function bind() {
     const root = ctx.root(), on = (sel, ev, fn) => root.querySelectorAll(sel).forEach(el => el.addEventListener(ev, e => fn(el, e)));
     on('#pkg-folder,#pkg-files', 'change', el => { if (el.files.length) void addFiles([...el.files]); });
+    // Drag & drop of files or whole folders anywhere on the page.
+    const page = root.querySelector('#pkg-page'), zone = root.querySelector('#pkg-drop');
+    if (page && zone) {
+      let depth = 0;
+      const hasFiles = e => [...(e.dataTransfer?.items || [])].some(i => i.kind === 'file');
+      page.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; zone.classList.add('is-dragging'); });
+      page.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = st.running ? 'none' : 'copy'; });
+      page.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; zone.classList.remove('is-dragging'); } });
+      page.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; zone.classList.remove('is-dragging'); if (st.running) return; const pending = droppedFiles(e.dataTransfer); st.reading = true; ctx.render(); void pending.then(addFiles).catch(() => { st.reading = false; ctx.render(); toast('Sebagian file tidak dapat dibaca. Coba pilih lewat tombol.', true); }); });
+    }
     on('#pkg-platform', 'change', el => { st.platform = el.value; rebuild(); ctx.render(); });
     on('[name="pkg-mode"]', 'change', el => { st.mode = el.value; ctx.render(); });
     on('#pkg-start', 'change', el => { st.start = el.value; clearOverrides(); ctx.render(); });
@@ -156,6 +166,20 @@ ${st.mode === 'scheduled' ? `<label class="vs-check"><input type="checkbox" id="
       try { return await call(); }
       catch (e) { if (attempt < 4 && /Tunggu beberapa detik|sedang berjalan/.test(e.message || '')) { await new Promise(r => setTimeout(r, 6000)); continue; } throw e; }
     }
+  }
+  // Turns a drop into File objects with folder paths like the folder picker gives ("Short YT/01 - …/Video/x.mp4").
+  // Entries must be taken synchronously during the drop event; folders such as node_modules are never opened.
+  function droppedFiles(dataTransfer) {
+    const entries = [...dataTransfer.items].filter(i => i.kind === 'file').map(i => i.webkitGetAsEntry?.()).filter(Boolean);
+    if (!entries.length) return Promise.resolve([...dataTransfer.files]);
+    const out = [], SKIP = /^(node_modules|\.git|\.next|dist|build|out|cache|tmp)$/i;
+    async function walk(entry, prefix) {
+      if (entry.isFile) { const file = await new Promise((resolve, reject) => entry.file(resolve, reject)); if (prefix) Object.defineProperty(file, 'webkitRelativePath', { value: prefix + file.name }); out.push(file); return; }
+      if (!entry.isDirectory || SKIP.test(entry.name) || entry.name.startsWith('.')) return;
+      const reader = entry.createReader();
+      for (;;) { const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject)); if (!batch.length) break; for (const child of batch) await walk(child, prefix + entry.name + '/'); }
+    }
+    return entries.reduce((p, entry) => p.then(() => walk(entry, '')), Promise.resolve()).then(() => out);
   }
   const clearOverrides = () => Object.values(st.edits).forEach(e => { e.override = null; });
   async function action(name) {

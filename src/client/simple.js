@@ -77,7 +77,7 @@ export function createSimpleViews(ctx) {
     const mediaHint = yt ? 'Pilih 1 video MP4 vertikal, maksimal 3 menit.' : 'Pilih 1 foto, 2–20 foto untuk carousel, atau 1 video untuk Reel.';
     const files = f.media.length ? `<ul class="vs-create-files">${f.media.map(m => `<li>${esc(m.name)}${m.duration ? ' · ' + Math.round(m.duration) + ' dtk' : ''}</li>`).join('')}</ul>` : '';
     const g1 = group(1, 'Mau posting ke mana?', `<div class="vs-choice-grid">${choice('instagram', 'Instagram', 'Foto, carousel, atau Reel')}${choice('youtube', 'YouTube Shorts', 'Video vertikal maksimal 3 menit')}</div>`);
-    const g2 = group(2, 'Pilih foto atau video', `<p class="vs-mini">${mediaHint}</p><input class="vs-input" type="file" id="create-files" aria-label="Pilih foto atau video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Mengunggah…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Jenis konten: <b>' + formatLabel[format] + '</b>' : 'Kombinasi file ini tidak didukung. ' + mediaHint}</p>` : ''}`);
+    const g2 = group(2, 'Pilih foto atau video', `<label class="vs-dropzone" id="create-drop">${icon('upload')}<b>${f.media.length ? 'Ganti file: tarik & lepas di sini' : 'Tarik & lepas file di sini'}</b><span>atau klik untuk memilih dari komputer</span><span class="vs-mini">${mediaHint}</span><input class="sr-only" type="file" id="create-files" aria-label="Pilih foto atau video" ${yt ? 'accept="video/mp4"' : 'multiple accept="image/jpeg,image/png,image/webp,video/mp4"'}></label>${f.busy && !f.media.length ? '<p class="vs-mini" role="status">Mengunggah…</p>' : ''}${files}${f.media.length ? `<p class="vs-mini">${format ? 'Jenis konten: <b>' + formatLabel[format] + '</b>' : 'Kombinasi file ini tidak didukung. ' + mediaHint}</p>` : ''}`);
     const g3 = group(3, 'Tulis judul dan caption', `${aiLine(f)}<label class="vs-label">Judul${yt ? ' <small>tampil sebagai judul video YouTube, maksimal 100 karakter</small>' : ' <small>hanya untuk tim, tidak tampil di Instagram</small>'}<input class="vs-input" id="create-title" ${f.writing ? 'disabled' : ''} maxlength="${yt ? 100 : 180}" value="${esc(f.title)}"></label><label class="vs-label">${yt ? 'Deskripsi' : 'Caption'} <small><span id="create-caption-count">${f.caption.length}</span>/2.200</small><textarea class="vs-input" id="create-caption" ${f.writing ? 'disabled' : ''} maxlength="2200" style="min-height:160px">${esc(f.caption)}</textarea></label>${ai?.textConfigured ? '' : '<p class="vs-mini">Butuh ide? Setelah disimpan, buka konten lalu gunakan Asisten caption.</p>'}${yt && f.tags.length ? `<p class="vs-mini">Tags YouTube: ${esc(f.tags.join(', '))}</p>` : ''}`, !format, 'Aktif setelah foto atau video diunggah.');
     const g4 = group(4, 'Kapan diposting?', `<div class="vs-stack"><label class="vs-check"><input type="radio" name="create-when" value="review" ${f.when === 'review' ? 'checked' : ''}><span><b>Ajukan untuk ditinjau</b> · pemilik memeriksa dulu sebelum dijadwalkan</span></label><label class="vs-check"><input type="radio" name="create-when" value="scheduled" ${f.when === 'scheduled' ? 'checked' : ''}><span><b>Jadwalkan sekarang</b> · terbit otomatis pada waktu yang dipilih</span></label><label class="vs-check"><input type="radio" name="create-when" value="draft" ${f.when === 'draft' ? 'checked' : ''}><span><b>Simpan sebagai draft</b> · lanjutkan nanti</span></label>${f.when === 'scheduled' ? `<div class="vs-two"><label class="vs-label">Tanggal<input class="vs-input" type="date" id="create-date" value="${esc(f.date)}"></label><label class="vs-label">Jam (WIB)<input class="vs-input" type="time" id="create-time" value="${esc(f.time)}"></label></div><label class="vs-check"><input type="checkbox" id="create-approved" ${f.approved ? 'checked' : ''}><span>Saya sudah memeriksa foto/video dan caption, dan konten ini boleh terbit.</span></label>` : ''}</div>`, !format, 'Aktif setelah foto atau video diunggah.');
     const actions = `${f.error ? `<p class="vs-inline-error" role="alert">${esc(f.error)}</p>` : ''}<div class="vs-actions">${button(f.when === 'scheduled' ? 'Simpan & jadwalkan' : f.when === 'draft' ? 'Simpan draft' : 'Simpan & ajukan', 'create-submit', 'vs-primary', 'send', ready ? '' : 'disabled')}${button('Mulai ulang', 'create-reset', 'vs-text-button')}</div>`;
@@ -170,12 +170,30 @@ export function createSimpleViews(ctx) {
     if (ai === null && root.querySelector('#create-post')) { ai = false; api('/api/assistant').then(d => { ai = d.status || { textConfigured: false }; ctx.render(); }).catch(() => { ai = { textConfigured: false }; }); }
     root.querySelectorAll('[data-create-platform]').forEach(el => el.addEventListener('click', () => { if (flow.platform !== el.dataset.createPlatform) { flow.platform = el.dataset.createPlatform; flow.media = []; flow.slide = 0; } ctx.render(); }));
     root.querySelector('#create-files')?.addEventListener('change', e => { if (e.target.files.length) void upload([...e.target.files]); });
+    // Dropping anywhere on the page section uploads (and keeps the browser from opening the file instead).
+    const section = root.querySelector('#create-post'), zone = root.querySelector('#create-drop');
+    if (section && zone) {
+      let depth = 0;
+      const files = e => [...(e.dataTransfer?.items || [])].some(i => i.kind === 'file');
+      section.addEventListener('dragenter', e => { if (!files(e)) return; e.preventDefault(); depth++; zone.classList.add('is-dragging'); });
+      section.addEventListener('dragover', e => { if (!files(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = flow.busy ? 'none' : 'copy'; });
+      section.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; zone.classList.remove('is-dragging'); } });
+      section.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); depth = 0; zone.classList.remove('is-dragging'); if (!flow.busy) dropped([...e.dataTransfer.files]); });
+    }
     root.querySelector('#create-title')?.addEventListener('input', e => { flow.title = e.target.value; refreshSubmit(); refreshPreviewText(); });
     root.querySelector('#create-caption')?.addEventListener('input', e => { flow.caption = e.target.value; const c = root.querySelector('#create-caption-count'); if (c) c.textContent = String(e.target.value.length); refreshSubmit(); refreshPreviewText(); });
     root.querySelectorAll('[name="create-when"]').forEach(el => el.addEventListener('change', () => { flow.when = el.value; if (flow.when === 'scheduled' && !flow.date) flow.date = wibDate(new Date(Date.now() + DAY).toISOString()); ctx.render(); }));
     root.querySelector('#create-date')?.addEventListener('input', e => { flow.date = e.target.value; refreshSubmit(); });
     root.querySelector('#create-time')?.addEventListener('input', e => { flow.time = e.target.value; refreshSubmit(); });
     root.querySelector('#create-approved')?.addEventListener('change', e => { flow.approved = e.target.checked; refreshSubmit(); });
+  }
+  // Keeps only files the chosen platform accepts; YouTube takes a single MP4.
+  function dropped(list) {
+    const yt = flow.platform === 'youtube';
+    const ok = list.filter(f => yt ? /\.mp4$/i.test(f.name) || f.type === 'video/mp4' : /\.(jpe?g|png|webp|mp4)$/i.test(f.name) || /^(image\/(jpeg|png|webp)|video\/mp4)$/.test(f.type));
+    if (!ok.length) { toast(yt ? 'YouTube Shorts memerlukan video MP4.' : 'Gunakan JPG, PNG, WebP, atau MP4.', true); return; }
+    if (ok.length < list.length) toast(`${list.length - ok.length} file dilewati karena formatnya tidak didukung.`);
+    void upload(yt ? ok.slice(0, 1) : ok);
   }
   // Typing must not re-render (focus would jump); only the submit button state follows the inputs.
   function refreshSubmit() {
