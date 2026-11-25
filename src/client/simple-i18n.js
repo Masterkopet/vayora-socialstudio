@@ -1,5 +1,13 @@
 // Indonesian translations for the home page, the "Create post" flow, problem alerts and the simplified menu (see simple.js, navigation.js).
 export const simpleStrings={
+"Loading the models available to this key…":"Memuat model yang tersedia untuk kunci ini…",
+"Only models this key can use are listed. Flash suits captions and articles; if one is busy, Studio tries another flash model automatically.":"Hanya model yang bisa dipakai kunci ini yang ditampilkan. Flash cocok untuk caption dan artikel; jika satu model sibuk, Studio otomatis mencoba model flash lain.",
+"Current setting, not in the list for this key":"Pengaturan saat ini, tidak ada di daftar kunci ini",
+"Always the newest version; can be busy at peak times":"Selalu versi terbaru; bisa sibuk saat ramai",
+"Fastest and cheapest; simpler writing":"Paling cepat dan murah; tulisan lebih sederhana",
+"Best writing; slower and costs more":"Tulisan terbaik; lebih lambat dan lebih mahal",
+"Fast; good for captions and articles":"Cepat; cocok untuk caption dan artikel",
+"Blog header images":"Gambar utama blog",
 "Not set up":"Belum diatur",
 "Connect":"Hubungkan",
 "Instagram is not connected. Posts here cannot be published until it is.":"Instagram belum terhubung. Posting di sini belum bisa terbit sebelum terhubung.",
@@ -569,6 +577,7 @@ export const simpleStrings={
 "Open brand knowledge":"Buka pengetahuan brand"
 };
 export const simplePatterns=[
+[/^(.+?) · (Always the newest version; can be busy at peak times|Fastest and cheapest; simpler writing|Best writing; slower and costs more|Fast; good for captions and articles|Blog header images|Current setting, not in the list for this key)( · preview, may change)?$/,(_,name,hint,pre)=>`${name} · ${{"Always the newest version; can be busy at peak times":"Selalu versi terbaru; bisa sibuk saat ramai","Fastest and cheapest; simpler writing":"Paling cepat dan murah; tulisan lebih sederhana","Best writing; slower and costs more":"Tulisan terbaik; lebih lambat dan lebih mahal","Fast; good for captions and articles":"Cepat; cocok untuk caption dan artikel","Blog header images":"Gambar utama blog","Current setting, not in the list for this key":"Pengaturan saat ini, tidak ada di daftar kunci ini"}[hint]}${pre?" · pratinjau, bisa berubah":""}`],
 [/^(.+), (not connected|not set up)$/,(_,n,s)=>`${n}, ${s==="not set up"?"belum diatur":"belum terhubung"}`],
 [/^(.+) was removed because these files do not fit there\.$/,(_,n)=>`${n} dihapus karena file ini tidak cocok di sana.`],
 [/^I have checked the photo\/video and caption for (.+), and this content may go live\.$/,(_,n)=>`Saya sudah memeriksa foto/video dan caption untuk ${n}, dan konten ini boleh tayang.`],

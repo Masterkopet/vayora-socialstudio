@@ -117,6 +117,7 @@ export function createApp(options={}) {
  app.get('/api/assistant/knowledge',(req,res)=>{const query=String(req.query.q||'').slice(0,250),topic=String(req.query.topic||'').slice(0,80),status=String(req.query.status||'').slice(0,40);res.json({overview:knowledgeOverview(),facts:searchKnowledge({query,topic,status}),campaigns:campaignReferences(query)});});
  app.get('/api/assistant/knowledge/export',(_req,res)=>{res.set('Content-Disposition','attachment; filename="vayora-brand-knowledge.json"');res.json(exportKnowledge());});
  app.post('/api/assistant/config',auth.admin,(req,res)=>{const result=assistant.configure(req.body||{});store.event(null,'Settings updated','The API key is not shown again.','change',req.user.id);res.json(result);});
+ app.get('/api/assistant/models',auth.admin,async(_req,res)=>res.json(await assistant.geminiModels()));
  app.post('/api/assistant/check',auth.admin,async(_req,res)=>res.json(await assistant.checkGemini()));
  app.post('/api/assistant/brand',auth.admin,(req,res)=>res.json(saveBrand(store,req.body||{})));
  app.post('/api/assistant/caption',async(req,res)=>res.json(await assistant.caption(req.body||{})));

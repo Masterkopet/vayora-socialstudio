@@ -6,6 +6,22 @@ import { BRAND_DEFAULT, relevantKnowledge, knowledgeContext, knowledgeWarnings, 
 
 export const BRAND = BRAND_DEFAULT;
 
+// Sorts Gemini models into what the Settings dropdowns offer: writing models (flash, flash-lite, pro; no audio, live, embedding
+// or robotics variants) and image models, each with a short plain-language hint. Aliases (…-latest) come first, then newer
+// versions, then stable before preview.
+const GEMINI_SKIP = /(embedding|aqa|tts|audio|live|native|robotics|computer-use|veo|imagen|gemma|learnlm|nano|thinking)/;
+export function classifyGeminiModels(list) {
+  const version = id => Number((id.match(/^gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  const family = id => /flash-lite/.test(id) ? 1 : /flash/.test(id) ? 0 : 2;
+  const preview = id => /preview|exp/.test(id);
+  const order = (a, b) => (a.id.endsWith('-latest') ? 0 : 1) - (b.id.endsWith('-latest') ? 0 : 1) || version(b.id) - version(a.id) || family(a.id) - family(b.id) || (preview(a.id) ? 1 : 0) - (preview(b.id) ? 1 : 0) || a.id.localeCompare(b.id);
+  const hint = id => [id.endsWith('-latest') ? 'Always the newest version; can be busy at peak times' : /flash-lite/.test(id) ? 'Fastest and cheapest; simpler writing' : /pro/.test(id) ? 'Best writing; slower and costs more' : 'Fast; good for captions and articles', preview(id) ? 'preview, may change' : ''].filter(Boolean).join(' · ');
+  const seen = new Set(), unique = list.filter(m => !seen.has(m.id) && seen.add(m.id));
+  const text = unique.filter(m => /^gemini-/.test(m.id) && /(flash|pro)/.test(m.id) && !/image/.test(m.id) && !GEMINI_SKIP.test(m.id)).sort(order).map(m => ({ ...m, hint: hint(m.id) }));
+  const image = unique.filter(m => /^gemini-/.test(m.id) && /image/.test(m.id) && !/(tts|audio|live)/.test(m.id)).sort(order).map(m => ({ ...m, hint: ['Blog header images', preview(m.id) ? 'preview, may change' : ''].filter(Boolean).join(' · ') }));
+  return { text, image };
+}
+
 const topics = {
   Operasional: { keyword:'housekeeping villa', tags:['#ManajemenVilla','#HousekeepingVilla'], hooks:['Tamu sudah datang. Kamarnya sudah siap?','Status kamar perlu jelas sebelum tamu tiba.','Satu foto membantu tim mengambil keputusan.'], benefit:'Pantau pekerjaan housekeeping, bukti foto, dan persetujuan kesiapan kamar dari satu dasbor.' },
   Reservasi: { keyword:'kalender reservasi villa', tags:['#ReservasiVilla','#PMSVilla'], hooks:['Kelola beberapa villa, masih cek kalender satu-satu?','Satu kalender untuk reservasi beberapa villa.','Villa utuh atau per kamar, ketersediaannya tetap terpantau.'], benefit:'Lihat reservasi dan ketersediaan villa dalam satu kalender Vayora, baik untuk sewa utuh maupun per kamar.' },
@@ -110,23 +126,34 @@ export function createAssistant(store,options={}) {
   // usually fine. They are read from the key's own model list (so only models it can use are tried) and kept for six hours;
   // without that list, the stable flash models are tried.
   const GEMINI_FALLBACK_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite'];
-  let alternateCache={at:0,list:null};
-  async function geminiAlternates(c,current){
-    let list=Date.now()-alternateCache.at<6*3600000?alternateCache.list:null;
-    if(!list){
-      try{
-        const response=await transport('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':c.geminiKey},signal:AbortSignal.timeout(15000)});
-        if(!response.ok)throw Error('list');
-        const usable=((await response.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>String(m.name||'').replace(/^models\//,''));
-        const version=n=>Number((n.match(/^gemini-(\d+(?:\.\d+)?)-/)||[])[1]||0);
-        const flash=usable.filter(n=>/^gemini-\d+(?:\.\d+)?-flash$/.test(n)).sort((a,b)=>version(b)-version(a));
-        const lite=usable.filter(n=>/^gemini-\d+(?:\.\d+)?-flash-lite$/.test(n)).sort((a,b)=>version(b)-version(a));
-        list=[...flash,...usable.filter(n=>n==='gemini-flash-latest'),...lite,...usable.filter(n=>n==='gemini-flash-lite-latest')];
-        if(!list.length)throw Error('none');
-        alternateCache={at:Date.now(),list};
-      }catch{list=GEMINI_FALLBACK_MODELS;}
+  let modelCache={at:0,key:'',list:null};
+  // Every model this key may call with generateContent ({id, label}), from Google's own list; kept six hours per key.
+  async function geminiModelList(c){
+    if(modelCache.list&&modelCache.key===c.geminiKey&&Date.now()-modelCache.at<6*3600000)return modelCache.list;
+    const list=[];let token='';
+    for(let page=0;page<3;page++){
+      const response=await transport('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200'+(token?'&pageToken='+encodeURIComponent(token):''),{headers:{'x-goog-api-key':c.geminiKey},signal:AbortSignal.timeout(15000)});
+      if(!response.ok)throw fail(response.status===400||response.status===401||response.status===403?'The Gemini API key was rejected. Check the key in Settings.':`Google did not return the model list (HTTP ${response.status}). Try again later.`,502);
+      const body=await response.json();
+      for(const m of body.models||[])if((m.supportedGenerationMethods||[]).includes('generateContent')){const id=String(m.name||'').replace(/^models\//,'');if(/^gemini-[a-z0-9.-]{1,70}$/.test(id))list.push({id,label:str(m.displayName,80)||id});}
+      token=body.nextPageToken||'';if(!token)break;
     }
-    return list.filter(n=>n!==current).slice(0,2);
+    modelCache={at:Date.now(),key:c.geminiKey,list};
+    return list;
+  }
+  // Busy fallback: newest numbered flash models, then the aliases, then the lite ones.
+  async function geminiAlternates(c,current){
+    let ids;
+    try{const {text}=classifyGeminiModels(await geminiModelList(c));const flash=text.filter(m=>/flash/.test(m.id)&&!/preview|exp/.test(m.id));ids=[...flash.filter(m=>!/lite/.test(m.id)),...flash.filter(m=>/lite/.test(m.id))].map(m=>m.id);if(!ids.length)throw Error('none');}
+    catch{ids=GEMINI_FALLBACK_MODELS;}
+    return ids.filter(n=>n!==current).slice(0,2);
+  }
+  // For the Settings dropdowns: the text and image models of this key, with the saved choice.
+  async function geminiModels(){
+    const c=config();
+    if(!c.geminiKey)throw fail('Connect the Gemini API in Settings first. Local mode is still available.',409);
+    const {text,image}=classifyGeminiModels(await geminiModelList(c));
+    return {text,image,current:{text:c.geminiModel||GEMINI_DEFAULT_MODEL,image:c.geminiImageModel||GEMINI_IMAGE_DEFAULT_MODEL},defaults:{text:GEMINI_DEFAULT_MODEL,image:GEMINI_IMAGE_DEFAULT_MODEL}};
   }
   async function paid(kind,provider,request,{alternates=null}={}) {
     const c=config();
@@ -299,5 +326,5 @@ export function createAssistant(store,options={}) {
     let png;try{png=await sharp(Buffer.from(encoded,'base64'),{limitInputPixels:40000000}).resize(1600,900,{fit:'cover'}).png().toBuffer();}catch{throw fail('The generated image could not be read. Try again.',502);}
     return registerImage(store,png,'blog-hero-'+Date.now()+'.png',{kind:'ai-hero',provider,model,prompt:prompt.slice(0,500)});
   }
-  return {status,configure,caption,background,draft,article,checkGemini,heroImage};
+  return {status,configure,caption,background,draft,article,checkGemini,geminiModels,heroImage};
 }

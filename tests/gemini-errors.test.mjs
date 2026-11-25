@@ -106,3 +106,29 @@ test('if every model is busy, at most two others are tried and the message stays
     assert.equal(seen.length, 5, 'three tries on the chosen model, one on each fallback');
   } finally { await f.cleanup(); }
 });
+
+test('the model dropdowns list only usable writing and image models, sorted and explained', async () => {
+  const { classifyGeminiModels } = await import('../src/assistant.mjs');
+  const ids = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.0-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.5-flash-image', 'gemini-2.5-flash-preview-tts', 'gemini-2.0-flash-live-001', 'gemini-embedding-001', 'gemma-3-27b-it', 'gemini-3.0-flash', 'gemini-2.5-flash'];
+  const { text, image } = classifyGeminiModels(ids.map(id => ({ id, label: id })));
+  assert.deepEqual(text.map(m => m.id), ['gemini-flash-latest', 'gemini-3.0-flash', 'gemini-3.0-pro-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'], 'aliases first, newest versions next; no audio, live, embedding or Gemma; no duplicates');
+  assert.deepEqual(image.map(m => m.id), ['gemini-2.5-flash-image']);
+  assert.equal(text.find(m => m.id === 'gemini-2.5-flash-lite').hint, 'Fastest and cheapest; simpler writing');
+  assert.equal(text.find(m => m.id === 'gemini-3.0-pro-preview').hint, 'Best writing; slower and costs more · preview, may change');
+  assert.match(text[0].hint, /^Always the newest version/);
+});
+
+test('the model list comes from the key, is cached, and needs a key', async () => {
+  const f = await fixture();
+  try {
+    let lists = 0;
+    const ai = createAssistant(f.store, { fetch: async url => { if (new URL(url).pathname === '/v1beta/models') { lists++; return Response.json({ models: [{ name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-2.5-flash-image', displayName: 'Nano Banana', supportedGenerationMethods: ['generateContent'] }, { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] }] }); } throw Error('unexpected'); } });
+    await assert.rejects(() => ai.geminiModels(), e => e.status === 409);
+    ai.configure({ geminiKey: KEY, geminiModel: 'gemini-2.5-flash' });
+    const list = await ai.geminiModels();
+    assert.deepEqual(list.text.map(m => [m.id, m.label]), [['gemini-2.5-flash', 'Gemini 2.5 Flash']]);
+    assert.deepEqual(list.image.map(m => m.id), ['gemini-2.5-flash-image']);
+    assert.deepEqual(list.current, { text: 'gemini-2.5-flash', image: 'gemini-2.5-flash-image' });
+    await ai.geminiModels(); assert.equal(lists, 1, 'cached');
+  } finally { await f.cleanup(); }
+});
