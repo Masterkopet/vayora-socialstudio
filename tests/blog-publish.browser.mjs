@@ -32,8 +32,7 @@ try {
   await page.locator('#blog-editor').waitFor();
   const publish = page.locator('[data-action="blog-publish"]');
   assert.equal(await publish.isDisabled(), true, 'Publish now waits for the approval');
-  // The approval box is on the "When" step, which must offer it for an existing draft.
-  const tab = page.locator('#tab-blog-editor-publish'); if (await tab.count()) await tab.click();
+  // The approval box sits right above the buttons it unlocks, without opening any tab.
   await page.locator('#blog-approved').check();
   assert.equal(await publish.isDisabled(), false, 'approved articles can be published now');
   if (errors.length) throw Error(errors.join('\n'));
