@@ -114,3 +114,12 @@ test('status dots: only the libraries named in `health` get one, with text for s
   assert.match(tiles, /aria-label="Facebook library, not connected"[\s\S]*?vs-health-dot bad/);
   assert.equal((tiles.match(/vs-health-dot/g) || []).length, 2);
 });
+
+test('legal pages: privacy and terms have the same sections in Indonesian and English', async () => {
+  const { privacy, terms } = await import('../src/legal/content.js');
+  for (const doc of [privacy, terms]) {
+    assert.equal(doc.id.sections.length, doc.en.sections.length, 'both languages cover the same sections');
+    for (const lang of ['id', 'en']) for (const s of doc[lang].sections) assert.ok((s.p?.length || 0) + (s.ul?.length || 0) > 0, 'every section has text: ' + s.h);
+  }
+  assert.ok(privacy.en.sections.some(s => /TikTok/.test(s.h)) && privacy.id.sections.some(s => /TikTok/.test(s.h)));
+});
