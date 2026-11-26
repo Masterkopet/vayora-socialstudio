@@ -64,6 +64,23 @@ try {
   await page.goto('http://localhost:3216/library'); await page.locator('#library-search').waitFor();
   assert.equal(await page.locator('.vs-content-card').count(), 0, 'the TikTok post is not in the Instagram library');
 
+  // TikTok post settings on the post itself: nothing preselected, interactions off, saved with the post.
+  runtime.store.setSecret('tiktok.connection', { accessToken: 'act.1', expiresAt: Date.now() + 3600000, refreshToken: 'rft.1', refreshExpiresAt: Date.now() + 86400000 * 300, username: 'vayora.id', displayName: 'Vayora', privacyOptions: ['SELF_ONLY', 'PUBLIC_TO_EVERYONE'], invalid: false });
+  await page.goto('http://localhost:3216/tiktok-library'); await page.locator('.vs-content-card').first().waitFor();
+  await page.locator('[data-action^="edit:"]').first().click();
+  await page.locator('[data-action="enter-edit"]:visible').first().click();
+  await page.locator('#tt-options').waitFor();
+  assert.equal(await page.locator('#tt-opt-privacy').inputValue(), '', 'no TikTok visibility is preselected on the post');
+  assert.equal(await page.locator('#tt-opt-comment').isChecked(), false, 'interactions start off');
+  assert.equal(await page.locator('#tt-opt-duet').count(), 0, 'Duet and Stitch only exist for videos');
+  assert.ok((await page.locator('#tt-options').innerText()).includes('Vayora (@vayora.id)'));
+  assert.deepEqual(await page.locator('#tt-opt-privacy option').evaluateAll(o => o.map(x => x.value)), ['', 'SELF_ONLY', 'PUBLIC_TO_EVERYONE']);
+  await page.locator('#tt-opt-privacy').selectOption('PUBLIC_TO_EVERYONE'); await page.locator('#tt-opt-comment').check(); await page.locator('#tt-opt-consent').check();
+  await page.screenshot({ path: path.join(results, 'channels-tiktok-post-options.png'), fullPage: true });
+  await page.locator('[data-action="save:draft"]:visible').first().click();
+  await page.locator('#vs-toast').filter({ hasText: 'Draft saved' }).waitFor();
+  assert.deepEqual(runtime.store.post('T01').tiktokOptions, { privacy: 'PUBLIC_TO_EVERYONE', comment: true, duet: false, stitch: false, brandOrganic: false, brandedContent: false, musicConsent: true });
+
   // Import: a photo offers Instagram, Facebook and TikTok; a video also YouTube.
   await page.goto('http://localhost:3216/import'); await page.locator('#pkg-page').waitFor();
   await page.locator('#pkg-files').setInputFiles([{ name: 'front.jpg', mimeType: 'image/jpeg', buffer: png }, { name: 'tour.mp4', mimeType: 'video/mp4', buffer: Buffer.from('x') }]);

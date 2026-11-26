@@ -6,7 +6,7 @@ import path from 'node:path';
 import { openStore } from '../src/store.mjs';
 import { mediaPath } from '../src/media.mjs';
 import { createFacebook } from '../src/facebook.mjs';
-import { createTikTok, chunkPlan } from '../src/tiktok.mjs';
+import { createTikTok, cleanTiktokOptions, chunkPlan } from '../src/tiktok.mjs';
 import { postReadiness } from '../src/readiness.mjs';
 import { createInstagram } from '../src/instagram.mjs';
 import { createApp } from '../src/server.mjs';
@@ -224,6 +224,27 @@ test('TikTok inbox mode: no creator rules, no caption sent, the video lands in t
     // Installs that already chose a visibility keep Direct Post until the mode is changed.
     w.store.setSecret('tiktok.config', { clientKey: 'awclientkey123', clientSecret: 'secret-fixture', privacy: 'SELF_ONLY', brandOrganic: true });
     assert.equal(createTikTok(w.store, () => BASE, { fetch: t.fetch }).status().mode, 'direct');
+  } finally { await w.cleanup(); }
+});
+
+test('TikTok per-post options: own visibility, interactions off by default, disclosure flags, and the music consent is required', async () => {
+  const w = await workspace();
+  try {
+    connectTikTok(w.store, '', 'direct');
+    await addMedia(w.store, { id: 'vid', mime: 'video/mp4', duration: 35, size: 9, width: 1080, height: 1920, bytes: Buffer.from('ninebytes') });
+    assert.deepEqual(cleanTiktokOptions({ privacy: 'NOPE', comment: 'yes' }), { privacy: '', comment: false, duet: false, stitch: false, brandOrganic: false, brandedContent: false, musicConsent: false });
+    assert.equal(cleanTiktokOptions(null), null);
+    let t = tiktokApi({ privacy: ['SELF_ONLY', 'PUBLIC_TO_EVERYONE'] }); let tt = createTikTok(w.store, () => BASE, { fetch: t.fetch, pollMs: 0 });
+    scheduled(w.store, { id: 'T01', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], tiktokOptions: cleanTiktokOptions({ privacy: '', musicConsent: true }) });
+    assert.match((await tt.run('T01', sign)).error, /Choose who can see this TikTok post/); assert.ok(!t.calls.init);
+    scheduled(w.store, { id: 'T02', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], scheduleAt: new Date(Date.now() - 2000).toISOString(), tiktokOptions: cleanTiktokOptions({ privacy: 'PUBLIC_TO_EVERYONE' }) });
+    assert.match((await tt.run('T02', sign)).error, /Music Usage Confirmation/); assert.ok(!t.calls.init);
+    scheduled(w.store, { id: 'T03', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], scheduleAt: new Date(Date.now() - 3000).toISOString(), tiktokOptions: cleanTiktokOptions({ privacy: 'SELF_ONLY', brandedContent: true, musicConsent: true }) });
+    assert.match((await tt.run('T03', sign)).error, /Branded content cannot be private/); assert.ok(!t.calls.init);
+    scheduled(w.store, { id: 'T04', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], scheduleAt: new Date(Date.now() - 4000).toISOString(), tiktokOptions: cleanTiktokOptions({ privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, musicConsent: true }) });
+    assert.equal((await tt.run('T04', sign)).status, 'published');
+    const info = t.calls.init.post_info;
+    assert.deepEqual([info.privacy_level, info.disable_comment, info.disable_duet, info.disable_stitch, info.brand_organic_toggle, info.brand_content_toggle], ['PUBLIC_TO_EVERYONE', false, true, true, true, false]);
   } finally { await w.cleanup(); }
 });
 

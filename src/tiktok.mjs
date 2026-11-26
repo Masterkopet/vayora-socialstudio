@@ -32,6 +32,14 @@ const MESSAGES = {
 };
 
 // Chunk plan TikTok accepts: up to 64 MB in one piece; larger files in 10 MB chunks, the remainder joins the last chunk.
+// Per-post choices shown on the TikTok post (TikTok's Direct Post rules: nothing preselected, interaction switches off by default,
+// commercial disclosure and the music usage consent are explicit). Returns null when the post has none (older posts use Settings).
+export function cleanTiktokOptions(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const privacy = TIKTOK_PRIVACY.includes(raw.privacy) ? raw.privacy : '';
+  return { privacy, comment: raw.comment === true, duet: raw.duet === true, stitch: raw.stitch === true, brandOrganic: raw.brandOrganic === true, brandedContent: raw.brandedContent === true, musicConsent: raw.musicConsent === true };
+}
+
 export function chunkPlan(size) {
   if (size <= SINGLE_MAX) return { chunkSize: size, count: 1 };
   return { chunkSize: CHUNK, count: Math.floor(size / CHUNK) };
@@ -195,21 +203,24 @@ export function createTikTok(store, getPublicBase, options = {}) {
     item.status = 'processing'; item.error = ''; item.job = item.job || {}; item = store.savePost(item);
     const save = () => { item = store.savePost(item); };
     try {
-      const token = await accessToken(), cfg = config(), inbox = cfg.mode === 'inbox';
+      const token = await accessToken(), cfg = config(), inbox = cfg.mode === 'inbox', opts = item.tiktokOptions || null, privacy = opts?.privacy || cfg.privacy;
       let creator = { privacyOptions: [], maxDuration: connection()?.maxDuration || null, commentDisabled: false, duetDisabled: false, stitchDisabled: false };
       if (!inbox) {
         creator = await readCreator(token);
         store.setSecret('tiktok.connection', { ...connection(), username: creator.username || connection().username, privacyOptions: creator.privacyOptions, maxDuration: creator.maxDuration });
-        if (!cfg.privacy) throw fail('Choose who can see TikTok posts in Settings → TikTok first.', 'TIKTOK_PRIVACY');
-        if (!creator.privacyOptions.includes(cfg.privacy)) throw fail(MESSAGES.privacy_level_option_mismatch, 'TIKTOK_PRIVACY');
+        if (!privacy) throw fail(opts ? 'Choose who can see this TikTok post first.' : 'Choose who can see TikTok posts in Settings → TikTok first.', 'TIKTOK_PRIVACY');
+        if (!creator.privacyOptions.includes(privacy)) throw fail(MESSAGES.privacy_level_option_mismatch, 'TIKTOK_PRIVACY');
+        if (opts && !opts.musicConsent) throw fail('Confirm the TikTok Music Usage Confirmation on the post before publishing.', 'TIKTOK_CONSENT');
+        if (opts?.brandedContent && privacy === 'SELF_ONLY') throw fail('Branded content cannot be private. Choose another visibility or turn off the paid partnership label.', 'TIKTOK_PRIVACY');
       }
       item.job.inbox = inbox; save();
-      const disclose = { brand_content_toggle: false, brand_organic_toggle: cfg.brandOrganic };
+      const disclose = opts ? { brand_content_toggle: opts.brandedContent, brand_organic_toggle: opts.brandOrganic } : { brand_content_toggle: false, brand_organic_toggle: cfg.brandOrganic };
+      const allow = opts ? { disable_comment: creator.commentDisabled || !opts.comment, disable_duet: creator.duetDisabled || !opts.duet, disable_stitch: creator.stitchDisabled || !opts.stitch } : { disable_comment: creator.commentDisabled, disable_duet: creator.duetDisabled, disable_stitch: creator.stitchDisabled };
       if (item.format === 'Reel') {
         const media = store.get('SELECT * FROM media WHERE id=?', item.mediaIds[0]);
         if (creator.maxDuration && Number(media.duration) > creator.maxDuration) throw fail(`This TikTok account accepts videos up to ${creator.maxDuration} seconds.`, 'TIKTOK_DURATION');
         const size = Number(media.size), plan = chunkPlan(size);
-        const info = inbox ? null : { title: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, disable_duet: creator.duetDisabled, disable_stitch: creator.stitchDisabled, is_aigc: !!item.syntheticMedia, ...disclose };
+        const info = inbox ? null : { title: item.caption, privacy_level: privacy, ...allow, is_aigc: !!item.syntheticMedia, ...disclose };
         if (info && item.coverTime != null) info.video_cover_timestamp_ms = Math.round(item.coverTime * 1000);
         // The inbox upload carries no caption or settings: those are chosen in the TikTok app when the draft is posted.
         const source = { source: 'FILE_UPLOAD', video_size: size, chunk_size: plan.chunkSize, total_chunk_count: plan.count };
@@ -226,7 +237,7 @@ export function createTikTok(store, getPublicBase, options = {}) {
         const photoSource = { source: 'PULL_FROM_URL', photo_cover_index: 0, photo_images: images };
         const init = inbox
           ? await api('/v2/post/publish/content/init/', { source_info: photoSource, post_mode: 'MEDIA_UPLOAD', media_type: 'PHOTO' }, token)
-          : await api('/v2/post/publish/content/init/', { post_info: { title: String(item.title || '').slice(0, TIKTOK_PHOTO_TITLE_MAX), description: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, auto_add_music: true, ...disclose }, source_info: photoSource, post_mode: 'DIRECT_POST', media_type: 'PHOTO' }, token);
+          : await api('/v2/post/publish/content/init/', { post_info: { title: String(item.title || '').slice(0, TIKTOK_PHOTO_TITLE_MAX), description: item.caption, privacy_level: privacy, disable_comment: allow.disable_comment, auto_add_music: true, ...disclose }, source_info: photoSource, post_mode: 'DIRECT_POST', media_type: 'PHOTO' }, token);
         if (!init.publish_id) throw fail('The publishing result cannot be confirmed yet.', 'MISSING_PUBLISH_ID');
         item.job.publishId = init.publish_id; save();
       }
