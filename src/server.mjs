@@ -212,7 +212,7 @@ export function createApp(options={}) {
  app.post('/api/facebook/check',auth.admin,async(_req,res)=>res.json(await facebook.check()));
  app.post('/api/facebook/disconnect',auth.admin,(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);facebook.disconnect();store.event(null,'Facebook disconnected','','connection',req.user.id);res.json(facebook.status());});
  // TikTok (admins): app credentials and posting choices, OAuth connection, check and disconnect.
- app.post('/api/tiktok/config',auth.admin,(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);const b=req.body||{};res.json(tiktok.saveConfig({clientKey:b.clientKey,clientSecret:b.clientSecret,privacy:b.privacy,brandOrganic:b.brandOrganic}));});
+ app.post('/api/tiktok/config',auth.admin,(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);const b=req.body||{};res.json(tiktok.saveConfig({clientKey:b.clientKey,clientSecret:b.clientSecret,privacy:b.privacy,brandOrganic:b.brandOrganic,mode:b.mode}));});
  app.post('/api/tiktok/connect',auth.admin,(req,res)=>res.json({url:tiktok.start(req.user.id,req.session.hash)}));
  app.post('/api/tiktok/check',auth.admin,async(_req,res)=>res.json(await tiktok.check()));
  app.post('/api/tiktok/disconnect',auth.admin,(req,res)=>{if(connectionBusy())throw error('Wait for the publishing in progress to finish.',409);tiktok.disconnect();store.event(null,'TikTok disconnected','','connection',req.user.id);res.json(tiktok.status());});

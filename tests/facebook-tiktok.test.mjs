@@ -119,6 +119,7 @@ function tiktokApi({ privacy = ['SELF_ONLY', 'PUBLIC_TO_EVERYONE'], statuses = [
     const ok = data => Response.json({ data, error: { code: 'ok', message: '' } });
     if (u.pathname === '/v2/post/publish/creator_info/query/') return ok({ creator_username: 'vayora.id', creator_nickname: 'Vayora', privacy_level_options: privacy, max_video_post_duration_sec: 600, comment_disabled: false, duet_disabled: false, stitch_disabled: false });
     if (u.pathname === '/v2/post/publish/video/init/') { calls.init = JSON.parse(init.body); if (initError) return Response.json({ data: {}, error: { code: initError, message: 'x' } }, { status: 403 }); return ok({ publish_id: 'pub1', upload_url: 'https://open-upload.tiktokapis.com/upload?id=1' }); }
+    if (u.pathname === '/v2/post/publish/inbox/video/init/') { calls.inboxInit = JSON.parse(init.body); return ok({ publish_id: 'pub3', upload_url: 'https://open-upload.tiktokapis.com/upload?id=3' }); }
     if (u.pathname === '/v2/post/publish/content/init/') { calls.photo = JSON.parse(init.body); return ok({ publish_id: 'pub2' }); }
     if (u.hostname === 'open-upload.tiktokapis.com') { (calls.puts ||= []).push(init.headers['Content-Range']); return new Response(null, { status: 201 }); }
     if (u.pathname === '/v2/post/publish/status/fetch/') { const status = statuses[Math.min(polls++, statuses.length - 1)]; return ok({ status, publicaly_available_post_id: status === 'PUBLISH_COMPLETE' ? ['7300000000000000001'] : [] }); }
@@ -126,8 +127,8 @@ function tiktokApi({ privacy = ['SELF_ONLY', 'PUBLIC_TO_EVERYONE'], statuses = [
   };
   return { fetch, calls };
 }
-function connectTikTok(store, privacy = 'SELF_ONLY') {
-  store.setSecret('tiktok.config', { clientKey: 'awclientkey123', clientSecret: 'secret-fixture', privacy, brandOrganic: true });
+function connectTikTok(store, privacy = 'SELF_ONLY', mode = 'direct') {
+  store.setSecret('tiktok.config', { clientKey: 'awclientkey123', clientSecret: 'secret-fixture', mode, privacy, brandOrganic: true });
   store.setSecret('tiktok.connection', { accessToken: 'act.1', expiresAt: Date.now() + 3600000, refreshToken: 'rft.1', refreshExpiresAt: Date.now() + 86400000 * 300, username: 'vayora.id', privacyOptions: ['SELF_ONLY'], invalid: false });
 }
 
@@ -199,6 +200,30 @@ test('TikTok refuses before posting when no visibility is chosen; an unaudited a
     scheduled(w.store, { id: 'T02', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], scheduleAt: new Date(Date.now() - 2000).toISOString() });
     const rejected = await tt.run('T02', sign);
     assert.equal(rejected.status, 'failed', 'TikTok refused the init: nothing went live, so it may be retried'); assert.match(rejected.error, /audited/); assert.ok(!rejected.job?.publishRequested);
+  } finally { await w.cleanup(); }
+});
+
+test('TikTok inbox mode: no creator rules, no caption sent, the video lands in the inbox and is reported as sent', async () => {
+  const w = await workspace();
+  try {
+    connectTikTok(w.store, '', 'inbox');
+    await addMedia(w.store, { id: 'vid', mime: 'video/mp4', duration: 35, size: 9, width: 1080, height: 1920, bytes: Buffer.from('ninebytes') });
+    await addMedia(w.store, { id: 'p1' });
+    let t = tiktokApi({ statuses: ['SEND_TO_USER_INBOX'] }); let tt = createTikTok(w.store, () => BASE, { fetch: t.fetch, pollMs: 0 });
+    assert.equal(tt.status().mode, 'inbox');
+    scheduled(w.store, { id: 'T01', platform: 'tiktok', format: 'Reel', mediaIds: ['vid'], caption: 'Hello' });
+    const video = await tt.run('T01', sign);
+    assert.deepEqual([video.status, video.inbox, video.permalink || ''], ['published', true, '']);
+    assert.deepEqual(t.calls.inboxInit, { source_info: { source: 'FILE_UPLOAD', video_size: 9, chunk_size: 9, total_chunk_count: 1 } });
+    assert.ok(!t.calls.init, 'the Direct Post endpoint is not used');
+    assert.ok(!t.calls.some(c => c.u.pathname === '/v2/post/publish/creator_info/query/'), 'no creator query in inbox mode');
+    scheduled(w.store, { id: 'T02', platform: 'tiktok', format: 'Gambar', mediaIds: ['p1'], scheduleAt: new Date(Date.now() - 2000).toISOString() });
+    assert.equal((await tt.run('T02', sign)).inbox, true);
+    assert.equal(t.calls.photo.post_mode, 'MEDIA_UPLOAD'); assert.ok(!t.calls.photo.post_info);
+    assert.equal(tt.saveConfig({ mode: 'direct' }).mode, 'direct'); assert.throws(() => tt.saveConfig({ mode: 'x' }), /Invalid TikTok posting mode/);
+    // Installs that already chose a visibility keep Direct Post until the mode is changed.
+    w.store.setSecret('tiktok.config', { clientKey: 'awclientkey123', clientSecret: 'secret-fixture', privacy: 'SELF_ONLY', brandOrganic: true });
+    assert.equal(createTikTok(w.store, () => BASE, { fetch: t.fetch }).status().mode, 'direct');
   } finally { await w.cleanup(); }
 });
 

@@ -44,7 +44,8 @@ export function postReadiness(store,item,instagram,youtube,{facebook=null,tiktok
       approval,
       fb?{id:'facebook',label:'Facebook Page',ok:!!page.connected,required:true,action:'settings',detail:page.connected?`Page ${page.pageName||''} connected.`.replace(/s+./,'.'):'Connect the Facebook Page in Settings → Facebook.'}
         :{id:'tiktok',label:'TikTok connection',ok:!!tt.connected,required:true,action:'settings',detail:tt.connected?`TikTok ${tt.username?'@'+tt.username:tt.displayName||''} connected.`.replace(/s+./,'.'):'Connect TikTok in Settings → TikTok.'},
-      ...(!fb?[{id:'privacy',label:'TikTok visibility',ok:!!tt.privacy&&(!tt.connected||!tt.privacyOptions.length||tt.privacyOptions.includes(tt.privacy)),required:true,action:'settings',detail:tt.privacy?'Visibility chosen.':'Choose who can see TikTok posts in Settings → TikTok.'}]:[]),
+      ...(!fb&&tt.mode!=='inbox'?[{id:'privacy',label:'TikTok visibility',ok:!!tt.privacy&&(!tt.connected||!tt.privacyOptions.length||tt.privacyOptions.includes(tt.privacy)),required:true,action:'settings',detail:tt.privacy?'Visibility chosen.':'Choose who can see TikTok posts in Settings → TikTok.'}]:[]),
+      ...(!fb&&tt.mode==='inbox'?[{id:'inbox',label:'TikTok inbox',ok:true,required:false,action:'settings',detail:'The video goes to your TikTok inbox as a draft; add the caption and press Post in the TikTok app.'}]:[]),
       ...(pulls?[{id:'https',label:'Public HTTPS',ok:ig.publicUrlReady,required:true,action:'settings',detail:ig.publicUrlReady?'The public media address is ready.':`Set up public HTTPS so ${fb?'Facebook':'TikTok'} can retrieve the media.`}]:[]),
       live,
     ];

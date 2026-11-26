@@ -34,6 +34,9 @@ try {
   assert.ok(await page.locator('#fb-token-form').isVisible(), 'Facebook token form');
   await page.locator('#tab-settings-tiktok').click();
   assert.ok(await page.locator('#tt-config-form').isVisible(), 'TikTok app form');
+  assert.equal(await page.locator('#tt-mode').inputValue(), 'inbox', 'the inbox is the default posting mode');
+  assert.equal(await page.locator('#tt-privacy').isVisible(), false, 'visibility only matters for Direct Post');
+  await page.locator('#tt-mode').selectOption('direct'); assert.equal(await page.locator('#tt-privacy').isVisible(), true);
   assert.equal(await page.locator('#tt-privacy').inputValue(), '', 'no TikTok visibility is preselected');
   await page.locator('#tt-client-key').fill('awclientkey123'); await page.locator('#tt-client-secret').fill('secret-fixture');
   await page.locator('#tt-config-form button[type=submit]').click();
@@ -41,7 +44,7 @@ try {
   await page.locator('#tab-settings-tiktok').click();
   assert.ok(await page.locator('[data-action="tt-connect"]').isVisible(), 'Connect TikTok appears once the app is saved');
   assert.match(await page.locator('#panel-settings-tiktok').textContent(), /https:\/\/studio\.example\.test\/auth\/tiktok\/callback/);
-  await page.locator('#tt-privacy').selectOption('SELF_ONLY'); await page.locator('#tt-post-form button[type=submit]').click();
+  await page.locator('#tt-mode').selectOption('direct'); await page.locator('#tt-privacy').selectOption('SELF_ONLY'); await page.locator('#tt-post-form button[type=submit]').click();
   await page.locator('#vs-toast').filter({ hasText: 'TikTok posting settings saved' }).waitFor();
   await page.screenshot({ path: path.join(results, 'channels-settings-tiktok.png'), fullPage: true });
 

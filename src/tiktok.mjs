@@ -9,7 +9,10 @@ import { publicHTTPS } from './instagram.mjs';
 // refresh token (365 days). Before each post the creator info is read again, as TikTok requires, for the allowed visibility
 // options and the maximum video length. Videos are uploaded from Studio in chunks; photo posts are pulled by TikTok from
 // Studio's signed public links, which needs the domain verified in the TikTok developer portal.
-// Until TikTok audits the app, every post must be private (SELF_ONLY): TikTok rejects anything else.
+// Two ways to post. "inbox" uploads the video or photos to the creator's TikTok inbox as a draft that a person finishes in the
+// TikTok app (scope video.upload, no audit and no privacy rules). "direct" posts straight to the profile (scope video.publish);
+// until TikTok audits the app, Direct Post is only allowed for a private account with visibility SELF_ONLY, and TikTok rejects
+// anything else.
 const SCOPES = ['user.info.basic', 'video.publish', 'video.upload'];
 const API = 'https://open.tiktokapis.com';
 export const TIKTOK_PRIVACY = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
@@ -40,7 +43,7 @@ export function createTikTok(store, getPublicBase, options = {}) {
   const connection = () => store.secret('tiktok.connection');
   function config() {
     const saved = store.secret('tiktok.config', {});
-    return { clientKey: process.env.TIKTOK_CLIENT_KEY || saved.clientKey || '', clientSecret: process.env.TIKTOK_CLIENT_SECRET || saved.clientSecret || '', privacy: TIKTOK_PRIVACY.includes(saved.privacy) ? saved.privacy : '', brandOrganic: saved.brandOrganic !== false };
+    return { clientKey: process.env.TIKTOK_CLIENT_KEY || saved.clientKey || '', clientSecret: process.env.TIKTOK_CLIENT_SECRET || saved.clientSecret || '', mode: ['inbox', 'direct'].includes(saved.mode) ? saved.mode : saved.privacy ? 'direct' : 'inbox', privacy: TIKTOK_PRIVACY.includes(saved.privacy) ? saved.privacy : '', brandOrganic: saved.brandOrganic !== false };
   }
   const redirectUri = () => `${String(getPublicBase() || '').replace(/\/$/, '')}/auth/tiktok/callback`;
 
@@ -50,7 +53,7 @@ export function createTikTok(store, getPublicBase, options = {}) {
       configured: !!(c.clientKey && c.clientSecret), clientKey: c.clientKey, callbackUrl: getPublicBase() ? redirectUri() : null, publicUrlReady: publicHTTPS(getPublicBase()),
       connected: !!link?.refreshToken && !link.invalid && (link.refreshExpiresAt || Infinity) > Date.now(),
       displayName: link?.displayName || null, username: link?.username || null, privacyOptions: link?.privacyOptions || [], maxDuration: link?.maxDuration || null,
-      privacy: c.privacy, brandOrganic: c.brandOrganic, error: link?.invalid ? 'TikTok permission needs to be reconnected.' : null,
+      mode: c.mode, privacy: c.privacy, brandOrganic: c.brandOrganic, error: link?.invalid ? 'TikTok permission needs to be reconnected.' : null,
     };
   }
 
@@ -72,14 +75,15 @@ export function createTikTok(store, getPublicBase, options = {}) {
     return (await request(API + path, init)).data || {};
   }
 
-  function saveConfig({ clientKey, clientSecret, privacy, brandOrganic }) {
+  function saveConfig({ clientKey, clientSecret, privacy, brandOrganic, mode }) {
     const previous = store.secret('tiktok.config', {});
     const key = clientKey === undefined ? previous.clientKey || '' : String(clientKey || '').trim();
     const secret = String(clientSecret || previous.clientSecret || '').trim();
     if (key && !/^[A-Za-z0-9]{8,64}$/.test(key)) throw fail('Invalid Client Key. Copy it from the TikTok developer portal (App details).', 'TIKTOK_CONFIG', 400);
     if (secret && (secret.length > 200 || /\s/.test(secret))) throw fail('Invalid Client Secret.', 'TIKTOK_CONFIG', 400);
     if (privacy !== undefined && privacy !== '' && !TIKTOK_PRIVACY.includes(privacy)) throw fail('Invalid TikTok visibility.', 'TIKTOK_CONFIG', 400);
-    const next = { clientKey: key, clientSecret: secret, privacy: privacy === undefined ? previous.privacy || '' : privacy, brandOrganic: brandOrganic === undefined ? previous.brandOrganic !== false : !!brandOrganic };
+    if (mode !== undefined && !['inbox', 'direct'].includes(mode)) throw fail('Invalid TikTok posting mode.', 'TIKTOK_CONFIG', 400);
+    const next = { clientKey: key, clientSecret: secret, mode: mode === undefined ? previous.mode || (previous.privacy ? 'direct' : 'inbox') : mode, privacy: privacy === undefined ? previous.privacy || '' : privacy, brandOrganic: brandOrganic === undefined ? previous.brandOrganic !== false : !!brandOrganic };
     // A different app makes the old connection useless.
     if (previous.clientKey && previous.clientKey !== key) store.run("DELETE FROM settings WHERE key='tiktok.connection'");
     store.setSecret('tiktok.config', next);
@@ -164,6 +168,8 @@ export function createTikTok(store, getPublicBase, options = {}) {
     const postId = (data.publicaly_available_post_id || data.publicly_available_post_id || [])[0];
     const link = connection();
     item.status = 'published'; item.publishedAt = item.publishedAt || new Date().toISOString(); item.error = ''; item.errorCode = '';
+    // "Sent to inbox": the draft waits in the TikTok app until a person presses Post there; nothing is public yet.
+    item.inbox = data.status === 'SEND_TO_USER_INBOX' || !!item.job?.inbox;
     item.mediaId = String(postId || item.job.publishId);
     item.permalink = postId && link?.username ? `https://www.tiktok.com/@${link.username}/video/${postId}` : null;
     return item;
@@ -176,7 +182,7 @@ export function createTikTok(store, getPublicBase, options = {}) {
     for (let i = 0; i < attempts; i++) {
       const data = await api('/v2/post/publish/status/fetch/', { publish_id: item.job.publishId }, await accessToken());
       if (data.status === 'PUBLISH_COMPLETE') { item = store.savePost(finished(item, data)); store.event(id, 'Published successfully', item.title + ' · TikTok', 'published'); return item; }
-      if (data.status === 'SEND_TO_USER_INBOX') { item = store.savePost(finished(item, data)); store.event(id, 'Sent to TikTok', 'TikTok put the post in the account inbox to finish in the app.', 'published'); return item; }
+      if (data.status === 'SEND_TO_USER_INBOX') { item = store.savePost(finished(item, data)); store.event(id, 'Sent to TikTok inbox', 'The draft is waiting in the TikTok app: open TikTok, review it and press Post.', 'published'); return item; }
       if (data.status === 'FAILED') { item.status = 'failed'; item.error = `TikTok could not publish the post${data.fail_reason ? ' (' + reasonText(data.fail_reason) + ')' : ''}. Nothing went live; set a new schedule.`; item.errorCode = 'TIKTOK_FAILED'; item.job = { ...item.job, publishRequested: null, failedPublishId: item.job.publishId, publishId: null }; item = store.savePost(item); store.event(id, 'Publishing held', item.error, 'failed'); return item; }
       if (i < attempts - 1) await wait(options.pollMs ?? 15000);
     }
@@ -189,18 +195,25 @@ export function createTikTok(store, getPublicBase, options = {}) {
     item.status = 'processing'; item.error = ''; item.job = item.job || {}; item = store.savePost(item);
     const save = () => { item = store.savePost(item); };
     try {
-      const token = await accessToken(), creator = await readCreator(token), cfg = config();
-      store.setSecret('tiktok.connection', { ...connection(), username: creator.username || connection().username, privacyOptions: creator.privacyOptions, maxDuration: creator.maxDuration });
-      if (!cfg.privacy) throw fail('Choose who can see TikTok posts in Settings → TikTok first.', 'TIKTOK_PRIVACY');
-      if (!creator.privacyOptions.includes(cfg.privacy)) throw fail(MESSAGES.privacy_level_option_mismatch, 'TIKTOK_PRIVACY');
+      const token = await accessToken(), cfg = config(), inbox = cfg.mode === 'inbox';
+      let creator = { privacyOptions: [], maxDuration: connection()?.maxDuration || null, commentDisabled: false, duetDisabled: false, stitchDisabled: false };
+      if (!inbox) {
+        creator = await readCreator(token);
+        store.setSecret('tiktok.connection', { ...connection(), username: creator.username || connection().username, privacyOptions: creator.privacyOptions, maxDuration: creator.maxDuration });
+        if (!cfg.privacy) throw fail('Choose who can see TikTok posts in Settings → TikTok first.', 'TIKTOK_PRIVACY');
+        if (!creator.privacyOptions.includes(cfg.privacy)) throw fail(MESSAGES.privacy_level_option_mismatch, 'TIKTOK_PRIVACY');
+      }
+      item.job.inbox = inbox; save();
       const disclose = { brand_content_toggle: false, brand_organic_toggle: cfg.brandOrganic };
       if (item.format === 'Reel') {
         const media = store.get('SELECT * FROM media WHERE id=?', item.mediaIds[0]);
         if (creator.maxDuration && Number(media.duration) > creator.maxDuration) throw fail(`This TikTok account accepts videos up to ${creator.maxDuration} seconds.`, 'TIKTOK_DURATION');
         const size = Number(media.size), plan = chunkPlan(size);
-        const info = { title: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, disable_duet: creator.duetDisabled, disable_stitch: creator.stitchDisabled, is_aigc: !!item.syntheticMedia, ...disclose };
-        if (item.coverTime != null) info.video_cover_timestamp_ms = Math.round(item.coverTime * 1000);
-        const init = await api('/v2/post/publish/video/init/', { post_info: info, source_info: { source: 'FILE_UPLOAD', video_size: size, chunk_size: plan.chunkSize, total_chunk_count: plan.count } }, token);
+        const info = inbox ? null : { title: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, disable_duet: creator.duetDisabled, disable_stitch: creator.stitchDisabled, is_aigc: !!item.syntheticMedia, ...disclose };
+        if (info && item.coverTime != null) info.video_cover_timestamp_ms = Math.round(item.coverTime * 1000);
+        // The inbox upload carries no caption or settings: those are chosen in the TikTok app when the draft is posted.
+        const source = { source: 'FILE_UPLOAD', video_size: size, chunk_size: plan.chunkSize, total_chunk_count: plan.count };
+        const init = inbox ? await api('/v2/post/publish/inbox/video/init/', { source_info: source }, token) : await api('/v2/post/publish/video/init/', { post_info: info, source_info: source }, token);
         if (!init.publish_id || !init.upload_url) throw fail('TikTok did not open an upload.', 'TIKTOK_UPLOAD');
         item.job.publishId = init.publish_id; save();
         // TikTok publishes once the last byte arrives; from here an interrupted response must never lead to a second post.
@@ -210,7 +223,10 @@ export function createTikTok(store, getPublicBase, options = {}) {
         if (!publicHTTPS(getPublicBase())) throw fail('The public HTTPS address is not ready.', 'PUBLIC_URL_REQUIRED');
         const images = item.mediaIds.slice(0, 35).map(mediaId => signMedia(mediaId));
         ensureLive(manual); item.job.publishRequested = new Date().toISOString(); save();
-        const init = await api('/v2/post/publish/content/init/', { post_info: { title: String(item.title || '').slice(0, TIKTOK_PHOTO_TITLE_MAX), description: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, auto_add_music: true, ...disclose }, source_info: { source: 'PULL_FROM_URL', photo_cover_index: 0, photo_images: images }, post_mode: 'DIRECT_POST', media_type: 'PHOTO' }, token);
+        const photoSource = { source: 'PULL_FROM_URL', photo_cover_index: 0, photo_images: images };
+        const init = inbox
+          ? await api('/v2/post/publish/content/init/', { source_info: photoSource, post_mode: 'MEDIA_UPLOAD', media_type: 'PHOTO' }, token)
+          : await api('/v2/post/publish/content/init/', { post_info: { title: String(item.title || '').slice(0, TIKTOK_PHOTO_TITLE_MAX), description: item.caption, privacy_level: cfg.privacy, disable_comment: creator.commentDisabled, auto_add_music: true, ...disclose }, source_info: photoSource, post_mode: 'DIRECT_POST', media_type: 'PHOTO' }, token);
         if (!init.publish_id) throw fail('The publishing result cannot be confirmed yet.', 'MISSING_PUBLISH_ID');
         item.job.publishId = init.publish_id; save();
       }
